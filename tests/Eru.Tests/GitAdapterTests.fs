@@ -46,7 +46,7 @@ let private cleanup (dir: string) =
 let ``fetchRemoteContent returns file content at root`` () =
     let dir = makeRepo [ ("hello.txt", "hello world") ]
     try
-        let result = GitAdapter.fetchRemoteContent $"file://{dir}" "main" "hello.txt"
+        let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "main" "hello.txt"
         let content = Assert.IsType<string>(Result.defaultWith (fun e -> failwith e) result)
         Assert.Equal("hello world", content)
     finally
@@ -56,7 +56,7 @@ let ``fetchRemoteContent returns file content at root`` () =
 let ``fetchRemoteContent returns file content in subdirectory`` () =
     let dir = makeRepo [ ("sub/deep/file.md", "deep content") ]
     try
-        let result = GitAdapter.fetchRemoteContent $"file://{dir}" "main" "sub/deep/file.md"
+        let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "main" "sub/deep/file.md"
         match result with
         | Ok content -> Assert.Equal("deep content", content)
         | Error e    -> Assert.Fail($"Expected Ok but got Error: {e}")
@@ -67,7 +67,7 @@ let ``fetchRemoteContent returns file content in subdirectory`` () =
 let ``fetchRemoteContent returns Error for nonexistent file`` () =
     let dir = makeRepo [ ("exists.txt", "content") ]
     try
-        let result = GitAdapter.fetchRemoteContent $"file://{dir}" "main" "no-such-file.txt"
+        let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "main" "no-such-file.txt"
         Assert.True(Result.isError result, "Expected Error for missing file")
     finally
         cleanup dir
@@ -76,7 +76,7 @@ let ``fetchRemoteContent returns Error for nonexistent file`` () =
 let ``fetchRemoteContent returns Error for nonexistent branch`` () =
     let dir = makeRepo [ ("file.txt", "content") ]
     try
-        let result = GitAdapter.fetchRemoteContent $"file://{dir}" "no-such-branch" "file.txt"
+        let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "no-such-branch" "file.txt"
         Assert.True(Result.isError result, "Expected Error for missing branch")
     finally
         cleanup dir
@@ -91,7 +91,7 @@ let ``listRemoteTopLevel returns top-level entry names only`` () =
         ("another.md", "a")
     ]
     try
-        let result = GitAdapter.listRemoteTopLevel $"file://{dir}" (Some "main")
+        let result = GitAdapter.listRemoteTopLevel false $"file://{dir}" (Some "main")
         match result with
         | Error e      -> Assert.Fail($"Expected Ok but got Error: {e}")
         | Ok entries ->
@@ -109,7 +109,7 @@ let ``listRemoteTopLevel returns KNOWLEDGE directory when present`` () =
         ("README.md", "readme")
     ]
     try
-        let result = GitAdapter.listRemoteTopLevel $"file://{dir}" (Some "main")
+        let result = GitAdapter.listRemoteTopLevel false $"file://{dir}" (Some "main")
         match result with
         | Error e    -> Assert.Fail($"Expected Ok but got Error: {e}")
         | Ok entries -> Assert.Contains("KNOWLEDGE", entries)
@@ -120,7 +120,7 @@ let ``listRemoteTopLevel returns KNOWLEDGE directory when present`` () =
 let ``listRemoteTopLevel uses HEAD when branch is None`` () =
     let dir = makeRepo [ ("file.txt", "content") ]
     try
-        let result = GitAdapter.listRemoteTopLevel $"file://{dir}" None
+        let result = GitAdapter.listRemoteTopLevel false $"file://{dir}" None
         match result with
         | Error e    -> Assert.Fail($"Expected Ok but got Error: {e}")
         | Ok entries -> Assert.Contains("file.txt", entries)

@@ -9,8 +9,9 @@ open Eru.Cli.CommandMapper
 let main argv =
     let parser = ArgumentParser.Create<EruArgs>(programName = "eru")
     try
-        let parsed = parser.ParseCommandLine argv
-        let deps   = AdapterDeps.create ()
+        let parsed  = parser.ParseCommandLine argv
+        let isDebug = parsed.Contains EruArgs.Debug
+        let deps    = AdapterDeps.create isDebug
 
         match parsed with
         | InitCmd cmd      -> Init.run   deps cmd
