@@ -24,6 +24,11 @@ let (|SyncCmd|_|) (r: ParseResults<EruArgs>) =
         | EruArgs.Sync args -> Some args
         | _                 -> None)
 
+let (|SourceCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Source args -> Some args
+        | _                   -> None)
+
 [<EntryPoint>]
 let main argv =
     let parser = ArgumentParser.Create<EruArgs>(programName = "eru")
@@ -54,6 +59,21 @@ let main argv =
         | SyncCmd args ->
             let opts : Sync.Options = { DryRun = args.Contains SyncArgs.Dry_Run }
             Sync.run deps opts
+
+        | SourceCmd args ->
+            match args.TryGetSubCommand() with
+            | Some (SourceArgs.Add addArgs) ->
+                let cmd : Source.AddCommand = {
+                    Url      = addArgs.GetResult SourceAddArgs.Url
+                    Name     = addArgs.TryGetResult SourceAddArgs.Name
+                    Branch   = addArgs.TryGetResult SourceAddArgs.Branch
+                    BasePath = addArgs.TryGetResult SourceAddArgs.Basepath
+                    IsGlobal = addArgs.Contains SourceAddArgs.Global
+                }
+                Source.add deps cmd
+            | _ ->
+                printfn "%s" (parser.PrintUsage())
+                0
 
         | _ ->
             printfn "%s" (parser.PrintUsage())

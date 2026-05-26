@@ -25,9 +25,12 @@ module AdapterDeps =
         {
             ReadGlobalConfig   = ConfigAdapter.readGlobalConfig
             ReadLocalConfig    = fun () -> ConfigAdapter.readLocalConfig cwd
+            WriteLocalConfig   = ConfigAdapter.writeLocalConfig cwd
+            WriteGlobalConfig  = ConfigAdapter.writeGlobalConfig
             ReadLockEntries    = LockFileAdapter.read
             WriteLockEntries   = LockFileAdapter.write
             FetchRemoteContent = fun _url _branch _path -> Error "git fetch not yet implemented"
+            ListRemoteTopLevel = fun _url _branch -> Ok []
             WriteLocalFile     = writeFile
             HashContent        = hashContent
             GetCwd             = fun () -> cwd

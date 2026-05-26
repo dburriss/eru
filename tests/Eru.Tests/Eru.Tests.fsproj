@@ -17,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConfigTests.fs" />
+    <Compile Include="SourceTests.fs" />
   </ItemGroup>
 </Project>

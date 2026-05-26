@@ -24,3 +24,19 @@ module ConfigAdapter =
                 |> Serialization.deserialize<LocalConfig>
                 |> Result.map Some
             with ex -> Error ex.Message
+
+    let writeLocalConfig (cwd: string) (cfg: LocalConfig) : Result<unit, string> =
+        let path = Paths.localConfigPath cwd
+        try
+            File.WriteAllText(path, Serialization.serialize cfg)
+            Ok ()
+        with ex -> Error ex.Message
+
+    let writeGlobalConfig (cfg: GlobalConfig) : Result<unit, string> =
+        let path = Paths.globalConfigPath ()
+        try
+            let dir = System.IO.Path.GetDirectoryName path
+            if dir <> null && dir <> "" then System.IO.Directory.CreateDirectory dir |> ignore
+            File.WriteAllText(path, Serialization.serialize cfg)
+            Ok ()
+        with ex -> Error ex.Message
