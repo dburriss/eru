@@ -19,5 +19,7 @@
     <Compile Include="ConfigTests.fs" />
     <Compile Include="SourceTests.fs" />
     <Compile Include="AddTests.fs" />
+    <Compile Include="SyncTests.fs" />
+    <Compile Include="GitAdapterTests.fs" />
   </ItemGroup>
 </Project>
