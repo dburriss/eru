@@ -31,6 +31,20 @@ module Add =
             let t' = if t.EndsWith('/') || t.EndsWith('\\') then t else t + "/"
             t' + stripped
 
+    let private resolveRemotePath (source: SourceConfig) (remotePath: string) : string =
+        let isBare = not (remotePath.Contains('/'))
+        let withPrefix =
+            if isBare then
+                match source.BasePath with
+                | None -> remotePath
+                | Some bp ->
+                    let prefix = if bp.EndsWith('/') then bp else bp + "/"
+                    if remotePath.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase) then remotePath
+                    else prefix + remotePath
+            else remotePath
+        if withPrefix.Contains('.') then withPrefix
+        else withPrefix + ".md"
+
     let private findSource (sources: SourceConfig list) (name: string) : Result<SourceConfig, string> =
         sources
         |> List.tryFind (fun s -> s.Name = name)
@@ -196,8 +210,11 @@ module Add =
                                     | s :: _ -> Ok s.Name
                         srcName
                         |> Result.bind (fun sn ->
-                            pullOne deps eff.Sources cmd.Target cmd.DryRun sn remotePath
-                            |> Result.map List.singleton)
+                            findSource eff.Sources sn
+                            |> Result.bind (fun source ->
+                                let expandedPath = resolveRemotePath source remotePath
+                                pullOne deps eff.Sources cmd.Target cmd.DryRun sn expandedPath
+                                |> Result.map List.singleton))
 
         match pullResult with
         | Error e ->

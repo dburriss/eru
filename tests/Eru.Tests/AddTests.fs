@@ -186,6 +186,56 @@ let ``existing lock entry for same localPath is replaced`` () =
     Assert.Equal(1, state.WrittenLock.Length)
     Assert.NotEqual<string>("sha256:old", state.WrittenLock[0].ContentHash)
 
+// ── Short-name resolution ─────────────────────────────────────────────────────
+
+[<Fact>]
+let ``bare name with BasePath expands to basePath prefix and md extension`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "github-cli" }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    let (path, _) = state.WrittenFiles[0]
+    Assert.Equal("github-cli.md", path)
+    Assert.Equal("knowledge/github-cli.md", state.WrittenLock[0].RemotePath)
+
+[<Fact>]
+let ``bare name with extension and BasePath gets prefix but no double extension`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "github-cli.md" }
+    Add.run deps cmd |> ignore
+    Assert.Equal("knowledge/github-cli.md", state.WrittenLock[0].RemotePath)
+
+[<Fact>]
+let ``bare name with BasePath already prefixed does not double-prefix`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "knowledge/github-cli" }
+    Add.run deps cmd |> ignore
+    Assert.Equal("knowledge/github-cli.md", state.WrittenLock[0].RemotePath)
+
+[<Fact>]
+let ``bare name without BasePath appends md extension only`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None None
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "github-cli" }
+    Add.run deps cmd |> ignore
+    Assert.Equal("github-cli.md", state.WrittenLock[0].RemotePath)
+
+[<Fact>]
+let ``explicit sub-path without extension gets md appended`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "tools/adr" }
+    Add.run deps cmd |> ignore
+    Assert.Equal("tools/adr.md", state.WrittenLock[0].RemotePath)
+
 // ── Tag-based pull ────────────────────────────────────────────────────────────
 
 [<Fact>]
