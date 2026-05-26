@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Eru.Domain</AssemblyName>
+    <RootNamespace>Eru</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Domain.fs" />
+    <Compile Include="Config.fs" />
+    <Compile Include="LockFile.fs" />
+    <Compile Include="Deps.fs" />
+    <Compile Include="Init.fs" />
+    <Compile Include="Add.fs" />
+    <Compile Include="Search.fs" />
+    <Compile Include="Sync.fs" />
+  </ItemGroup>
+</Project>

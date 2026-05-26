@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Eru.Adapters/Eru.Adapters.fsproj" />
+    <Project Path="src/Eru.Cli/Eru.Cli.fsproj" />
+    <Project Path="src/Eru.Domain/Eru.Domain.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Eru.Tests/Eru.Tests.fsproj" />
+  </Folder>
+</Solution>
