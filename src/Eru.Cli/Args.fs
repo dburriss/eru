@@ -73,6 +73,7 @@ type SourceArgs =
 
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =
+    | [<Unique; CliPrefix(CliPrefix.DoubleDash)>] Debug
     | [<SubCommand>] Init   of ParseResults<InitArgs>
     | [<SubCommand>] Add    of ParseResults<AddArgs>
     | [<SubCommand>] Search of ParseResults<SearchArgs>
@@ -81,6 +82,7 @@ type EruArgs =
     interface IArgParserTemplate with
         member a.Usage =
             match a with
+            | Debug    -> "Enable verbose/debug output (show git clone progress etc.)."
             | Init _   -> "Initialise a new eru configuration in the current repo."
             | Add _    -> "Pull a file from a knowledge source into this repo."
             | Search _ -> "Search across configured knowledge sources."

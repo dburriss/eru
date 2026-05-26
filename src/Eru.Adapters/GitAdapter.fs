@@ -19,18 +19,21 @@ module GitAdapter =
     let private branchFlag (branch: string) =
         if branch = "HEAD" then "" else $"--branch {branch} "
 
-    let fetchRemoteContent (url: string) (branch: string) (remotePath: string) : Result<string, string> =
+    let private runGit (verbose: bool) (args: string) (workingDirectory: string option) =
+        if verbose then
+            match workingDirectory with
+            | Some wd -> Command.Run("git", args, workingDirectory = wd, noEcho = true)
+            | None    -> Command.Run("git", args, noEcho = true)
+        else
+            match workingDirectory with
+            | Some wd -> Command.ReadAsync("git", args, wd).Result |> ignore
+            | None    -> Command.ReadAsync("git", args).Result |> ignore
+
+    let fetchRemoteContent (verbose: bool) (url: string) (branch: string) (remotePath: string) : Result<string, string> =
         withTempDir (fun tmpDir ->
             try
-                Command.Run(
-                    "git",
-                    $"clone --filter=blob:none --sparse --depth=1 {branchFlag branch}-- {url} {tmpDir}",
-                    noEcho = true)
-                Command.Run(
-                    "git",
-                    $"sparse-checkout set --no-cone {remotePath}",
-                    workingDirectory = tmpDir,
-                    noEcho = true)
+                runGit verbose $"clone --filter=blob:none --sparse --depth=1 {branchFlag branch}-- {url} {tmpDir}" None
+                runGit verbose $"sparse-checkout set --no-cone {remotePath}" (Some tmpDir)
                 let filePath = Path.Combine(tmpDir, remotePath.Replace('/', Path.DirectorySeparatorChar))
                 if File.Exists filePath then
                     Ok (File.ReadAllText filePath)
@@ -39,14 +42,11 @@ module GitAdapter =
             with ex ->
                 Error ex.Message)
 
-    let listRemoteTopLevel (url: string) (branch: string option) : Result<string list, string> =
+    let listRemoteTopLevel (verbose: bool) (url: string) (branch: string option) : Result<string list, string> =
         let bFlag = branch |> Option.map (fun b -> $"--branch {b} ") |> Option.defaultValue ""
         withTempDir (fun tmpDir ->
             try
-                Command.Run(
-                    "git",
-                    $"clone --filter=blob:none --depth=1 --no-checkout {bFlag}-- {url} {tmpDir}",
-                    noEcho = true)
+                runGit verbose $"clone --filter=blob:none --depth=1 --no-checkout {bFlag}-- {url} {tmpDir}" None
                 let struct (stdout, _) : struct (string * string) =
                     Command.ReadAsync("git", "ls-tree HEAD --name-only", tmpDir).Result
                 let entries =

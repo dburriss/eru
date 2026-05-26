@@ -20,7 +20,7 @@ module AdapterDeps =
             Ok ()
         with ex -> Error ex.Message
 
-    let create () : Deps =
+    let create (debug: bool) : Deps =
         let cwd = Directory.GetCurrentDirectory()
         {
             ReadGlobalConfig   = ConfigAdapter.readGlobalConfig
@@ -29,8 +29,8 @@ module AdapterDeps =
             WriteGlobalConfig  = ConfigAdapter.writeGlobalConfig
             ReadLockEntries    = LockFileAdapter.read
             WriteLockEntries   = LockFileAdapter.write
-            FetchRemoteContent = GitAdapter.fetchRemoteContent
-            ListRemoteTopLevel = GitAdapter.listRemoteTopLevel
+            FetchRemoteContent = GitAdapter.fetchRemoteContent debug
+            ListRemoteTopLevel = GitAdapter.listRemoteTopLevel debug
             WriteLocalFile     = writeFile
             HashContent        = hashContent
             GetCwd             = fun () -> cwd
