@@ -49,10 +49,10 @@ let private makeLocal sources : LocalConfig =
     { Version = 1; Sources = sources; Settings = None }
 
 let private makeCollection name tags files : CollectionConfig =
-    { Name = name; Tags = tags; Files = files }
+    { Name = name; Tags = tags; Files = files; Description = None }
 
 let private makeFileRef source remotePath tags : CollectionFileRef =
-    { Source = source; RemotePath = remotePath; Tags = tags }
+    { Source = source; RemotePath = remotePath; Tags = tags; Description = None }
 
 // ── Validation ───────────────────────────────────────────────────────────────
 

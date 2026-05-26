@@ -11,12 +11,14 @@ type CollectionFileRef = {
     Source: string
     RemotePath: string
     Tags: string list
+    Description: string option
 }
 
 type CollectionConfig = {
     Name: string
     Tags: string list
     Files: CollectionFileRef list
+    Description: string option
 }
 
 type GlobalDefaults = {
