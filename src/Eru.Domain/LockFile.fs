@@ -40,6 +40,9 @@ module LockFile =
 
         List.fold folder (Ok []) lines |> Result.map List.rev
 
+    let findByLocalPath (path: string) (entries: LockEntry list) : LockEntry option =
+        entries |> List.tryFind (fun e -> e.LocalPath = path)
+
     let write (entries: LockEntry list) : string =
         let sorted = entries |> List.sortBy (fun e -> e.LocalPath)
         let lines =
