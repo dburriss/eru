@@ -5,8 +5,13 @@ open Eru
 
 let (|InitCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
-        | EruArgs.Init args -> Some { Init.Command.Force = args.Contains InitArgs.Force }
-        | _                 -> None)
+        | EruArgs.Init args ->
+            Some {
+                Init.Command.Force    = args.Contains InitArgs.Force
+                Init.Command.IsGlobal = args.Contains InitArgs.Global
+                Init.Command.Path     = args.TryGetResult InitArgs.Path
+            }
+        | _ -> None)
 
 let (|AddCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
