@@ -8,10 +8,14 @@
     <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="SimpleExec" Version="13.*" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Paths.fs" />
     <Compile Include="Serialization.fs" />
     <Compile Include="ConfigAdapter.fs" />
     <Compile Include="LockFileAdapter.fs" />
+    <Compile Include="GitAdapter.fs" />
     <Compile Include="AdapterDeps.fs" />
   </ItemGroup>
 </Project>
