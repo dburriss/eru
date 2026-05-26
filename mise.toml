@@ -1,2 +1,6 @@
 [tools]
 dotnet = "latest"
+
+[tasks.source]
+description = "Add a source to the the eru config"
+run = "dotnet run --project src/Eru.Cli/Eru.Cli.fsproj -- source \"$@\""

@@ -17,6 +17,7 @@ let (|AddCmd|_|) (r: ParseResults<EruArgs>) =
                 SourceName     = args.TryGetResult AddArgs.Source
                 CollectionName = args.TryGetResult AddArgs.Collection
                 Target         = args.TryGetResult AddArgs.Target
+                DryRun         = args.Contains    AddArgs.Dryrun
             }
             Some cmd
         | _ -> None)
@@ -33,7 +34,7 @@ let (|SearchCmd|_|) (r: ParseResults<EruArgs>) =
 
 let (|SyncCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
-        | EruArgs.Sync args -> Some { Sync.Options.DryRun = args.Contains SyncArgs.Dry_Run }
+        | EruArgs.Sync args -> Some { Sync.Options.DryRun = args.Contains SyncArgs.Dryrun }
         | _                 -> None)
 
 let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
