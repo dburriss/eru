@@ -15,7 +15,7 @@ let private makeGlobal sources collections =
     { Version = 1; DefaultSources = sources; Collections = collections; Defaults = None }
 
 let private makeSource name url =
-    { Name = name; Url = url; Branch = None; Prefix = None }
+    { Name = name; Url = url; Branch = None; BasePath = None }
 
 // ── merge: basic cases ──────────────────────────────────────────────────────
 

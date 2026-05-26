@@ -36,12 +36,36 @@ type SyncArgs =
             match a with
             | Dry_Run -> "Show what would change without writing anything."
 
+type SourceAddArgs =
+    | [<MainCommand; ExactlyOnce>] Url      of url: string
+    | [<AltCommandLine("-n")>]     Name     of name: string
+    | [<AltCommandLine("-b")>]     Branch   of branch: string
+    | [<AltCommandLine("-p")>]     Basepath of path: string
+    | [<AltCommandLine("-g")>]     Global
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Url _      -> "Git remote URL of the knowledge source."
+            | Name _     -> "Override the derived source name."
+            | Branch _   -> "Branch to track."
+            | Basepath _ -> "Explicitly set the base path, skipping auto-detection."
+            | Global     -> "Write to global config (~/.config/eru/config.json)."
+
+[<CliPrefix(CliPrefix.None)>]
+type SourceArgs =
+    | [<SubCommand>] Add of ParseResults<SourceAddArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Add _ -> "Add a new knowledge source."
+
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =
     | [<SubCommand>] Init   of ParseResults<InitArgs>
     | [<SubCommand>] Add    of ParseResults<AddArgs>
     | [<SubCommand>] Search of ParseResults<SearchArgs>
     | [<SubCommand>] Sync   of ParseResults<SyncArgs>
+    | [<SubCommand>] Source of ParseResults<SourceArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -49,3 +73,4 @@ type EruArgs =
             | Add _    -> "Pull a file from a knowledge source into this repo."
             | Search _ -> "Search across configured knowledge sources."
             | Sync _   -> "Synchronise local files with knowledge sources."
+            | Source _ -> "Manage knowledge sources."

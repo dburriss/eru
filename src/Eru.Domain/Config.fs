@@ -4,7 +4,7 @@ type SourceConfig = {
     Name: string
     Url: string option
     Branch: string option
-    Prefix: string option
+    BasePath: string option
 }
 
 type CollectionFileRef = {
