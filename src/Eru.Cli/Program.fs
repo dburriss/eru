@@ -43,9 +43,11 @@ let main argv =
 
         | AddCmd args ->
             let cmd : Add.Command = {
-                RemotePath = args.TryGetResult AddArgs.Remote_Path
-                Tags       = args.GetResults AddArgs.Tag
-                SourceName = args.TryGetResult AddArgs.Source
+                RemotePath     = args.TryGetResult AddArgs.Remote_Path
+                Tags           = args.GetResults  AddArgs.Tag
+                SourceName     = args.TryGetResult AddArgs.Source
+                CollectionName = args.TryGetResult AddArgs.Collection
+                Target         = args.TryGetResult AddArgs.Target
             }
             Add.run deps cmd
 

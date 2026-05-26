@@ -10,15 +10,19 @@ type InitArgs =
             | Force -> "Overwrite existing eru.json."
 
 type AddArgs =
-    | [<MainCommand; ExactlyOnce>] Remote_Path of remotePath: string
-    | [<AltCommandLine("-t")>]     Tag of tag: string
-    | [<AltCommandLine("-s")>]     Source of sourceName: string
+    | [<MainCommand>]              Remote_Path of remotePath: string
+    | [<AltCommandLine("-t")>]     Tag        of tag: string
+    | [<AltCommandLine("-s")>]     Source     of sourceName: string
+    | [<AltCommandLine("-c")>]     Collection of collectionName: string
+    | [<AltCommandLine("-d")>]     Target     of targetPath: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Remote_Path _ -> "Remote path to pull (e.g. shared/templates/adr.md)."
+            | Remote_Path _ -> "Remote path to pull (e.g. shared/templates/adr.md or source:path)."
             | Tag _         -> "Filter by tag; repeat for multiple tags (AND semantics)."
-            | Source _      -> "Source name to pull from."
+            | Source _      -> "Source name fallback when no source: prefix is used."
+            | Collection _  -> "Pull all files in a named collection (e.g. name or source:name)."
+            | Target _      -> "Local directory to write files into."
 
 type SearchArgs =
     | [<MainCommand>]          Terms of term: string list
