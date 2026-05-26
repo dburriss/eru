@@ -1,0 +1,12 @@
+namespace Eru
+
+type Deps = {
+    ReadGlobalConfig   : unit   -> Result<GlobalConfig option, string>
+    ReadLocalConfig    : unit   -> Result<LocalConfig option, string>
+    ReadLockEntries    : string -> Result<LockEntry list, string>
+    WriteLockEntries   : string -> LockEntry list -> Result<unit, string>
+    FetchRemoteContent : string -> string -> string -> Result<string, string>
+    WriteLocalFile     : string -> string -> Result<unit, string>
+    HashContent        : string -> string
+    GetCwd             : unit   -> string
+}
