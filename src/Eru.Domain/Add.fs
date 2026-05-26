@@ -8,6 +8,7 @@ module Add =
         SourceName     : string option
         CollectionName : string option
         Target         : string option
+        DryRun         : bool
     }
 
     let private parseDiscriminator (value: string) : string option * string =
@@ -39,6 +40,7 @@ module Add =
         (deps: Deps)
         (sources: SourceConfig list)
         (target: string option)
+        (dryRun: bool)
         (sourceName: string)
         (remotePath: string) : Result<LockEntry, string> =
         findSource sources sourceName
@@ -51,19 +53,23 @@ module Add =
                 |> Result.bind (fun content ->
                     let localPath = deriveLocalPath source.BasePath target remotePath
                     let hash = deps.HashContent content
-                    deps.WriteLocalFile localPath content
-                    |> Result.map (fun () ->
-                        { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash })))
+                    if dryRun then
+                        Ok { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash }
+                    else
+                        deps.WriteLocalFile localPath content
+                        |> Result.map (fun () ->
+                            { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash })))
 
     let private pullMany
         (deps: Deps)
         (sources: SourceConfig list)
         (target: string option)
+        (dryRun: bool)
         (pairs: (string * string) list) : Result<LockEntry list, string> =
         pairs
         |> List.fold (fun acc (sourceName, remotePath) ->
             acc |> Result.bind (fun entries ->
-                pullOne deps sources target sourceName remotePath
+                pullOne deps sources target dryRun sourceName remotePath
                 |> Result.map (fun e -> entries @ [e])))
             (Ok [])
 
@@ -110,7 +116,7 @@ module Add =
                             | Some src -> Error $"no files in collection '{colName}' from source '{src}'"
                             | None     -> Error $"collection '{colName}' has no files"
                         else
-                            pullMany deps eff.Sources cmd.Target (files |> List.map (fun f -> f.Source, f.RemotePath))
+                            pullMany deps eff.Sources cmd.Target cmd.DryRun (files |> List.map (fun f -> f.Source, f.RemotePath))
 
             | None when cmd.Tags <> [] ->
                 match globalCfg with
@@ -121,7 +127,7 @@ module Add =
                         let tagList = cmd.Tags |> String.concat ", "
                         Error $"no files found matching tags: {tagList}"
                     else
-                        pullMany deps eff.Sources cmd.Target pairs
+                        pullMany deps eff.Sources cmd.Target cmd.DryRun pairs
 
             | _ ->
                 let rawPath = cmd.RemotePath.Value
@@ -138,7 +144,7 @@ module Add =
                             | s :: _ -> Ok s.Name
                 srcName
                 |> Result.bind (fun sn ->
-                    pullOne deps eff.Sources cmd.Target sn remotePath
+                    pullOne deps eff.Sources cmd.Target cmd.DryRun sn remotePath
                     |> Result.map List.singleton)
 
         match pullResult with
@@ -146,6 +152,13 @@ module Add =
             eprintfn "Error: %s" e
             1
         | Ok entries ->
+
+        if cmd.DryRun then
+            match entries with
+            | [e] -> printfn "Would pull %s → %s" e.RemotePath e.LocalPath
+            | _   -> printfn "Would pull %d file(s)" entries.Length
+            0
+        else
 
         match deps.ReadLockEntries eff.StateFile with
         | Error e ->

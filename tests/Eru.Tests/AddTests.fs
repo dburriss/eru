@@ -14,6 +14,7 @@ let private emptyCmd : Add.Command = {
     SourceName     = None
     CollectionName = None
     Target         = None
+    DryRun         = false
 }
 
 type CapturedState = {
