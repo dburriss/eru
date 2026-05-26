@@ -23,6 +23,7 @@ let (|AddCmd|_|) (r: ParseResults<EruArgs>) =
                 CollectionName = args.TryGetResult AddArgs.Collection
                 Target         = args.TryGetResult AddArgs.Target
                 DryRun         = args.Contains    AddArgs.Dryrun
+                IsGlobal       = args.Contains    AddArgs.Global
             }
             Some cmd
         | _ -> None)

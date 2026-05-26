@@ -9,6 +9,7 @@ module Add =
         CollectionName : string option
         Target         : string option
         DryRun         : bool
+        IsGlobal       : bool
     }
 
     let private parseDiscriminator (value: string) : string option * string =
@@ -78,6 +79,47 @@ module Add =
         let kept = existing |> List.filter (fun e -> not (Set.contains e.LocalPath newPaths))
         kept @ newEntries
 
+    let private detectBasePath (topLevel: string list) : string option =
+        topLevel |> List.tryFind (fun e -> e = "KNOWLEDGE" || e = "knowledge")
+
+    let private ensureSource
+        (deps: Deps)
+        (isGlobal: bool)
+        (effSources: SourceConfig list)
+        (globalCfg: GlobalConfig option)
+        (localCfg: LocalConfig option)
+        (parsed: UrlParser.ParsedProviderUrl)
+        : Result<SourceConfig list, string> =
+        match effSources |> List.tryFind (fun s -> s.Name = parsed.SourceName) with
+        | Some existing ->
+            match existing.Url with
+            | Some url when url = parsed.RepoUrl -> Ok effSources
+            | Some url -> Error $"source '{parsed.SourceName}' already exists pointing to '{url}', not '{parsed.RepoUrl}'"
+            | None -> Error $"source '{parsed.SourceName}' already exists without a URL"
+        | None ->
+            let basePath =
+                match deps.ListRemoteTopLevel parsed.RepoUrl (Some parsed.Branch) with
+                | Ok entries -> detectBasePath entries
+                | Error _    -> None
+            let newSource : SourceConfig = {
+                Name     = parsed.SourceName
+                Url      = Some parsed.RepoUrl
+                Branch   = Some parsed.Branch
+                BasePath = basePath
+            }
+            if isGlobal then
+                let g = globalCfg |> Option.defaultValue { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
+                let updated = { g with DefaultSources = g.DefaultSources @ [newSource] }
+                deps.WriteGlobalConfig updated
+                |> Result.map (fun () -> effSources @ [newSource])
+            else
+                match localCfg with
+                | None -> Error "no eru.json found. Run 'eru init' first."
+                | Some local ->
+                    let updated = { local with Sources = local.Sources @ [newSource] }
+                    deps.WriteLocalConfig updated
+                    |> Result.map (fun () -> effSources @ [newSource])
+
     let run (deps: Deps) (cmd: Command) : int =
         match cmd.RemotePath, cmd.Tags, cmd.CollectionName with
         | None, [], None ->
@@ -131,21 +173,31 @@ module Add =
 
             | _ ->
                 let rawPath = cmd.RemotePath.Value
-                let embeddedSrc, remotePath = parseDiscriminator rawPath
-                let srcName =
-                    match embeddedSrc with
-                    | Some s -> Ok s
-                    | None   ->
-                        match cmd.SourceName with
-                        | Some s -> Ok s
-                        | None   ->
-                            match eff.Sources with
-                            | []    -> Error "no sources configured. Run 'eru source add' first"
-                            | s :: _ -> Ok s.Name
-                srcName
-                |> Result.bind (fun sn ->
-                    pullOne deps eff.Sources cmd.Target cmd.DryRun sn remotePath
-                    |> Result.map List.singleton)
+                match UrlParser.tryParse rawPath with
+                | Some parsed ->
+                    ensureSource deps cmd.IsGlobal eff.Sources globalCfg localCfg parsed
+                    |> Result.bind (fun updatedSources ->
+                        pullOne deps updatedSources cmd.Target cmd.DryRun parsed.SourceName parsed.RemotePath
+                        |> Result.map List.singleton)
+                | None ->
+                    if rawPath.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase) then
+                        Error "unsupported URL provider; supported providers: GitHub (https://github.com/...), GitLab (https://gitlab.com/...)"
+                    else
+                        let embeddedSrc, remotePath = parseDiscriminator rawPath
+                        let srcName =
+                            match embeddedSrc with
+                            | Some s -> Ok s
+                            | None   ->
+                                match cmd.SourceName with
+                                | Some s -> Ok s
+                                | None   ->
+                                    match eff.Sources with
+                                    | []    -> Error "no sources configured. Run 'eru source add' first"
+                                    | s :: _ -> Ok s.Name
+                        srcName
+                        |> Result.bind (fun sn ->
+                            pullOne deps eff.Sources cmd.Target cmd.DryRun sn remotePath
+                            |> Result.map List.singleton)
 
         match pullResult with
         | Error e ->
