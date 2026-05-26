@@ -1,3 +1,7 @@
+---
+status: done
+---
+
 # Plan: eru Config and State File Design
 
 ## Context
@@ -23,7 +27,7 @@ type SourceConfig = {
     Name: string           // unique key; local entries may omit Url and inherit by this name
     Url: string option     // required in global config (validated); optional in local (inherits global)
     Branch: string option  // default branch; None = remote HEAD or falls back to GlobalDefaults
-    Prefix: string option  // scope searches to a sub-path within the repo
+    BasePath: string option  // scope searches to a sub-path within the repo
 }
 
 // A single file entry within a collection. Source + path point at a file in a configured source.
@@ -92,13 +96,13 @@ Fields dropped vs earlier design: `Ref`, `CommitSha`, `PulledAt`, `CollectionNam
       "name": "company-templates",
       "url": "https://github.com/acme/knowledge-base.git",
       "branch": "main",
-      "prefix": "shared"
+      "basePath": "shared"
     },
     {
       "name": "platform-docs",
       "url": "https://github.com/acme/platform.git",
       "branch": "main",
-      "prefix": null
+      "basePath": null
     }
   ],
   "collections": [

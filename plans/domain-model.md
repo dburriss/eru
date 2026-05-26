@@ -1,3 +1,7 @@
+---
+status: done
+---
+
 # Plan: eru Domain Model
 
 Domain concepts for `eru`. Focus is on the ideas, not the underlying implementation.

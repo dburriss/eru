@@ -1,3 +1,7 @@
+---
+status: done
+---
+
 # Plan: eru Architecture
 
 For domain vocabulary and concept definitions see [domain-model.md](domain-model.md).
