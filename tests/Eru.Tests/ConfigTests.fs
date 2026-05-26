@@ -109,8 +109,8 @@ let ``merge errors when global source has no URL`` () =
 
 [<Fact>]
 let ``merge errors when collection references unknown source`` () =
-    let file = { Source = "unknown"; RemotePath = "foo.md"; Tags = [] }
-    let col  = { Name = "my-col"; Tags = []; Files = [ file ] }
+    let file = { Source = "unknown"; RemotePath = "foo.md"; Tags = []; Description = None }
+    let col  = { Name = "my-col"; Tags = []; Files = [ file ]; Description = None }
     let g    = makeGlobal [ makeSource "known" (Some "https://known.com") ] [ col ]
     Config.merge (Some g) None
     |> assertError "unknown source 'unknown'"
@@ -118,10 +118,10 @@ let ``merge errors when collection references unknown source`` () =
 // ── resolveByTags ────────────────────────────────────────────────────────────
 
 let private makeCollection name tags files =
-    { Name = name; Tags = tags; Files = files }
+    { Name = name; Tags = tags; Files = files; Description = None }
 
 let private makeFileRef source path tags =
-    { Source = source; RemotePath = path; Tags = tags }
+    { Source = source; RemotePath = path; Tags = tags; Description = None }
 
 [<Fact>]
 let ``resolveByTags returns files from matching collection`` () =
