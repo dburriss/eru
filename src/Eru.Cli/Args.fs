@@ -20,6 +20,7 @@ type AddArgs =
     | [<AltCommandLine("-c")>]     Collection of collectionName: string
     | [<AltCommandLine("-d")>]     Target     of targetPath: string
     | [<Unique>]                   Dryrun
+    | [<Unique>]                   Global
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -29,6 +30,7 @@ type AddArgs =
             | Collection _  -> "Pull all files in a named collection (e.g. name or source:name)."
             | Target _      -> "Local directory to write files into."
             | Dryrun        -> "Show what would be pulled without writing anything."
+            | Global        -> "Write auto-created source to global config (~/.config/eru/config.json)."
 
 type SearchArgs =
     | [<MainCommand>]          Terms of term: string list

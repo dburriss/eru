@@ -18,6 +18,7 @@
   <ItemGroup>
     <Compile Include="ConfigTests.fs" />
     <Compile Include="SourceTests.fs" />
+    <Compile Include="UrlParserTests.fs" />
     <Compile Include="AddTests.fs" />
     <Compile Include="SyncTests.fs" />
     <Compile Include="SearchTests.fs" />

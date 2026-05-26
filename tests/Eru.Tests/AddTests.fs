@@ -15,11 +15,14 @@ let private emptyCmd : Add.Command = {
     CollectionName = None
     Target         = None
     DryRun         = false
+    IsGlobal       = false
 }
 
 type CapturedState = {
-    mutable WrittenFiles : (string * string) list
-    mutable WrittenLock  : LockEntry list
+    mutable WrittenFiles        : (string * string) list
+    mutable WrittenLock         : LockEntry list
+    mutable WrittenLocalConfig  : LocalConfig option
+    mutable WrittenGlobalConfig : GlobalConfig option
 }
 
 let private makeDeps
@@ -29,8 +32,8 @@ let private makeDeps
     {
         ReadGlobalConfig   = fun () -> Ok globalCfg
         ReadLocalConfig    = fun () -> Ok localCfg
-        WriteLocalConfig   = fun _ -> Ok ()
-        WriteGlobalConfig  = fun _ -> Ok ()
+        WriteLocalConfig   = fun cfg -> state.WrittenLocalConfig <- Some cfg; Ok ()
+        WriteGlobalConfig  = fun cfg -> state.WrittenGlobalConfig <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok state.WrittenLock
         WriteLockEntries   = fun _ entries -> state.WrittenLock <- entries; Ok ()
         FetchRemoteContent = fun _ _ path -> Ok $"content:{path}"
@@ -40,7 +43,7 @@ let private makeDeps
         GetCwd             = fun () -> "/tmp"
     }
 
-let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = [] }
+let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }
 
 let private makeGlobal sources collections : GlobalConfig =
     { Version = 1; DefaultSources = sources; Collections = collections; Defaults = None }
@@ -286,3 +289,66 @@ let ``collection pull with source filter leaving no files errors`` () =
     let cmd = { emptyCmd with CollectionName = Some "other:starter" }
     let exitCode = Add.run deps cmd
     Assert.Equal(1, exitCode)
+
+// ── URL shorthand pull ────────────────────────────────────────────────────────
+
+let private githubUrl = "https://github.com/dburriss/orcai/blob/main/knowledge/github-cli.md"
+let private gitlabUrl = "https://gitlab.com/dburriss/orcai/-/blob/main/knowledge/github-cli.md"
+
+[<Fact>]
+let ``GitHub URL auto-registers source to local config and pulls file`` () =
+    let state = newState ()
+    let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
+    let cmd = { emptyCmd with RemotePath = Some githubUrl }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    Assert.Equal(1, state.WrittenFiles.Length)
+    Assert.True(state.WrittenLocalConfig.IsSome)
+    Assert.Equal(1, state.WrittenLocalConfig.Value.Sources.Length)
+    Assert.Equal("orcai", state.WrittenLocalConfig.Value.Sources[0].Name)
+
+[<Fact>]
+let ``GitHub URL reuses existing source without writing config`` () =
+    let state = newState ()
+    let src = makeSource "orcai" (Some "https://github.com/dburriss/orcai") (Some "main") None
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some githubUrl }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    Assert.Equal(1, state.WrittenFiles.Length)
+    Assert.True(state.WrittenLocalConfig.IsNone)
+
+[<Fact>]
+let ``GitHub URL errors when source name exists with different URL`` () =
+    let state = newState ()
+    let src = makeSource "orcai" (Some "https://github.com/other/orcai") None None
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some githubUrl }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(1, exitCode)
+    Assert.Empty(state.WrittenFiles)
+
+[<Fact>]
+let ``GitHub URL with --global writes source to global config`` () =
+    let state = newState ()
+    let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
+    let cmd = { emptyCmd with RemotePath = Some githubUrl; IsGlobal = true }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    Assert.True(state.WrittenGlobalConfig.IsSome)
+    Assert.Equal(1, state.WrittenGlobalConfig.Value.DefaultSources.Length)
+    Assert.Equal("orcai", state.WrittenGlobalConfig.Value.DefaultSources[0].Name)
+    Assert.True(state.WrittenLocalConfig.IsNone)
+
+[<Fact>]
+let ``GitLab URL auto-registers source to local config and pulls file`` () =
+    let state = newState ()
+    let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
+    let cmd = { emptyCmd with RemotePath = Some gitlabUrl }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    Assert.Equal(1, state.WrittenFiles.Length)
+    Assert.True(state.WrittenLocalConfig.IsSome)
+    let src = state.WrittenLocalConfig.Value.Sources[0]
+    Assert.Equal("orcai", src.Name)
+    Assert.Equal(Some "https://gitlab.com/dburriss/orcai", src.Url)
