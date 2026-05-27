@@ -32,6 +32,7 @@ module Add =
             t' + stripped
 
     let private resolveRemotePath (source: SourceConfig) (remotePath: string) : string =
+        let isGlob = remotePath.Contains('*') || remotePath.Contains('?')
         let isBare = not (remotePath.Contains('/'))
         let withPrefix =
             if isBare then
@@ -42,7 +43,7 @@ module Add =
                     if remotePath.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase) then remotePath
                     else prefix + remotePath
             else remotePath
-        if withPrefix.Contains('.') then withPrefix
+        if isGlob || withPrefix.Contains('.') then withPrefix
         else withPrefix + ".md"
 
     let private findSource (sources: SourceConfig list) (name: string) : Result<SourceConfig, string> =
@@ -57,7 +58,7 @@ module Add =
         (target: string option)
         (dryRun: bool)
         (sourceName: string)
-        (remotePath: string) : Result<LockEntry, string> =
+        (remotePath: string) : Result<LockEntry list, string> =
         findSource sources sourceName
         |> Result.bind (fun source ->
             match source.Url with
@@ -65,15 +66,19 @@ module Add =
             | Some url ->
                 let branch = source.Branch |> Option.defaultValue "HEAD"
                 deps.FetchRemoteContent url branch remotePath
-                |> Result.bind (fun content ->
-                    let localPath = deriveLocalPath source.BasePath target remotePath
-                    let hash = deps.HashContent content
-                    if dryRun then
-                        Ok { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash }
-                    else
-                        deps.WriteLocalFile localPath content
-                        |> Result.map (fun () ->
-                            { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash })))
+                |> Result.bind (fun files ->
+                    files
+                    |> List.fold (fun acc (resolvedPath, content) ->
+                        acc |> Result.bind (fun entries ->
+                            let localPath = deriveLocalPath source.BasePath target resolvedPath
+                            let hash = deps.HashContent content
+                            if dryRun then
+                                Ok (entries @ [{ LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])
+                            else
+                                deps.WriteLocalFile localPath content
+                                |> Result.map (fun () ->
+                                    entries @ [{ LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])))
+                        (Ok [])))
 
     let private pullMany
         (deps: Deps)
@@ -85,7 +90,7 @@ module Add =
         |> List.fold (fun acc (sourceName, remotePath) ->
             acc |> Result.bind (fun entries ->
                 pullOne deps sources target dryRun sourceName remotePath
-                |> Result.map (fun e -> entries @ [e])))
+                |> Result.map (fun newEntries -> entries @ newEntries)))
             (Ok [])
 
     let private updateLockEntries (existing: LockEntry list) (newEntries: LockEntry list) : LockEntry list =
@@ -191,8 +196,7 @@ module Add =
                 | Some parsed ->
                     ensureSource deps cmd.IsGlobal eff.Sources globalCfg localCfg parsed
                     |> Result.bind (fun updatedSources ->
-                        pullOne deps updatedSources cmd.Target cmd.DryRun parsed.SourceName parsed.RemotePath
-                        |> Result.map List.singleton)
+                        pullOne deps updatedSources cmd.Target cmd.DryRun parsed.SourceName parsed.RemotePath)
                 | None ->
                     if rawPath.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase) then
                         Error "unsupported URL provider; supported providers: GitHub (https://github.com/...), GitLab (https://gitlab.com/...)"
@@ -213,8 +217,7 @@ module Add =
                             findSource eff.Sources sn
                             |> Result.bind (fun source ->
                                 let expandedPath = resolveRemotePath source remotePath
-                                pullOne deps eff.Sources cmd.Target cmd.DryRun sn expandedPath
-                                |> Result.map List.singleton))
+                                pullOne deps eff.Sources cmd.Target cmd.DryRun sn expandedPath))
 
         match pullResult with
         | Error e ->

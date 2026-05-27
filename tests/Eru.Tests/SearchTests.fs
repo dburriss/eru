@@ -40,7 +40,7 @@ let private makeDeps
         WriteGlobalConfig  = fun _ -> Ok ()
         ReadLockEntries    = fun _ -> Ok lockEntries
         WriteLockEntries   = fun _ _ -> Ok ()
-        FetchRemoteContent = fun _ _ path -> Ok $"content:{path}"
+        FetchRemoteContent = fun _ _ path -> Ok [(path, $"content:{path}")]
         ListRemoteTopLevel = fun _ _ -> Ok []
         WriteLocalFile     = fun _ _ -> Ok ()
         HashContent        = fun s -> $"sha256:{s}"

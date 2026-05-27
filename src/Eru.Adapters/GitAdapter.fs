@@ -29,16 +29,24 @@ module GitAdapter =
             | Some wd -> Command.ReadAsync("git", args, wd).Result |> ignore
             | None    -> Command.ReadAsync("git", args).Result |> ignore
 
-    let fetchRemoteContent (verbose: bool) (url: string) (branch: string) (remotePath: string) : Result<string, string> =
+    let fetchRemoteContent (verbose: bool) (url: string) (branch: string) (remotePath: string) : Result<(string * string) list, string> =
         withTempDir (fun tmpDir ->
             try
                 runGit verbose $"clone --filter=blob:none --sparse --depth=1 {branchFlag branch}-- {url} {tmpDir}" None
                 runGit verbose $"sparse-checkout set --no-cone {remotePath}" (Some tmpDir)
-                let filePath = Path.Combine(tmpDir, remotePath.Replace('/', Path.DirectorySeparatorChar))
-                if File.Exists filePath then
-                    Ok (File.ReadAllText filePath)
-                else
+                let files =
+                    Directory.EnumerateFiles(tmpDir, "*", SearchOption.AllDirectories)
+                    |> Seq.filter (fun f ->
+                        let rel = Path.GetRelativePath(tmpDir, f)
+                        not (rel.StartsWith(".git")))
+                    |> Seq.map (fun f ->
+                        let rel = Path.GetRelativePath(tmpDir, f).Replace(Path.DirectorySeparatorChar, '/')
+                        rel, File.ReadAllText f)
+                    |> Seq.toList
+                if files.IsEmpty then
                     Error $"'{remotePath}' not found in '{url}' on branch '{branch}'"
+                else
+                    Ok files
             with ex ->
                 Error ex.Message)
 

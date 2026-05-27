@@ -47,8 +47,11 @@ let ``fetchRemoteContent returns file content at root`` () =
     let dir = makeRepo [ ("hello.txt", "hello world") ]
     try
         let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "main" "hello.txt"
-        let content = Assert.IsType<string>(Result.defaultWith (fun e -> failwith e) result)
-        Assert.Equal("hello world", content)
+        match result with
+        | Error e -> Assert.Fail($"Expected Ok but got Error: {e}")
+        | Ok files ->
+            let (_, content) = Assert.Single(files)
+            Assert.Equal("hello world", content)
     finally
         cleanup dir
 
@@ -58,8 +61,10 @@ let ``fetchRemoteContent returns file content in subdirectory`` () =
     try
         let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "main" "sub/deep/file.md"
         match result with
-        | Ok content -> Assert.Equal("deep content", content)
-        | Error e    -> Assert.Fail($"Expected Ok but got Error: {e}")
+        | Error e -> Assert.Fail($"Expected Ok but got Error: {e}")
+        | Ok files ->
+            let (_, content) = Assert.Single(files)
+            Assert.Equal("deep content", content)
     finally
         cleanup dir
 
@@ -78,6 +83,28 @@ let ``fetchRemoteContent returns Error for nonexistent branch`` () =
     try
         let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "no-such-branch" "file.txt"
         Assert.True(Result.isError result, "Expected Error for missing branch")
+    finally
+        cleanup dir
+
+[<Fact>]
+let ``fetchRemoteContent returns all files matching a glob pattern`` () =
+    let dir = makeRepo [
+        ("docs/a.md", "content-a")
+        ("docs/b.md", "content-b")
+        ("docs/other.txt", "content-txt")
+        ("root.md", "root-content")
+    ]
+    try
+        let result = GitAdapter.fetchRemoteContent false $"file://{dir}" "main" "docs/*.md"
+        match result with
+        | Error e -> Assert.Fail($"Expected Ok but got Error: {e}")
+        | Ok files ->
+            Assert.Equal(2, files.Length)
+            let paths = files |> List.map fst |> Set.ofList
+            Assert.Contains("docs/a.md", paths)
+            Assert.Contains("docs/b.md", paths)
+            let contentA = files |> List.find (fun (p, _) -> p = "docs/a.md") |> snd
+            Assert.Equal("content-a", contentA)
     finally
         cleanup dir
 
