@@ -27,7 +27,7 @@ let private makeDeps
     (globalCfg: GlobalConfig option)
     (localCfg: LocalConfig option)
     (initialLock: LockEntry list)
-    (fetch: string -> string -> string -> Result<string, string>)
+    (fetch: string -> string -> string -> Result<(string * string) list, string>)
     (writeLock: string -> LockEntry list -> Result<unit, string>)
     (state: CapturedState) : Deps =
     {
@@ -49,8 +49,8 @@ let private makeDeps
         GetCwd             = fun () -> "/tmp"
     }
 
-let private defaultFetch (_url: string) (_branch: string) (path: string) : Result<string, string> =
-    Ok $"content:{path}"
+let private defaultFetch (_url: string) (_branch: string) (path: string) : Result<(string * string) list, string> =
+    Ok [(path, $"content:{path}")]
 
 let private newState () : CapturedState =
     { WrittenFiles = []; WrittenLock = []; LockWritten = false }

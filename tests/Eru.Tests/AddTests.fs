@@ -36,7 +36,7 @@ let private makeDeps
         WriteGlobalConfig  = fun cfg -> state.WrittenGlobalConfig <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok state.WrittenLock
         WriteLockEntries   = fun _ entries -> state.WrittenLock <- entries; Ok ()
-        FetchRemoteContent = fun _ _ path -> Ok $"content:{path}"
+        FetchRemoteContent = fun _ _ path -> Ok [(path, $"content:{path}")]
         ListRemoteTopLevel = fun _ _ -> Ok []
         WriteLocalFile     = fun path content -> state.WrittenFiles <- state.WrittenFiles @ [(path, content)]; Ok ()
         HashContent        = fun s -> $"sha256:{s}"
@@ -402,3 +402,37 @@ let ``GitLab URL auto-registers source to local config and pulls file`` () =
     let src = state.WrittenLocalConfig.Value.Sources[0]
     Assert.Equal("orcai", src.Name)
     Assert.Equal(Some "https://gitlab.com/dburriss/orcai", src.Url)
+
+// ── Glob pattern support ──────────────────────────────────────────────────────
+
+[<Fact>]
+let ``glob pattern does not get md extension appended`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None None
+    let fetchCalled = ref ""
+    let deps =
+        { makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state with
+            FetchRemoteContent = fun _ _ path ->
+                fetchCalled.Value <- path
+                Ok [(path + "/a.md", "content-a")] }
+    let cmd = { emptyCmd with RemotePath = Some "dotnet/*.md" }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    Assert.Equal("dotnet/*.md", fetchCalled.Value)
+
+[<Fact>]
+let ``glob pattern producing multiple files writes all files and lock entries`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None None
+    let deps =
+        { makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state with
+            FetchRemoteContent = fun _ _ _ ->
+                Ok [("docs/a.md", "content-a"); ("docs/b.md", "content-b")] }
+    let cmd = { emptyCmd with RemotePath = Some "docs/*.md" }
+    let exitCode = Add.run deps cmd
+    Assert.Equal(0, exitCode)
+    Assert.Equal(2, state.WrittenFiles.Length)
+    Assert.Equal(2, state.WrittenLock.Length)
+    let paths = state.WrittenLock |> List.map (fun e -> e.RemotePath) |> Set.ofList
+    Assert.Contains("docs/a.md", paths)
+    Assert.Contains("docs/b.md", paths)

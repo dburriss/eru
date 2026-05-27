@@ -7,7 +7,7 @@ type Deps = {
     WriteGlobalConfig  : GlobalConfig -> Result<unit, string>
     ReadLockEntries    : string -> Result<LockEntry list, string>
     WriteLockEntries   : string -> LockEntry list -> Result<unit, string>
-    FetchRemoteContent : string -> string -> string -> Result<string, string>
+    FetchRemoteContent : string -> string -> string -> Result<(string * string) list, string>
     ListRemoteTopLevel : string -> string option -> Result<string list, string>
     WriteLocalFile     : string -> string -> Result<unit, string>
     HashContent        : string -> string

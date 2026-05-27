@@ -20,7 +20,8 @@ module Sync =
                 let branch = source.Branch |> Option.defaultValue "HEAD"
                 match deps.FetchRemoteContent url branch entry.RemotePath with
                 | Error _ -> Missing entry
-                | Ok content ->
+                | Ok [] -> Missing entry
+                | Ok ((_, content) :: _) ->
                     let hash = deps.HashContent content
                     if hash = entry.ContentHash then Current entry
                     else Drifted (entry, content)
