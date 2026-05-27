@@ -16,11 +16,13 @@ let private makeDeps
         WriteGlobalConfig  = fun cfg -> capturedGlobal.Value <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok []
         WriteLockEntries   = fun _ _ -> Ok ()
-        FetchRemoteContent = fun _ _ _ -> Error "not implemented"
-        ListRemoteTopLevel = fun _ _ -> Ok []
-        WriteLocalFile     = fun path content -> capturedFile.Value <- Some (path, content); Ok ()
-        HashContent        = fun s -> $"sha256:{s}"
-        GetCwd             = fun () -> "/tmp/cwd"
+        FetchRemoteContent  = fun _ _ _ -> Error "not implemented"
+        ListRemoteTopLevel  = fun _ _ -> Ok []
+        WriteLocalFile      = fun path content -> capturedFile.Value <- Some (path, content); Ok ()
+        HashContent         = fun s -> $"sha256:{s}"
+        GetCwd              = fun () -> "/tmp/cwd"
+        ReadCachedManifest  = fun _ -> Ok None
+        CacheSourceManifest = fun _ _ -> Ok ()
     }
 
 let private cmd force isGlobal path =
@@ -29,24 +31,24 @@ let private cmd force isGlobal path =
 // ── Local init ───────────────────────────────────────────────────────────────
 
 [<Fact>]
-let ``init writes eru.json in cwd by default`` () =
+let ``init writes .eru/config.json in cwd by default`` () =
     let capturedFile = ref None
     let deps = makeDeps None capturedFile (ref None)
     let exitCode = Init.run deps (cmd false false None)
     Assert.Equal(0, exitCode)
     match capturedFile.Value with
     | None           -> Assert.Fail "nothing written"
-    | Some (path, _) -> Assert.Equal("/tmp/cwd/eru.json", path)
+    | Some (path, _) -> Assert.Equal("/tmp/cwd/.eru/config.json", path)
 
 [<Fact>]
-let ``init writes eru.json in provided path`` () =
+let ``init writes .eru/config.json in provided path`` () =
     let capturedFile = ref None
     let deps = makeDeps None capturedFile (ref None)
     let exitCode = Init.run deps (cmd false false (Some "/custom/dir"))
     Assert.Equal(0, exitCode)
     match capturedFile.Value with
     | None           -> Assert.Fail "nothing written"
-    | Some (path, _) -> Assert.Equal("/custom/dir/eru.json", path)
+    | Some (path, _) -> Assert.Equal("/custom/dir/.eru/config.json", path)
 
 // ── Global init ──────────────────────────────────────────────────────────────
 

@@ -57,6 +57,10 @@ module Source =
                     let updated = { g with DefaultSources = g.DefaultSources @ [newSource] }
                     match deps.WriteGlobalConfig updated with
                     | Ok () ->
+                        let branch = cmd.Branch |> Option.defaultValue "HEAD"
+                        match deps.FetchRemoteContent cmd.Url branch ".eru/manifest.json" with
+                        | Ok ((_, raw) :: _) -> deps.CacheSourceManifest name raw |> ignore
+                        | _ -> ()
                         printfn $"Added source '{name}' to global config."
                         0
                     | Error e ->
@@ -66,7 +70,7 @@ module Source =
             match deps.ReadLocalConfig () with
             | Error e -> eprintfn $"Error: {e}"; 1
             | Ok None ->
-                eprintfn "Error: no eru.json found. Run 'eru init' first."
+                eprintfn "Error: no .eru/config.json found. Run 'eru init' first."
                 1
             | Ok (Some local) ->
                 if local.Sources |> List.exists (fun s -> s.Name = name) then
@@ -76,7 +80,11 @@ module Source =
                     let updated = { local with Sources = local.Sources @ [newSource] }
                     match deps.WriteLocalConfig updated with
                     | Ok () ->
-                        printfn $"Added source '{name}' to eru.json."
+                        let branch = cmd.Branch |> Option.defaultValue "HEAD"
+                        match deps.FetchRemoteContent cmd.Url branch ".eru/manifest.json" with
+                        | Ok ((_, raw) :: _) -> deps.CacheSourceManifest name raw |> ignore
+                        | _ -> ()
+                        printfn $"Added source '{name}' to .eru/config.json."
                         0
                     | Error e ->
                         eprintfn $"Error: {e}"

@@ -9,7 +9,7 @@ type InitArgs =
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Force  -> "Overwrite existing eru.json."
+            | Force  -> "Overwrite existing .eru/config.json."
             | Global -> "Create the global config (~/.config/eru/config.json)."
             | Path _ -> "Directory in which to create the config (default: current directory)."
 

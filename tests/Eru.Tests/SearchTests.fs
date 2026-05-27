@@ -40,11 +40,13 @@ let private makeDeps
         WriteGlobalConfig  = fun _ -> Ok ()
         ReadLockEntries    = fun _ -> Ok lockEntries
         WriteLockEntries   = fun _ _ -> Ok ()
-        FetchRemoteContent = fun _ _ path -> Ok [(path, $"content:{path}")]
-        ListRemoteTopLevel = fun _ _ -> Ok []
-        WriteLocalFile     = fun _ _ -> Ok ()
-        HashContent        = fun s -> $"sha256:{s}"
-        GetCwd             = fun () -> "/tmp"
+        FetchRemoteContent  = fun _ _ path -> Ok [(path, $"content:{path}")]
+        ListRemoteTopLevel  = fun _ _ -> Ok []
+        WriteLocalFile      = fun _ _ -> Ok ()
+        HashContent         = fun s -> $"sha256:{s}"
+        GetCwd              = fun () -> "/tmp"
+        ReadCachedManifest  = fun _ -> Ok None
+        CacheSourceManifest = fun _ _ -> Ok ()
     }
 
 let private emptyQuery : Search.Query = { Terms = []; Tags = [] }

@@ -19,11 +19,13 @@ let private makeDeps
         WriteGlobalConfig  = fun cfg -> capturedGlobal.Value <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok []
         WriteLockEntries   = fun _ _ -> Ok ()
-        FetchRemoteContent = fun _ _ _ -> Error "not implemented"
-        ListRemoteTopLevel = fun _ _ -> Ok topLevel
-        WriteLocalFile     = fun _ _ -> Ok ()
-        HashContent        = fun s -> $"sha256:{s}"
-        GetCwd             = fun () -> "/tmp"
+        FetchRemoteContent  = fun _ _ _ -> Error "not implemented"
+        ListRemoteTopLevel  = fun _ _ -> Ok topLevel
+        WriteLocalFile      = fun _ _ -> Ok ()
+        HashContent         = fun s -> $"sha256:{s}"
+        GetCwd              = fun () -> "/tmp"
+        ReadCachedManifest  = fun _ -> Ok None
+        CacheSourceManifest = fun _ _ -> Ok ()
     }
 
 let private simpleCmd url = {
@@ -69,7 +71,7 @@ let ``name override is respected`` () =
 // ── Local config writes ──────────────────────────────────────────────────────
 
 [<Fact>]
-let ``writes to local config when eru.json present`` () =
+let ``writes to local config when .eru/config.json present`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None [] written (ref None)
     let exitCode = Source.add deps (simpleCmd "https://github.com/acme/kb.git")
@@ -77,7 +79,7 @@ let ``writes to local config when eru.json present`` () =
     Assert.True(written.Value.IsSome)
 
 [<Fact>]
-let ``errors when eru.json absent in local mode`` () =
+let ``errors when .eru/config.json absent in local mode`` () =
     let deps = makeDeps None None [] (ref None) (ref None)
     let exitCode = Source.add deps (simpleCmd "https://github.com/acme/kb.git")
     Assert.Equal(1, exitCode)

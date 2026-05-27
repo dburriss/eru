@@ -48,7 +48,7 @@ The tool is structured around three core concepts:
 
 1. **Knowledge sources** — configured remote repositories (or paths) that serve as the canonical source of truth for shared files. Sources have a priority/preference order for search.
 
-2. **State file** — a file committed in the consuming repo (e.g. `eru.lock` or similar) that records every piece of knowledge pulled in: source, version/ref, and local path. This enables sync in both directions.
+2. **State file** — `.eru/eru.lock`, committed in the consuming repo, records every piece of knowledge pulled in: source, version/ref, and local path. This enables sync in both directions.
 
 3. **CLI commands** (via Argu):
    - `search` — search across configured knowledge sources
@@ -59,23 +59,24 @@ The tool is structured around three core concepts:
 ### Data flow
 
 ```
-Config file (eru.json)
+.eru/config.json  (local consumer config)
     │
     ▼
 Knowledge sources (remote repos, local paths)
+  — each may expose .eru/manifest.json to declare available artifacts
     │
     ▼
-State file (tracks what is in this repo + where it came from)
+.eru/eru.lock  (tracks what is in this repo + where it came from)
     │
     ▼
 Local repo files
 ```
 
-The state file is the source of truth for what knowledge lives in a given repo. Config defines where to look; the state file defines what was fetched.
+The lock file is the source of truth for what knowledge lives in a given repo. Config defines where to look; the lock file defines what was fetched.
 
 ## Key conventions
 
 - All CLI argument types are defined as Argu `IArgParserTemplate` discriminated unions.
 - Side-effectful operations (git, filesystem) are isolated from pure domain logic.
 - SimpleExec is used for shelling out to `git` (cloning, fetching, reading blobs).
-- Configuration is read from a JSON file in the repo root (using standard `System.Text.Json` — no third-party JSON libs).
+- Configuration is read from `.eru/config.json` in the repo's `.eru/` directory (using standard `System.Text.Json` — no third-party JSON libs).

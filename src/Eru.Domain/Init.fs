@@ -33,12 +33,12 @@ module Init =
                 | Error e -> eprintfn "Error: %s" e; 1
         else
             let dir        = cmd.Path |> Option.defaultValue (deps.GetCwd())
-            let configPath = System.IO.Path.Combine(dir, "eru.json")
+            let configPath = System.IO.Path.Combine(dir, ".eru", "config.json")
 
             if System.IO.File.Exists configPath && not cmd.Force then
-                eprintfn "eru.json already exists. Use --force to overwrite."
+                eprintfn ".eru/config.json already exists. Use --force to overwrite."
                 1
             else
                 match deps.WriteLocalFile configPath scaffold with
-                | Ok ()   -> printfn "Initialized eru.json in %s" dir; 0
+                | Ok ()   -> printfn "Initialized .eru/config.json in %s" dir; 0
                 | Error e -> eprintfn "Error: %s" e; 1

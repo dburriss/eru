@@ -1,5 +1,21 @@
 namespace Eru
 
+// Declared by a source repo at .eru/manifest.json
+// Path supports glob patterns (same gitignore-style semantics as CollectionFileRef.RemotePath):
+//   "docs/*.md"      — all .md files in docs/
+//   "dotnet/**/*.md" — recursive match under dotnet/
+//   "README.md"      — exact path
+type ManifestFileRef = {
+    Path        : string
+    Tags        : string list
+    Description : string option
+}
+
+type SourceManifest = {
+    Version : int      // kept for future format evolution
+    Files   : ManifestFileRef list
+}
+
 type SourceConfig = {
     Name: string
     Url: string option
@@ -45,9 +61,10 @@ type LocalConfig = {
 }
 
 type EffectiveConfig = {
-    Sources: SourceConfig list
-    CommitOnPull: bool
-    StateFile: string
+    Sources      : SourceConfig list
+    CommitOnPull : bool
+    StateFile    : string
+    Collections  : CollectionFileRef list   // merged from user config + cached manifests
 }
 
 module Config =
@@ -154,10 +171,37 @@ module Config =
                 |> Option.defaultValue "eru.lock"
 
             {
-                Sources = mergedSources
+                Sources      = mergedSources
                 CommitOnPull = localCommitOnPull |> Option.defaultValue globalCommitOnPull
-                StateFile = stateFile
+                StateFile    = stateFile
+                Collections  =
+                    globalCfg
+                    |> Option.map (fun g -> g.Collections |> List.collect (fun col -> col.Files))
+                    |> Option.defaultValue []
             })
+
+    let withManifests
+        (readCachedManifest: string -> Result<SourceManifest option, string>)
+        (cfg: EffectiveConfig) : EffectiveConfig =
+        let existingKeys =
+            cfg.Collections
+            |> List.map (fun f -> f.Source, f.RemotePath)
+            |> Set.ofList
+        let manifestFiles =
+            cfg.Sources
+            |> List.collect (fun src ->
+                match readCachedManifest src.Name with
+                | Ok (Some manifest) ->
+                    manifest.Files
+                    |> List.map (fun f ->
+                        { Source      = src.Name
+                          RemotePath  = f.Path
+                          Tags        = f.Tags
+                          Description = f.Description })
+                    |> List.filter (fun f ->
+                        not (Set.contains (f.Source, f.RemotePath) existingKeys))
+                | _ -> [])
+        { cfg with Collections = cfg.Collections @ manifestFiles }
 
     let resolveByTags (tags: string list) (globalCfg: GlobalConfig) : (string * string) list =
         let normalised = tags |> List.map (fun t -> t.ToLowerInvariant())

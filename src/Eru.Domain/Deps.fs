@@ -12,4 +12,6 @@ type Deps = {
     WriteLocalFile     : string -> string -> Result<unit, string>
     HashContent        : string -> string
     GetCwd             : unit   -> string
+    ReadCachedManifest  : string -> Result<SourceManifest option, string>
+    CacheSourceManifest : string -> string -> Result<unit, string>
 }
