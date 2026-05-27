@@ -43,6 +43,11 @@ let (|SyncCmd|_|) (r: ParseResults<EruArgs>) =
         | EruArgs.Sync args -> Some { Sync.Options.DryRun = args.Contains SyncArgs.Dryrun }
         | _                 -> None)
 
+let (|McpCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Mcp _ -> Some ()
+        | _             -> None)
+
 let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Source args ->

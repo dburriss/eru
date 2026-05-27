@@ -14,6 +14,7 @@ let main argv =
         let deps    = AdapterDeps.create isDebug
 
         match parsed with
+        | McpCmd           -> Eru.Mcp.Server.run deps |> Async.AwaitTask |> Async.RunSynchronously; 0
         | InitCmd cmd      -> Init.run   deps cmd
         | AddCmd cmd       -> Add.run    deps cmd
         | SearchCmd query  -> Search.run deps query
