@@ -1,5 +1,5 @@
 ---
-status: todo
+status: done
 ---
 
 # Plan: `eru mcp` — MCP stdio server

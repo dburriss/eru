@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
+    <ProjectReference Include="../Eru.Mcp/Eru.Mcp.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Argu" Version="6.*" />

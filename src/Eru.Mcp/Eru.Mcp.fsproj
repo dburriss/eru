@@ -8,9 +8,12 @@
     <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="1.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CollectionCacheService.fs" />
+    <Compile Include="McpTools.fs" />
+    <Compile Include="McpServer.fs" />
   </ItemGroup>
 </Project>

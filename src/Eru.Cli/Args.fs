@@ -71,6 +71,11 @@ type SourceArgs =
             match a with
             | Add _ -> "Add a new knowledge source."
 
+type McpArgs =
+    | [<Hidden>] Placeholder
+    interface IArgParserTemplate with
+        member a.Usage = match a with Placeholder -> ""
+
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =
     | [<Unique; CliPrefix(CliPrefix.DoubleDash)>] Debug
@@ -79,6 +84,7 @@ type EruArgs =
     | [<SubCommand>] Search of ParseResults<SearchArgs>
     | [<SubCommand>] Sync   of ParseResults<SyncArgs>
     | [<SubCommand>] Source of ParseResults<SourceArgs>
+    | [<SubCommand>] Mcp    of ParseResults<McpArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -88,3 +94,4 @@ type EruArgs =
             | Search _ -> "Search across configured knowledge sources."
             | Sync _   -> "Synchronise local files with knowledge sources."
             | Source _ -> "Manage knowledge sources."
+            | Mcp _    -> "Start an MCP stdio server for AI agent use."
