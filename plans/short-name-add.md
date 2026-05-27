@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Short-name resolution for `eru add`
 
 ## Context

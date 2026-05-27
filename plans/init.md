@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Extend `eru init` with optional path and `--global` flag
 
 ## Context

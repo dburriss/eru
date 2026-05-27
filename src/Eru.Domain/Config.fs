@@ -40,6 +40,7 @@ type CollectionConfig = {
 type GlobalDefaults = {
     Branch: string option
     CommitOnPull: bool option
+    McpRefreshIntervalMinutes: int option
 }
 
 type GlobalConfig = {
@@ -61,10 +62,11 @@ type LocalConfig = {
 }
 
 type EffectiveConfig = {
-    Sources      : SourceConfig list
-    CommitOnPull : bool
-    StateFile    : string
-    Collections  : CollectionFileRef list   // merged from user config + cached manifests
+    Sources                   : SourceConfig list
+    CommitOnPull              : bool
+    StateFile                 : string
+    Collections               : CollectionFileRef list   // merged from user config + cached manifests
+    McpRefreshIntervalMinutes : int
 }
 
 module Config =
@@ -178,6 +180,11 @@ module Config =
                     globalCfg
                     |> Option.map (fun g -> g.Collections |> List.collect (fun col -> col.Files))
                     |> Option.defaultValue []
+                McpRefreshIntervalMinutes =
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.McpRefreshIntervalMinutes)
+                    |> Option.defaultValue 60
             })
 
     let withManifests
