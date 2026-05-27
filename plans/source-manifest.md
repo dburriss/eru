@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: .eru/ directory, source manifest
 
 ---

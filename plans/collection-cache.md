@@ -1,5 +1,5 @@
 ---
-status: todo
+status: done
 ---
 
 # Plan: Collection file cache

@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Glob Support in `CollectionFileRef.RemotePath`
 
 ## Context

@@ -22,6 +22,17 @@ module Paths =
     let lockFilePath (cwd: string) (stateFile: string option) =
         IO.Path.Combine(cwd, ".eru", stateFile |> Option.defaultValue "eru.lock")
 
+    let collectionCachePath () =
+        if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
+            let localAppData = Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData
+            IO.Path.Combine(localAppData, "eru", "collections")
+        else
+            let xdgCache = Environment.GetEnvironmentVariable "XDG_CACHE_HOME"
+            let cacheHome =
+                if xdgCache <> null && xdgCache <> "" then xdgCache
+                else IO.Path.Combine(Environment.GetFolderPath Environment.SpecialFolder.UserProfile, ".cache")
+            IO.Path.Combine(cacheHome, "eru", "collections")
+
     let sourceCacheManifestPath (sourceName: string) =
         if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
             let localAppData = Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData
