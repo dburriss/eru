@@ -36,11 +36,13 @@ let private makeDeps
         WriteGlobalConfig  = fun cfg -> state.WrittenGlobalConfig <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok state.WrittenLock
         WriteLockEntries   = fun _ entries -> state.WrittenLock <- entries; Ok ()
-        FetchRemoteContent = fun _ _ path -> Ok [(path, $"content:{path}")]
-        ListRemoteTopLevel = fun _ _ -> Ok []
-        WriteLocalFile     = fun path content -> state.WrittenFiles <- state.WrittenFiles @ [(path, content)]; Ok ()
-        HashContent        = fun s -> $"sha256:{s}"
-        GetCwd             = fun () -> "/tmp"
+        FetchRemoteContent  = fun _ _ path -> Ok [(path, $"content:{path}")]
+        ListRemoteTopLevel  = fun _ _ -> Ok []
+        WriteLocalFile      = fun path content -> state.WrittenFiles <- state.WrittenFiles @ [(path, content)]; Ok ()
+        HashContent         = fun s -> $"sha256:{s}"
+        GetCwd              = fun () -> "/tmp"
+        ReadCachedManifest  = fun _ -> Ok None
+        CacheSourceManifest = fun _ _ -> Ok ()
     }
 
 let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }

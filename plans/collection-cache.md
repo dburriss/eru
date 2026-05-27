@@ -106,38 +106,35 @@ On fetch error: log to stderr, leave any existing cached file in place (keep sta
 
 ### `src/Eru.Mcp/CollectionCacheService.fs`
 
-`GlobalConfig` is still required alongside `EffectiveConfig` because `.Collections` lives there and
-the global-default branch fallback is read from `GlobalConfig.Defaults.Branch`.
-`EffectiveConfig` provides the fully-merged `.Sources` list and the resolved `.McpRefreshIntervalMinutes`.
+`EffectiveConfig` now carries `.Collections` — the flat merged list of all collection file refs
+(user-explicit from `GlobalConfig.Collections` + manifest-declared, via `Config.withManifests`).
+`GlobalConfig` is **no longer required** as a separate parameter; everything needed is on `EffectiveConfig`.
+
+> Note: call `Config.withManifests deps.ReadCachedManifest eff` before constructing this service
+> to ensure manifest-declared files are included in `EffectiveConfig.Collections`.
 
 ```fsharp
-type CollectionCacheService(deps: Deps, globalCfg: GlobalConfig, effectiveCfg: EffectiveConfig) =
+type CollectionCacheService(deps: Deps, effectiveCfg: EffectiveConfig) =
     inherit BackgroundService()
 
     let cacheRoot = Paths.collectionCachePath()
 
-    let globalDefaultBranch =
-        globalCfg.Defaults
-        |> Option.bind (fun d -> d.Branch)
-        |> Option.defaultValue "HEAD"   // "HEAD" → GitAdapter omits --branch, remote decides
-
     let syncAll () =
-        globalCfg.Collections
-        |> List.iter (fun col ->
-            col.Files
-            |> List.iter (fun f ->
-                match effectiveCfg.Sources |> List.tryFind (fun s -> s.Name = f.Source) with
-                | None -> eprintfn "eru: collection cache: unknown source '%s'" f.Source
-                | Some src ->
-                    let branch =
-                        src.Branch |> Option.defaultValue globalDefaultBranch
-                    match src.Url with
-                    | None -> eprintfn "eru: collection cache: source '%s' has no URL configured" f.Source
-                    | Some url ->
-                    match deps.FetchRemoteContent url branch f.RemotePath with
-                    | Error e -> eprintfn "eru: collection cache: fetch failed for %s/%s: %s" f.Source f.RemotePath e
-                    | Ok content ->
-                        let dest = IO.Path.Combine(cacheRoot, f.Source, f.RemotePath.Replace('/', IO.Path.DirectorySeparatorChar))
+        effectiveCfg.Collections
+        |> List.iter (fun f ->
+            match effectiveCfg.Sources |> List.tryFind (fun s -> s.Name = f.Source) with
+            | None -> eprintfn "eru: collection cache: unknown source '%s'" f.Source
+            | Some src ->
+                let branch = src.Branch |> Option.defaultValue "HEAD"
+                match src.Url with
+                | None -> eprintfn "eru: collection cache: source '%s' has no URL configured" f.Source
+                | Some url ->
+                match deps.FetchRemoteContent url branch f.RemotePath with
+                | Error e   -> eprintfn "eru: collection cache: fetch failed for %s/%s: %s" f.Source f.RemotePath e
+                | Ok []     -> eprintfn "eru: collection cache: no files returned for %s/%s" f.Source f.RemotePath
+                | Ok files  ->
+                    files |> List.iter (fun (resolvedPath, content) ->
+                        let dest = IO.Path.Combine(cacheRoot, f.Source, resolvedPath.Replace('/', IO.Path.DirectorySeparatorChar))
                         IO.Directory.CreateDirectory(IO.Path.GetDirectoryName dest) |> ignore
                         IO.File.WriteAllText(dest, content)))
 

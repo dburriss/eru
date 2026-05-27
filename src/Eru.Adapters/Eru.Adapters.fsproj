@@ -16,6 +16,7 @@
     <Compile Include="ConfigAdapter.fs" />
     <Compile Include="LockFileAdapter.fs" />
     <Compile Include="GitAdapter.fs" />
+    <Compile Include="ManifestAdapter.fs" />
     <Compile Include="AdapterDeps.fs" />
   </ItemGroup>
 </Project>

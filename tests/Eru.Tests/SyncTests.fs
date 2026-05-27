@@ -40,13 +40,15 @@ let private makeDeps
             state.LockWritten <- true
             state.WrittenLock <- entries
             writeLock path entries
-        FetchRemoteContent = fetch
-        ListRemoteTopLevel = fun _ _ -> Ok []
-        WriteLocalFile     = fun path content ->
+        FetchRemoteContent  = fetch
+        ListRemoteTopLevel  = fun _ _ -> Ok []
+        WriteLocalFile      = fun path content ->
             state.WrittenFiles <- state.WrittenFiles @ [(path, content)]
             Ok ()
-        HashContent        = fun s -> $"hash:{s}"
-        GetCwd             = fun () -> "/tmp"
+        HashContent         = fun s -> $"hash:{s}"
+        GetCwd              = fun () -> "/tmp"
+        ReadCachedManifest  = fun _ -> Ok None
+        CacheSourceManifest = fun _ _ -> Ok ()
     }
 
 let private defaultFetch (_url: string) (_branch: string) (path: string) : Result<(string * string) list, string> =

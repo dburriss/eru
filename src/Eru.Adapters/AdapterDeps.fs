@@ -31,7 +31,9 @@ module AdapterDeps =
             WriteLockEntries   = LockFileAdapter.write
             FetchRemoteContent = GitAdapter.fetchRemoteContent debug
             ListRemoteTopLevel = GitAdapter.listRemoteTopLevel debug
-            WriteLocalFile     = writeFile
-            HashContent        = hashContent
-            GetCwd             = fun () -> cwd
+            WriteLocalFile      = writeFile
+            HashContent         = hashContent
+            GetCwd              = fun () -> cwd
+            ReadCachedManifest  = ManifestAdapter.readCachedManifest
+            CacheSourceManifest = ManifestAdapter.cacheSourceManifest
         }

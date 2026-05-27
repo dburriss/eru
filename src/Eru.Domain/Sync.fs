@@ -39,6 +39,19 @@ module Sync =
             1
         | Ok eff ->
 
+        // Refresh manifests for all sources (best-effort, silent on missing)
+        for src in eff.Sources do
+            match src.Url with
+            | None -> ()
+            | Some url ->
+                let branch = src.Branch |> Option.defaultValue "HEAD"
+                match deps.FetchRemoteContent url branch ".eru/manifest.json" with
+                | Error _            -> ()
+                | Ok []              -> ()
+                | Ok ((_, raw) :: _) -> deps.CacheSourceManifest src.Name raw |> ignore
+
+        let eff = Config.withManifests deps.ReadCachedManifest eff
+
         match deps.ReadLockEntries eff.StateFile with
         | Error e ->
             eprintfn "Error reading lock file: %s" e

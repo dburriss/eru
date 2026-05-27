@@ -223,3 +223,60 @@ let ``LockFile findByLocalPath returns None when not found`` () =
         { LocalPath = "docs/adr.md"; SourceName = "src"; RemotePath = "adr.md"; ContentHash = "sha256:aaa" }
     ]
     Assert.Equal(None, LockFile.findByLocalPath "does-not-exist.md" entries)
+
+// ── merge: Collections ───────────────────────────────────────────────────────
+
+[<Fact>]
+let ``merge populates Collections from GlobalConfig`` () =
+    let file = makeFileRef "src" "docs/guide.md" ["docs"]
+    let col  = { Name = "guides"; Tags = []; Files = [ file ]; Description = None }
+    let g    = makeGlobal [ makeSource "src" (Some "https://src.com") ] [ col ]
+    let result = Config.merge (Some g) None |> unwrapOk "collections"
+    Assert.Equal(1, result.Collections.Length)
+    Assert.Equal("src",          result.Collections[0].Source)
+    Assert.Equal("docs/guide.md", result.Collections[0].RemotePath)
+
+[<Fact>]
+let ``merge returns empty Collections when no global config`` () =
+    let result = Config.merge None None |> unwrapOk "no global"
+    Assert.Empty result.Collections
+
+// ── withManifests ────────────────────────────────────────────────────────────
+
+[<Fact>]
+let ``withManifests appends manifest files not in user config`` () =
+    let src = makeSource "kb" (Some "https://kb.com")
+    let eff = Config.merge (Some (makeGlobal [ src ] [])) None |> unwrapOk "base"
+    let manifest = { Version = 1; Files = [ { Path = "guide.md"; Tags = ["docs"]; Description = None } ] }
+    let result = Config.withManifests (fun _ -> Ok (Some manifest)) eff
+    Assert.Equal(1, result.Collections.Length)
+    Assert.Equal("kb",       result.Collections[0].Source)
+    Assert.Equal("guide.md", result.Collections[0].RemotePath)
+    Assert.Equal<string list>(["docs"],   result.Collections[0].Tags)
+
+[<Fact>]
+let ``withManifests user-explicit entry wins on collision`` () =
+    let src      = makeSource "kb" (Some "https://kb.com")
+    let explicit = { Source = "kb"; RemotePath = "guide.md"; Tags = ["explicit"]; Description = Some "user-defined" }
+    let col      = { Name = "c"; Tags = []; Files = [ explicit ]; Description = None }
+    let g        = makeGlobal [ src ] [ col ]
+    let eff      = Config.merge (Some g) None |> unwrapOk "base"
+    let manifest = { Version = 1; Files = [ { Path = "guide.md"; Tags = ["manifest"]; Description = None } ] }
+    let result   = Config.withManifests (fun _ -> Ok (Some manifest)) eff
+    // Should still have exactly one entry (no duplicate), and it should be the user-explicit one
+    Assert.Equal(1, result.Collections.Length)
+    Assert.Equal<string list>(["explicit"], result.Collections[0].Tags)
+
+[<Fact>]
+let ``withManifests silently ignores missing manifest`` () =
+    let src = makeSource "kb" (Some "https://kb.com")
+    let eff = Config.merge (Some (makeGlobal [ src ] [])) None |> unwrapOk "base"
+    let result = Config.withManifests (fun _ -> Ok None) eff
+    Assert.Empty result.Collections
+
+[<Fact>]
+let ``withManifests silently ignores manifest read error`` () =
+    let src = makeSource "kb" (Some "https://kb.com")
+    let eff = Config.merge (Some (makeGlobal [ src ] [])) None |> unwrapOk "base"
+    let result = Config.withManifests (fun _ -> Error "disk error") eff
+    Assert.Empty result.Collections

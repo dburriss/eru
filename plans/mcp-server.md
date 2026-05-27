@@ -101,7 +101,7 @@ Returns the full content of one artifact. Resolution order:
 type KnowledgeTools(deps: Deps, globalCfg: GlobalConfig, eff: EffectiveConfig) =
 
     [<McpServerTool(Name = "search_knowledge")>]
-    [<Description("Full-text search across cached collection files, locally pulled artifacts (eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and a content excerpt.")>]
+    [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and a content excerpt.")>]
     member _.Search(
         [<Description("Search terms (space-separated, OR semantics). Matched against file content, path, and description. Leave empty to list all known artifacts.")>] query: string,
         [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string) = ...

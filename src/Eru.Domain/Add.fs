@@ -133,7 +133,7 @@ module Add =
                 |> Result.map (fun () -> effSources @ [newSource])
             else
                 match localCfg with
-                | None -> Error "no eru.json found. Run 'eru init' first."
+                | None -> Error "no .eru/config.json found. Run 'eru init' first."
                 | Some local ->
                     let updated = { local with Sources = local.Sources @ [newSource] }
                     deps.WriteLocalConfig updated
