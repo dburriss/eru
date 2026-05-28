@@ -19,6 +19,9 @@ module Paths =
     let localConfigPath (cwd: string) =
         IO.Path.Combine(cwd, ".eru", "config.json")
 
+    let localManifestPath (cwd: string) =
+        IO.Path.Combine(cwd, ".eru", "manifest.json")
+
     let lockFilePath (cwd: string) (stateFile: string option) =
         IO.Path.Combine(cwd, ".eru", stateFile |> Option.defaultValue "eru.lock")
 

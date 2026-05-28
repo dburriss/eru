@@ -11,6 +11,7 @@
     <Compile Include="Deps.fs" />
     <Compile Include="Source.fs" />
     <Compile Include="Collection.fs" />
+    <Compile Include="Manifest.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="UrlParser.fs" />
     <Compile Include="Patterns.fs" />

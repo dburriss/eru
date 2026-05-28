@@ -27,6 +27,9 @@ let private makeDeps
         GetCwd              = fun () -> "/tmp"
         ReadCachedManifest  = fun _ -> Ok None
         CacheSourceManifest = fun _ _ -> Ok ()
+        ReadLocalManifest   = fun () -> Ok None
+        WriteLocalManifest  = fun _ -> Ok ()
+        ResolveLocalGlob    = fun _ -> []
     }
 
 let private simpleCmd url = {

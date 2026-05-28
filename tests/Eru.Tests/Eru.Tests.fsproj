@@ -24,6 +24,7 @@
     <Compile Include="SyncTests.fs" />
     <Compile Include="SearchTests.fs" />
     <Compile Include="InitTests.fs" />
+    <Compile Include="ManifestTests.fs" />
     <Compile Include="GitAdapterTests.fs" />
   </ItemGroup>
 </Project>

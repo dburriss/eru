@@ -49,6 +49,9 @@ let private makeDeps
         GetCwd              = fun () -> "/tmp"
         ReadCachedManifest  = fun _ -> Ok None
         CacheSourceManifest = fun _ _ -> Ok ()
+        ReadLocalManifest   = fun () -> Ok None
+        WriteLocalManifest  = fun _ -> Ok ()
+        ResolveLocalGlob    = fun _ -> []
     }
 
 let private defaultFetch (_url: string) (_branch: string) (path: string) : Result<(string * string) list, string> =

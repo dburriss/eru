@@ -2,6 +2,7 @@
 
 `eru` is a CLI tool for sharing knowledge files between projects. Declare where your shared files live (a git repo), pull them in with a single command, and track everything in a lock file so they stay in sync.
 
+- **Manifests** — knowledge-source repos publish `.eru/manifest.json` to declare available files; consumers pull from it automatically
 - **Collections** — group related files into a named set and pull them all with one command
 - **Tag-based pulls** — `--tag devops` fetches everything tagged `devops` across all collections
 - **Glob patterns** — collection entries can use globs to pull multiple files in one reference (e.g. `docs/*.md`)
@@ -80,6 +81,10 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru source view <name>` | Show details and files for a source |
 | `eru collection create <name>` | Create a new collection |
 | `eru collection add <name> -f <source:path>` | Add a file reference to a collection |
+| `eru manifest init` | Create `.eru/manifest.json` in a knowledge-source repo |
+| `eru manifest add <path>` | Add a file/glob entry to the manifest |
+| `eru manifest remove <path>` | Remove an entry from the manifest |
+| `eru manifest verify` | Check all manifest entries resolve to local files |
 | `eru mcp` | Start an MCP stdio server for AI agent use |
 
 For full argument details see [docs/cli-reference.md](docs/cli-reference.md).

@@ -36,4 +36,7 @@ module AdapterDeps =
             GetCwd              = fun () -> cwd
             ReadCachedManifest  = ManifestAdapter.readCachedManifest
             CacheSourceManifest = ManifestAdapter.cacheSourceManifest
+            ReadLocalManifest   = fun () -> ManifestAdapter.readLocalManifest cwd
+            WriteLocalManifest  = ManifestAdapter.writeLocalManifest cwd
+            ResolveLocalGlob    = ManifestAdapter.resolveLocalGlob cwd
         }
