@@ -14,4 +14,7 @@ type Deps = {
     GetCwd             : unit   -> string
     ReadCachedManifest  : string -> Result<SourceManifest option, string>
     CacheSourceManifest : string -> string -> Result<unit, string>
+    ReadLocalManifest   : unit   -> Result<SourceManifest option, string>
+    WriteLocalManifest  : SourceManifest -> Result<unit, string>
+    ResolveLocalGlob    : string -> string list
 }

@@ -133,6 +133,54 @@ type CollectionArgs =
             | Create _ -> "Create a new collection."
             | Add    _ -> "Add a file reference to an existing collection."
 
+type ManifestInitArgs =
+    | [<Unique>] Force
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Force -> "Overwrite an existing .eru/manifest.json."
+
+type ManifestAddArgs =
+    | [<MainCommand; ExactlyOnce>] Path        of path: string
+    | [<AltCommandLine("-t")>]     Tag         of tag: string
+    | [<AltCommandLine("-d")>]     Description of desc: string
+    | [<Unique>]                   Dryrun
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Path _        -> "File path or glob pattern to add (e.g. docs/*.md)."
+            | Tag _         -> "Tag for the entry; repeat for multiple tags."
+            | Description _ -> "Short description of the entry."
+            | Dryrun        -> "Show what would be added without writing anything."
+
+type ManifestRemoveArgs =
+    | [<MainCommand; ExactlyOnce>] Path of path: string
+    | [<Unique>]                   Dryrun
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Path _  -> "Exact path to remove from the manifest."
+            | Dryrun  -> "Show what would be removed without writing anything."
+
+type ManifestVerifyArgs =
+    | [<Hidden>] Placeholder
+    interface IArgParserTemplate with
+        member a.Usage = match a with Placeholder -> ""
+
+[<CliPrefix(CliPrefix.None)>]
+type ManifestArgs =
+    | [<SubCommand>] Init   of ParseResults<ManifestInitArgs>
+    | [<SubCommand>] Add    of ParseResults<ManifestAddArgs>
+    | [<SubCommand>] Remove of ParseResults<ManifestRemoveArgs>
+    | [<SubCommand>] Verify of ParseResults<ManifestVerifyArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Init   _ -> "Create a new .eru/manifest.json in the current directory."
+            | Add    _ -> "Add a file reference to the manifest."
+            | Remove _ -> "Remove a file reference from the manifest."
+            | Verify _ -> "Verify all manifest entries resolve to local files."
+
 type McpArgs =
     | [<Hidden>] Placeholder
     interface IArgParserTemplate with
@@ -147,6 +195,7 @@ type EruArgs =
     | [<SubCommand>] Sync   of ParseResults<SyncArgs>
     | [<SubCommand>] Source     of ParseResults<SourceArgs>
     | [<SubCommand>] Collection of ParseResults<CollectionArgs>
+    | [<SubCommand>] Manifest   of ParseResults<ManifestArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     interface IArgParserTemplate with
         member a.Usage =
@@ -158,4 +207,5 @@ type EruArgs =
             | Sync _     -> "Synchronise local files with knowledge sources."
             | Source _   -> "Manage knowledge sources."
             | Collection _ -> "Manage collections of knowledge file references."
+            | Manifest _ -> "Manage the .eru/manifest.json for this knowledge source."
             | Mcp _      -> "Start an MCP stdio server for AI agent use."

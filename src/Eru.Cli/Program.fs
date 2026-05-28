@@ -24,6 +24,10 @@ let main argv =
         | SourceAddCmd cmd           -> Source.add  deps cmd
         | CollectionCreateCmd cmd    -> Collection.create  deps cmd
         | CollectionAddFileCmd cmd   -> Collection.addFile deps cmd
+        | ManifestInitCmd cmd        -> Manifest.init       deps cmd
+        | ManifestAddCmd cmd         -> Manifest.addFile    deps cmd
+        | ManifestRemoveCmd cmd      -> Manifest.removeFile deps cmd
+        | ManifestVerifyCmd ()       -> Manifest.verify     deps
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0

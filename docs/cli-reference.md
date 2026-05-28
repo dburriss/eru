@@ -228,6 +228,90 @@ eru collection add adr-pack -f knowledge:KNOWLEDGE/adr/log.md -t adr -g
 
 ---
 
+## `eru manifest`
+
+Manage the `.eru/manifest.json` for a knowledge-source repo. The manifest declares which files the source exposes to consumers. Use these commands in the repo that *publishes* knowledge, not the repo that consumes it.
+
+### `eru manifest init`
+
+Create a new empty manifest.
+
+```
+eru manifest init [--force]
+```
+
+| Flag | Description |
+|---|---|
+| `--force` | Overwrite an existing `.eru/manifest.json` |
+
+**Examples**
+
+```bash
+eru manifest init           # creates .eru/manifest.json with { version: 1, files: [] }
+eru manifest init --force   # overwrite an existing manifest
+```
+
+### `eru manifest add`
+
+Add a file or glob entry to the manifest.
+
+```
+eru manifest add <path> [-t <tag>] [-d <description>] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | File path or gitignore-style glob (e.g. `docs/*.md`, `templates/**/*.yaml`) (required) |
+| `-t <tag>` | Tag for the entry; repeat for multiple tags |
+| `-d <description>` | Short description of the entry |
+| `--dryrun` | Preview without writing |
+
+**Examples**
+
+```bash
+eru manifest add "README.md" -t meta
+eru manifest add "docs/*.md" -t docs -d "All documentation"
+eru manifest add "templates/**/*.yaml" -t templates --dryrun
+```
+
+### `eru manifest remove`
+
+Remove an entry from the manifest by exact path match.
+
+```
+eru manifest remove <path> [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | Exact path to remove (required) |
+| `--dryrun` | Preview without writing |
+
+**Examples**
+
+```bash
+eru manifest remove "README.md"
+eru manifest remove "docs/*.md" --dryrun
+```
+
+### `eru manifest verify`
+
+Resolve every manifest entry against local files and report any that match nothing. Exits with code 1 if any entries are unresolved.
+
+```
+eru manifest verify
+```
+
+**Examples**
+
+```bash
+eru manifest verify   # exits 0 if all entries resolve, 1 otherwise
+```
+
+Glob patterns are expanded against the current directory tree. An entry like `docs/*.md` must match at least one local file to pass.
+
+---
+
 ## `eru mcp`
 
 Start an MCP stdio server that exposes eru's knowledge search and retrieval capabilities to AI agents.

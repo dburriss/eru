@@ -23,6 +23,9 @@ let private makeDeps
         GetCwd              = fun () -> "/tmp/cwd"
         ReadCachedManifest  = fun _ -> Ok None
         CacheSourceManifest = fun _ _ -> Ok ()
+        ReadLocalManifest   = fun () -> Ok None
+        WriteLocalManifest  = fun _ -> Ok ()
+        ResolveLocalGlob    = fun _ -> []
     }
 
 let private cmd force isGlobal path =

@@ -102,6 +102,49 @@ let (|CollectionCreateCmd|_|) (r: ParseResults<EruArgs>) =
                 | _ -> None)
         | _ -> None)
 
+let (|ManifestInitCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Manifest args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | ManifestArgs.Init initArgs ->
+                    Some ({ Manifest.InitCommand.Force = initArgs.Contains ManifestInitArgs.Force })
+                | _ -> None)
+        | _ -> None)
+
+let (|ManifestAddCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Manifest args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | ManifestArgs.Add addArgs ->
+                    Some ({
+                        Manifest.AddFileCommand.Path        = addArgs.GetResult    ManifestAddArgs.Path
+                        Manifest.AddFileCommand.Tags        = addArgs.GetResults   ManifestAddArgs.Tag
+                        Manifest.AddFileCommand.Description = addArgs.TryGetResult ManifestAddArgs.Description
+                        Manifest.AddFileCommand.DryRun      = addArgs.Contains     ManifestAddArgs.Dryrun
+                    })
+                | _ -> None)
+        | _ -> None)
+
+let (|ManifestRemoveCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Manifest args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | ManifestArgs.Remove removeArgs ->
+                    Some ({
+                        Manifest.RemoveFileCommand.Path   = removeArgs.GetResult ManifestRemoveArgs.Path
+                        Manifest.RemoveFileCommand.DryRun = removeArgs.Contains  ManifestRemoveArgs.Dryrun
+                    })
+                | _ -> None)
+        | _ -> None)
+
+let (|ManifestVerifyCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Manifest args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | ManifestArgs.Verify _ -> Some ()
+                | _ -> None)
+        | _ -> None)
+
 let (|CollectionAddFileCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Collection args ->
