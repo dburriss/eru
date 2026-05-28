@@ -1,3 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -15,7 +16,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>`--dryrun` flag for `collection create`, `collection add`, and `source add` — previews what would be written without modifying any config file</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
