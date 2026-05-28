@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,7 +16,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>`--dryrun` flag for `collection create`, `collection add`, and `source add` — previews what would be written without modifying any config file</PackageReleaseNotes>
+    <PackageReleaseNotes>`eru manifest init` — create `.eru/manifest.json` in a knowledge-source repo
+`eru manifest add &lt;path&gt;` — add a file or glob entry to the manifest with optional tags and description
+`eru manifest remove &lt;path&gt;` — remove an entry from the manifest by exact path
+`eru manifest verify` — resolve all manifest entries against local files; exits 1 if any match nothing</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

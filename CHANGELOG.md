@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-28
+### Added
+- `eru manifest init` — create `.eru/manifest.json` in a knowledge-source repo
+- `eru manifest add <path>` — add a file or glob entry to the manifest with optional tags and description
+- `eru manifest remove <path>` — remove an entry from the manifest by exact path
+- `eru manifest verify` — resolve all manifest entries against local files; exits 1 if any match nothing
+
 ## [0.2.0] - 2026-05-28
 ### Added
 - `--dryrun` flag for `collection create`, `collection add`, and `source add` — previews what would be written without modifying any config file
