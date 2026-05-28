@@ -4,7 +4,28 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>eru</AssemblyName>
     <RootNamespace>Eru.Cli</RootNamespace>
+    <PackageId>Eru.Tool</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>eru</ToolCommandName>
+    <Version>0.1.0</Version>
+    <Authors>Devon Burriss</Authors>
+    <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
+    <Title>eru</Title>
+    <Copyright>Copyright © 2025 Devon Burriss</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Optimize>true</Optimize>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
