@@ -9,8 +9,19 @@ module Sync =
         | Drifted of LockEntry * string   // entry + new content
         | Missing of LockEntry
         | Skipped of LockEntry * string   // entry + reason
+        | Blocked of LockEntry            // entry matches a block pattern
 
-    let private classifyEntry (deps: Deps) (sources: SourceConfig list) (entry: LockEntry) : EntryResult =
+    let private classifyEntry
+        (deps: Deps)
+        (sources: SourceConfig list)
+        (blockPatterns: string list)
+        (allowPatterns: string list)
+        (allowBinaries: bool)
+        (entry: LockEntry) : EntryResult =
+        // Fast path: path-only check before fetching
+        if Patterns.isPathBlocked blockPatterns allowPatterns entry.RemotePath then
+            Blocked entry
+        else
         match sources |> List.tryFind (fun s -> s.Name = entry.SourceName) with
         | None -> Skipped (entry, $"source '{entry.SourceName}' not configured")
         | Some source ->
@@ -22,9 +33,12 @@ module Sync =
                 | Error _ -> Missing entry
                 | Ok [] -> Missing entry
                 | Ok ((_, content) :: _) ->
-                    let hash = deps.HashContent content
-                    if hash = entry.ContentHash then Current entry
-                    else Drifted (entry, content)
+                    if Patterns.isBlocked blockPatterns allowPatterns allowBinaries entry.RemotePath content then
+                        Blocked entry
+                    else
+                        let hash = deps.HashContent content
+                        if hash = entry.ContentHash then Current entry
+                        else Drifted (entry, content)
 
     let run (deps: Deps) (opts: Options) : int =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
@@ -58,7 +72,7 @@ module Sync =
             1
         | Ok entries ->
 
-        let results = entries |> List.map (classifyEntry deps eff.Sources)
+        let results = entries |> List.map (classifyEntry deps eff.Sources eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries)
 
         let label isDryRun result =
             match result with
@@ -66,10 +80,11 @@ module Sync =
             | Drifted _         -> if isDryRun then "drifted" else "updated"
             | Missing _         -> "missing"
             | Skipped _         -> "skipped"
+            | Blocked _         -> "blocked"
 
         let entryPath = function
-            | Current e | Missing e         -> e.LocalPath
-            | Drifted (e, _) | Skipped (e, _) -> e.LocalPath
+            | Current e | Missing e | Blocked e -> e.LocalPath
+            | Drifted (e, _) | Skipped (e, _)   -> e.LocalPath
 
         for r in results do
             match r with
@@ -80,18 +95,19 @@ module Sync =
         let nDrifted = results |> List.sumBy (function Drifted _ -> 1 | _ -> 0)
         let nMissing = results |> List.sumBy (function Missing _ -> 1 | _ -> 0)
         let nSkipped = results |> List.sumBy (function Skipped _ -> 1 | _ -> 0)
+        let nBlocked = results |> List.sumBy (function Blocked _ -> 1 | _ -> 0)
 
         if opts.DryRun then
-            printfn "Sync dry-run: %d drifted, %d current, %d missing, %d skipped."
-                nDrifted nCurrent nMissing nSkipped
+            printfn "Sync dry-run: %d drifted, %d current, %d missing, %d skipped, %d blocked."
+                nDrifted nCurrent nMissing nSkipped nBlocked
             0
         else
 
         let drifted = results |> List.choose (function Drifted (e, c) -> Some (e, c) | _ -> None)
 
         if drifted.IsEmpty then
-            printfn "Sync complete: 0 updated, %d current, %d missing, %d skipped."
-                nCurrent nMissing nSkipped
+            printfn "Sync complete: 0 updated, %d current, %d missing, %d skipped, %d blocked."
+                nCurrent nMissing nSkipped nBlocked
             0
         else
 
@@ -118,6 +134,6 @@ module Sync =
             eprintfn "Error writing lock file: %s" e
             1
         | Ok () ->
-            printfn "Sync complete: %d updated, %d current, %d missing, %d skipped."
-                nDrifted nCurrent nMissing nSkipped
+            printfn "Sync complete: %d updated, %d current, %d missing, %d skipped, %d blocked."
+                nDrifted nCurrent nMissing nSkipped nBlocked
             0

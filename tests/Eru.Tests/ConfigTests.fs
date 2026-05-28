@@ -33,14 +33,14 @@ let ``merge uses global sources when no local config`` () =
 
 [<Fact>]
 let ``merge prefers local CommitOnPull over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None } }
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "commitOnPull"
     Assert.True result.CommitOnPull
 
 [<Fact>]
 let ``merge uses custom StateFile from local settings`` () =
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock" } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
     let result = Config.merge None (Some l) |> unwrapOk "stateFile"
     Assert.Equal("custom.lock", result.StateFile)
 
@@ -51,7 +51,7 @@ let ``merge defaults McpRefreshIntervalMinutes to 60`` () =
 
 [<Fact>]
 let ``merge uses McpRefreshIntervalMinutes from global defaults`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30 } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
     let result = Config.merge (Some g) None |> unwrapOk "mcp refresh custom"
     Assert.Equal(30, result.McpRefreshIntervalMinutes)
 

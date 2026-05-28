@@ -41,6 +41,9 @@ type GlobalDefaults = {
     Branch: string option
     CommitOnPull: bool option
     McpRefreshIntervalMinutes: int option
+    BlockPatterns: string list option
+    AllowPatterns: string list option
+    AllowBinaries: bool option
 }
 
 type GlobalConfig = {
@@ -53,6 +56,9 @@ type GlobalConfig = {
 type LocalSettings = {
     CommitOnPull: bool option
     StateFile: string option
+    BlockPatterns: string list option
+    AllowPatterns: string list option
+    AllowBinaries: bool option
 }
 
 type LocalConfig = {
@@ -68,9 +74,16 @@ type EffectiveConfig = {
     StateFile                 : string
     Collections               : CollectionFileRef list   // merged from user config + cached manifests
     McpRefreshIntervalMinutes : int
+    BlockPatterns             : string list
+    AllowPatterns             : string list
+    AllowBinaries             : bool
 }
 
 module Config =
+    let defaultBlockPatterns = ["*.exe"; "*.dll"; "*.so"; "*.dylib"; "*.bin"; "*.out"; "*.app"]
+    let defaultAllowPatterns : string list = []
+    let defaultAllowBinaries = false
+
     let private supportedVersion = 1
 
     let private checkVersion label version =
@@ -173,6 +186,33 @@ module Config =
                 |> Option.bind (fun s -> s.StateFile)
                 |> Option.defaultValue "eru.lock"
 
+            let blockPatterns =
+                match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.BlockPatterns) with
+                | Some ps -> ps
+                | None    ->
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.BlockPatterns)
+                    |> Option.defaultValue defaultBlockPatterns
+
+            let allowPatterns =
+                match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.AllowPatterns) with
+                | Some ps -> ps
+                | None    ->
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.AllowPatterns)
+                    |> Option.defaultValue defaultAllowPatterns
+
+            let allowBinaries =
+                match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.AllowBinaries) with
+                | Some b -> b
+                | None   ->
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.AllowBinaries)
+                    |> Option.defaultValue defaultAllowBinaries
+
             {
                 Sources      = mergedSources
                 CommitOnPull = localCommitOnPull |> Option.defaultValue globalCommitOnPull
@@ -186,6 +226,9 @@ module Config =
                     |> Option.bind (fun g -> g.Defaults)
                     |> Option.bind (fun d -> d.McpRefreshIntervalMinutes)
                     |> Option.defaultValue 60
+                BlockPatterns = blockPatterns
+                AllowPatterns = allowPatterns
+                AllowBinaries = allowBinaries
             })
 
     let withManifests

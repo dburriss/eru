@@ -24,7 +24,10 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   CommitOnPull              = false
                   StateFile                 = "eru.lock"
                   Collections               = []
-                  McpRefreshIntervalMinutes = 60 })
+                  McpRefreshIntervalMinutes = 60
+                  BlockPatterns             = Config.defaultBlockPatterns
+                  AllowPatterns             = Config.defaultAllowPatterns
+                  AllowBinaries             = Config.defaultAllowBinaries })
 
         let builder = Host.CreateApplicationBuilder()
         builder.Services
