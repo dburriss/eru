@@ -8,12 +8,29 @@ module Init =
   "version": 1,
   "sources": [],
   "collections": [],
-  "settings": null
+  "settings": {
+    "commitOnPull": null,
+    "stateFile": null,
+    "blockPatterns": null,
+    "allowPatterns": null,
+    "allowBinaries": null
+  }
 }
 """
 
     let private emptyGlobal : GlobalConfig =
-        { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
+        { Version = 1
+          DefaultSources = []
+          Collections = []
+          Defaults = Some {
+              Branch = None
+              CommitOnPull = None
+              McpRefreshIntervalMinutes = None
+              BlockPatterns = Some Config.defaultBlockPatterns
+              AllowPatterns = Some Config.defaultAllowPatterns
+              AllowBinaries = Some Config.defaultAllowBinaries
+          }
+        }
 
     let run (deps: Deps) (cmd: Command) : int =
         if cmd.IsGlobal && cmd.Path.IsSome then

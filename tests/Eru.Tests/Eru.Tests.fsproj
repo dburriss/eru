@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="*" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PatternsTests.fs" />
     <Compile Include="ConfigTests.fs" />
     <Compile Include="SourceTests.fs" />
     <Compile Include="UrlParserTests.fs" />

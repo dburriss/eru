@@ -50,6 +50,9 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         let requiredTags = parseTags tags
         let results      = System.Collections.Generic.List<string>()
 
+        let isPathAllowed path =
+            not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
+
         // 1. Cached collection files
         if Directory.Exists(cacheRoot) then
             for file in Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories) do
@@ -60,7 +63,7 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                 let meta       = eff.Collections |> List.tryFind (fun c -> c.Source = sourceName && c.RemotePath = remotePath)
                 let fileTags   = meta |> Option.map (fun m -> m.Tags) |> Option.defaultValue []
                 let desc       = meta |> Option.bind (fun m -> m.Description) |> Option.defaultValue ""
-                if hasTags requiredTags fileTags then
+                if hasTags requiredTags fileTags && isPathAllowed remotePath then
                     try
                         let content = File.ReadAllText(file)
                         if matchesTerms termList (content + " " + relPath + " " + desc) then
@@ -75,7 +78,7 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         match deps.ReadLockEntries lockPath with
         | Ok entries ->
             for entry in entries do
-                if hasTags requiredTags [] && File.Exists(entry.LocalPath) then
+                if hasTags requiredTags [] && isPathAllowed entry.RemotePath && File.Exists(entry.LocalPath) then
                     try
                         let content = File.ReadAllText(entry.LocalPath)
                         if matchesTerms termList (content + " " + entry.LocalPath) then
@@ -90,10 +93,10 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
             let dirPath = Path.Combine(cwd, knowledgeDir)
             if Directory.Exists(dirPath) then
                 for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
-                    if hasTags requiredTags [] then
+                    let relPath = Path.GetRelativePath(cwd, file)
+                    if hasTags requiredTags [] && isPathAllowed relPath then
                         try
                             let content  = File.ReadAllText(file)
-                            let relPath  = Path.GetRelativePath(cwd, file)
                             if matchesTerms termList (content + " " + relPath) then
                                 let excerpt = firstMatchingLine termList content
                                 results.Add($"[local] {relPath}\n  > {excerpt.Trim()}")
@@ -142,7 +145,10 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                 | Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
                     match deps.FetchRemoteContent url branch remotePath with
-                    | Ok ((_ , content) :: _) -> content
+                    | Ok ((_, content) :: _) ->
+                        if Patterns.isBlocked eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries remotePath content then
+                            $"Error: '{remotePath}' is blocked by the current block patterns"
+                        else content
                     | Ok []   -> $"Error: no content returned for {path}"
                     | Error e -> $"Error fetching {path}: {e}"
         else

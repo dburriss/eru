@@ -57,6 +57,9 @@ module Add =
         (sources: SourceConfig list)
         (target: string option)
         (dryRun: bool)
+        (blockPatterns: string list)
+        (allowPatterns: string list)
+        (allowBinaries: bool)
         (sourceName: string)
         (remotePath: string) : Result<LockEntry list, string> =
         findSource sources sourceName
@@ -67,7 +70,12 @@ module Add =
                 let branch = source.Branch |> Option.defaultValue "HEAD"
                 deps.FetchRemoteContent url branch remotePath
                 |> Result.bind (fun files ->
-                    files
+                    let allowed, blocked =
+                        files |> List.partition (fun (path, content) ->
+                            not (Patterns.isBlocked blockPatterns allowPatterns allowBinaries path content))
+                    for (path, _) in blocked do
+                        printfn "[blocked]  %s" path
+                    allowed
                     |> List.fold (fun acc (resolvedPath, content) ->
                         acc |> Result.bind (fun entries ->
                             let localPath = deriveLocalPath source.BasePath target resolvedPath
@@ -85,11 +93,14 @@ module Add =
         (sources: SourceConfig list)
         (target: string option)
         (dryRun: bool)
+        (blockPatterns: string list)
+        (allowPatterns: string list)
+        (allowBinaries: bool)
         (pairs: (string * string) list) : Result<LockEntry list, string> =
         pairs
         |> List.fold (fun acc (sourceName, remotePath) ->
             acc |> Result.bind (fun entries ->
-                pullOne deps sources target dryRun sourceName remotePath
+                pullOne deps sources target dryRun blockPatterns allowPatterns allowBinaries sourceName remotePath
                 |> Result.map (fun newEntries -> entries @ newEntries)))
             (Ok [])
 
@@ -177,7 +188,7 @@ module Add =
                             | Some src -> Error $"no files in collection '{colName}' from source '{src}'"
                             | None     -> Error $"collection '{colName}' has no files"
                         else
-                            pullMany deps eff.Sources cmd.Target cmd.DryRun (files |> List.map (fun f -> f.Source, f.RemotePath))
+                            pullMany deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries (files |> List.map (fun f -> f.Source, f.RemotePath))
 
             | None when cmd.Tags <> [] ->
                 match globalCfg with
@@ -188,7 +199,7 @@ module Add =
                         let tagList = cmd.Tags |> String.concat ", "
                         Error $"no files found matching tags: {tagList}"
                     else
-                        pullMany deps eff.Sources cmd.Target cmd.DryRun pairs
+                        pullMany deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries pairs
 
             | _ ->
                 let rawPath = cmd.RemotePath.Value
@@ -196,7 +207,7 @@ module Add =
                 | Some parsed ->
                     ensureSource deps cmd.IsGlobal eff.Sources globalCfg localCfg parsed
                     |> Result.bind (fun updatedSources ->
-                        pullOne deps updatedSources cmd.Target cmd.DryRun parsed.SourceName parsed.RemotePath)
+                        pullOne deps updatedSources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries parsed.SourceName parsed.RemotePath)
                 | None ->
                     if rawPath.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase) then
                         Error "unsupported URL provider; supported providers: GitHub (https://github.com/...), GitLab (https://gitlab.com/...)"
@@ -217,7 +228,7 @@ module Add =
                             findSource eff.Sources sn
                             |> Result.bind (fun source ->
                                 let expandedPath = resolveRemotePath source remotePath
-                                pullOne deps eff.Sources cmd.Target cmd.DryRun sn expandedPath))
+                                pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn expandedPath))
 
         match pullResult with
         | Error e ->
