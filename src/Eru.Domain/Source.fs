@@ -58,6 +58,49 @@ module Source =
 
             0
 
+    let view (deps: Deps) (sourceName: string) (showFull: bool) : int =
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+        | Error e, _ | _, Error e -> eprintfn $"Error: {e}"; 1
+        | Ok globalCfg, Ok localCfg ->
+            let globalSources = globalCfg |> Option.map (fun g -> g.DefaultSources) |> Option.defaultValue []
+            let localSources  = localCfg  |> Option.map (fun l -> l.Sources)        |> Option.defaultValue []
+
+            let found =
+                localSources |> List.tryFind (fun s -> s.Name = sourceName) |> Option.map (fun s -> s, "local")
+                |> Option.orElseWith (fun () ->
+                    globalSources |> List.tryFind (fun s -> s.Name = sourceName) |> Option.map (fun s -> s, "global"))
+
+            match found with
+            | None ->
+                eprintfn $"Error: source '{sourceName}' not found."
+                1
+            | Some (src, origin) ->
+                printfn $"Name:     {src.Name}"
+                printfn $"Scope:    {origin}"
+                src.Url      |> Option.iter (fun u -> printfn $"URL:      {u}")
+                src.Branch   |> Option.iter (fun b -> printfn $"Branch:   {b}")
+                src.BasePath |> Option.iter (fun p -> printfn $"BasePath: {p}")
+
+                match deps.ReadCachedManifest src.Name with
+                | Error e ->
+                    eprintfn $"Warning: could not read manifest: {e}"
+                | Ok None ->
+                    printfn "\nNo manifest cached. Run 'eru sync' to fetch source metadata."
+                | Ok (Some manifest) ->
+                    let cap     = 20
+                    let files   = manifest.Files
+                    let display = if showFull then files else files |> List.truncate cap
+                    let total   = files.Length
+                    let capNote = if not showFull && total > cap then $", showing {cap}" else ""
+                    printfn $"\nFiles ({total} total{capNote}):"
+                    for f in display do
+                        let tags = if f.Tags.IsEmpty then "" else $"""  [{f.Tags |> String.concat ", "}]"""
+                        let desc = f.Description |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
+                        printfn $"  {f.Path}{tags}{desc}"
+                    if not showFull && total > cap then
+                        printfn $"  ... and {total - cap} more (pass --full to see all)"
+                0
+
     let add (deps: Deps) (cmd: AddCommand) : int =
         let name = cmd.Name |> Option.defaultWith (fun () -> deriveNameFromUrl cmd.Url)
 

@@ -68,15 +68,26 @@ type SourceListArgs =
     interface IArgParserTemplate with
         member a.Usage = match a with Placeholder -> ""
 
+type SourceViewArgs =
+    | [<MainCommand; ExactlyOnce>] Name of sourceName: string
+    | [<Unique>]                   Full
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name _ -> "Name of the source to view."
+            | Full   -> "Show all files without the 20-entry cap."
+
 [<CliPrefix(CliPrefix.None)>]
 type SourceArgs =
     | [<SubCommand>] Add  of ParseResults<SourceAddArgs>
     | [<SubCommand>] List of ParseResults<SourceListArgs>
+    | [<SubCommand>] View of ParseResults<SourceViewArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Add  _ -> "Add a new knowledge source."
             | List _ -> "List configured knowledge sources."
+            | View _ -> "Show details and available files for a source."
 
 type McpArgs =
     | [<Hidden>] Placeholder
