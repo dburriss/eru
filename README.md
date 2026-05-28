@@ -17,9 +17,21 @@
 
 ## Install
 
+Install the `Eru.Tool` tool:
+
 ```bash
 dotnet tool install --global Eru.Tool
 ```
+
+Leave off `--global` to install locally in a repo instead.
+
+Install the skill with [skills.sh](https://www.skills.sh/):
+
+```bash
+npx skills add dburriss/eru
+```
+
+The skill tells agents how to use the CLI.
 
 ## Quick start
 
