@@ -17,7 +17,7 @@
 ## Install
 
 ```bash
-dotnet tool install --global eru
+dotnet tool install --global Eru.Tool
 ```
 
 ## Quick start
