@@ -87,6 +87,19 @@ let private parseSourcePath (raw: string) : Result<string * string, string> =
     if idx <= 0 then Error $"Invalid source:path format '{raw}' — expected <source>:<remotePath>"
     else Ok (raw.[..idx-1], raw.[idx+1..])
 
+let (|SourceRemoveCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Source args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | SourceArgs.Remove removeArgs ->
+                    Some ({
+                        Source.RemoveCommand.Name     = removeArgs.GetResult SourceRemoveArgs.Name
+                        Source.RemoveCommand.IsGlobal = removeArgs.Contains  SourceRemoveArgs.Global
+                        Source.RemoveCommand.DryRun   = removeArgs.Contains  SourceRemoveArgs.Dryrun
+                    })
+                | _ -> None)
+        | _ -> None)
+
 let (|CollectionCreateCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Collection args ->
@@ -162,6 +175,25 @@ let (|CollectionAddFileCmd|_|) (r: ParseResults<EruArgs>) =
                             Collection.AddFileCommand.Description    = addArgs.TryGetResult CollectionAddArgs.Description
                             Collection.AddFileCommand.IsGlobal       = addArgs.Contains     CollectionAddArgs.Global
                             Collection.AddFileCommand.DryRun         = addArgs.Contains     CollectionAddArgs.Dryrun
+                        })
+                | _ -> None)
+        | _ -> None)
+
+let (|CollectionRemoveFileCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Collection args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | CollectionArgs.Remove removeArgs ->
+                    let raw = removeArgs.GetResult CollectionRemoveFileArgs.File
+                    match parseSourcePath raw with
+                    | Error e -> eprintfn $"Error: {e}"; None
+                    | Ok (source, remotePath) ->
+                        Some ({
+                            Collection.RemoveFileCommand.CollectionName = removeArgs.GetResult CollectionRemoveFileArgs.Collection
+                            Collection.RemoveFileCommand.Source         = source
+                            Collection.RemoveFileCommand.RemotePath     = remotePath
+                            Collection.RemoveFileCommand.IsGlobal       = removeArgs.Contains  CollectionRemoveFileArgs.Global
+                            Collection.RemoveFileCommand.DryRun         = removeArgs.Contains  CollectionRemoveFileArgs.Dryrun
                         })
                 | _ -> None)
         | _ -> None)

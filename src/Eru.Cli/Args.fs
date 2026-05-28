@@ -79,17 +79,30 @@ type SourceViewArgs =
             | Name _ -> "Name of the source to view."
             | Full   -> "Show all files without the 20-entry cap."
 
-[<CliPrefix(CliPrefix.None)>]
-type SourceArgs =
-    | [<SubCommand>] Add  of ParseResults<SourceAddArgs>
-    | [<SubCommand>] List of ParseResults<SourceListArgs>
-    | [<SubCommand>] View of ParseResults<SourceViewArgs>
+type SourceRemoveArgs =
+    | [<MainCommand; ExactlyOnce>] Name   of name: string
+    | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Add  _ -> "Add a new knowledge source."
-            | List _ -> "List configured knowledge sources."
-            | View _ -> "Show details and available files for a source."
+            | Name _  -> "Name of the source to remove."
+            | Global  -> "Remove from global config (~/.config/eru/config.json)."
+            | Dryrun  -> "Show what would be removed without writing anything."
+
+[<CliPrefix(CliPrefix.None)>]
+type SourceArgs =
+    | [<SubCommand>] Add    of ParseResults<SourceAddArgs>
+    | [<SubCommand>] List   of ParseResults<SourceListArgs>
+    | [<SubCommand>] View   of ParseResults<SourceViewArgs>
+    | [<SubCommand>] Remove of ParseResults<SourceRemoveArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Add    _ -> "Add a new knowledge source."
+            | List   _ -> "List configured knowledge sources."
+            | View   _ -> "Show details and available files for a source."
+            | Remove _ -> "Remove a knowledge source."
 
 type CollectionCreateArgs =
     | [<MainCommand; ExactlyOnce>] Name        of name: string
@@ -123,15 +136,30 @@ type CollectionAddArgs =
             | Global        -> "Write to global config (~/.config/eru/config.json)."
             | Dryrun        -> "Show what would be added without writing anything."
 
+type CollectionRemoveFileArgs =
+    | [<MainCommand; ExactlyOnce>] Collection   of name: string
+    | [<AltCommandLine("-f"); ExactlyOnce>] File of sourceAndPath: string
+    | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Collection _  -> "Name of the collection."
+            | File _        -> "File reference to remove as source:remotePath (e.g. gh-repo:docs/guide.md)."
+            | Global        -> "Write to global config (~/.config/eru/config.json)."
+            | Dryrun        -> "Show what would be removed without writing anything."
+
 [<CliPrefix(CliPrefix.None)>]
 type CollectionArgs =
     | [<SubCommand>] Create of ParseResults<CollectionCreateArgs>
     | [<SubCommand>] Add    of ParseResults<CollectionAddArgs>
+    | [<SubCommand>] Remove of ParseResults<CollectionRemoveFileArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Create _ -> "Create a new collection."
             | Add    _ -> "Add a file reference to an existing collection."
+            | Remove _ -> "Remove a file reference from an existing collection."
 
 type ManifestInitArgs =
     | [<Unique>] Force

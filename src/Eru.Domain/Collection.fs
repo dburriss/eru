@@ -19,6 +19,14 @@ module Collection =
         DryRun         : bool
     }
 
+    type RemoveFileCommand = {
+        CollectionName : string
+        Source         : string
+        RemotePath     : string
+        IsGlobal       : bool
+        DryRun         : bool
+    }
+
     let create (deps: Deps) (cmd: CreateCommand) : int =
         let newCol : CollectionConfig = {
             Name        = cmd.Name
@@ -111,4 +119,64 @@ module Collection =
                         let updated     = { local with Collections = updatedCols }
                         match deps.WriteLocalConfig updated with
                         | Ok ()   -> printfn $"Added '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in .eru/config.json."; 0
+                        | Error e -> eprintfn $"Error: {e}"; 1
+
+    let removeFile (deps: Deps) (cmd: RemoveFileCommand) : int =
+        if cmd.IsGlobal then
+            match deps.ReadGlobalConfig () with
+            | Error e -> eprintfn $"Error: {e}"; 1
+            | Ok None -> eprintfn "Error: no global config found."; 1
+            | Ok (Some g) ->
+                match g.Collections |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
+                | None ->
+                    eprintfn $"Error: collection '{cmd.CollectionName}' not found in global config."; 1
+                | Some col ->
+                    if not (col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath)) then
+                        eprintfn $"Error: '{cmd.Source}:{cmd.RemotePath}' not found in collection '{cmd.CollectionName}'."; 1
+                    elif cmd.DryRun then
+                        printfn $"Would remove '{cmd.Source}:{cmd.RemotePath}' from collection '{cmd.CollectionName}' in global config."; 0
+                    else
+                        let remaining   = col.Files |> List.filter (fun f -> not (f.Source = cmd.Source && f.RemotePath = cmd.RemotePath))
+                        let updatedCols =
+                            if remaining.IsEmpty then
+                                g.Collections |> List.filter (fun c -> c.Name <> cmd.CollectionName)
+                            else
+                                g.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then { col with Files = remaining } else c)
+                        let updated = { g with Collections = updatedCols }
+                        match deps.WriteGlobalConfig updated with
+                        | Ok () ->
+                            if remaining.IsEmpty then
+                                printfn $"Removed last file from collection '{cmd.CollectionName}'; collection entry removed from global config."
+                            else
+                                printfn $"Removed '{cmd.Source}:{cmd.RemotePath}' from collection '{cmd.CollectionName}' in global config."
+                            0
+                        | Error e -> eprintfn $"Error: {e}"; 1
+        else
+            match deps.ReadLocalConfig () with
+            | Error e -> eprintfn $"Error: {e}"; 1
+            | Ok None -> eprintfn "Error: no .eru/config.json found. Run 'eru init' first."; 1
+            | Ok (Some local) ->
+                match local.Collections |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
+                | None ->
+                    eprintfn $"Error: collection '{cmd.CollectionName}' not found in .eru/config.json."; 1
+                | Some col ->
+                    if not (col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath)) then
+                        eprintfn $"Error: '{cmd.Source}:{cmd.RemotePath}' not found in collection '{cmd.CollectionName}'."; 1
+                    elif cmd.DryRun then
+                        printfn $"Would remove '{cmd.Source}:{cmd.RemotePath}' from collection '{cmd.CollectionName}' in .eru/config.json."; 0
+                    else
+                        let remaining   = col.Files |> List.filter (fun f -> not (f.Source = cmd.Source && f.RemotePath = cmd.RemotePath))
+                        let updatedCols =
+                            if remaining.IsEmpty then
+                                local.Collections |> List.filter (fun c -> c.Name <> cmd.CollectionName)
+                            else
+                                local.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then { col with Files = remaining } else c)
+                        let updated = { local with Collections = updatedCols }
+                        match deps.WriteLocalConfig updated with
+                        | Ok () ->
+                            if remaining.IsEmpty then
+                                printfn $"Removed last file from collection '{cmd.CollectionName}'; collection entry removed from .eru/config.json."
+                            else
+                                printfn $"Removed '{cmd.Source}:{cmd.RemotePath}' from collection '{cmd.CollectionName}' in .eru/config.json."
+                            0
                         | Error e -> eprintfn $"Error: {e}"; 1

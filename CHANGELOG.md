@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `eru source remove <name>` — remove a named source from local config (or global with `--global`); supports `--dryrun`
+- `eru collection remove <collection> -f <source:path>` — remove a file reference from a collection; if it was the last file the collection entry is also removed; supports `--global` and `--dryrun`
 
 ## [0.3.0] - 2026-05-28
 ### Added

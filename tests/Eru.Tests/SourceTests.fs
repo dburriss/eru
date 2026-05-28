@@ -261,3 +261,64 @@ let ``list shows tags from cached manifest`` () =
     // deduplication: "dotnet" appears exactly once in the tags line
     let tagsLine = output.Split('\n') |> Array.find (fun l -> l.Contains("tags:"))
     Assert.Equal(1, tagsLine.Split("dotnet").Length - 1)
+
+// ── Source.remove ─────────────────────────────────────────────────────────────
+
+let private removeCmd name isGlobal dryRun : Source.RemoveCommand =
+    { Name = name; IsGlobal = isGlobal; DryRun = dryRun }
+
+let private srcEntry name = { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; BasePath = None }
+
+[<Fact>]
+let ``remove removes source from local config`` () =
+    let local   = { emptyLocal with Sources = [srcEntry "kb"; srcEntry "other"] }
+    let written = ref None
+    let deps    = makeDeps (Some local) None [] written (ref None)
+    let exitCode = Source.remove deps (removeCmd "kb" false false)
+    Assert.Equal(0, exitCode)
+    match written.Value with
+    | None     -> Assert.Fail "nothing written"
+    | Some cfg -> Assert.Equal<string seq>(["other"], cfg.Sources |> List.map (fun s -> s.Name))
+
+[<Fact>]
+let ``remove fails when source not found in local config`` () =
+    let local = { emptyLocal with Sources = [srcEntry "other"] }
+    let written = ref None
+    let deps  = makeDeps (Some local) None [] written (ref None)
+    let exitCode = Source.remove deps (removeCmd "missing" false false)
+    Assert.Equal(1, exitCode)
+    Assert.True(written.Value.IsNone)
+
+[<Fact>]
+let ``remove dryrun does not write local config`` () =
+    let local   = { emptyLocal with Sources = [srcEntry "kb"] }
+    let written = ref None
+    let deps    = makeDeps (Some local) None [] written (ref None)
+    let exitCode = Source.remove deps (removeCmd "kb" false true)
+    Assert.Equal(0, exitCode)
+    Assert.True(written.Value.IsNone)
+
+[<Fact>]
+let ``remove fails when no local config`` () =
+    let deps = makeDeps None None [] (ref None) (ref None)
+    Assert.Equal(1, Source.remove deps (removeCmd "kb" false false))
+
+[<Fact>]
+let ``remove removes source from global config`` () =
+    let globalCfg = { emptyGlobal with DefaultSources = [srcEntry "shared"; srcEntry "other"] }
+    let written   = ref None
+    let deps      = makeDeps None (Some globalCfg) [] (ref None) written
+    let exitCode  = Source.remove deps (removeCmd "shared" true false)
+    Assert.Equal(0, exitCode)
+    match written.Value with
+    | None     -> Assert.Fail "nothing written"
+    | Some cfg -> Assert.Equal<string seq>(["other"], cfg.DefaultSources |> List.map (fun s -> s.Name))
+
+[<Fact>]
+let ``remove fails when source not found in global config`` () =
+    let globalCfg = { emptyGlobal with DefaultSources = [srcEntry "other"] }
+    let written   = ref None
+    let deps      = makeDeps None (Some globalCfg) [] (ref None) written
+    let exitCode  = Source.remove deps (removeCmd "missing" true false)
+    Assert.Equal(1, exitCode)
+    Assert.True(written.Value.IsNone)
