@@ -18,6 +18,12 @@ description: Use this skill when the user wants to pull, sync, or manage shared 
 | **Global config** | `~/.config/eru/config.json` — sources and collections shared across all repos |
 | **Local config** | `.eru/config.json` — per-repo configuration |
 
+## Installation
+
+```
+dotnet tool install --global Eru.Tool
+```
+
 ## Commands
 
 ### `eru init`
