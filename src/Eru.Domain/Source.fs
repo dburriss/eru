@@ -10,6 +10,12 @@ module Source =
         DryRun   : bool
     }
 
+    type RemoveCommand = {
+        Name     : string
+        IsGlobal : bool
+        DryRun   : bool
+    }
+
     let private deriveNameFromUrl (url: string) : string =
         let segment = url.TrimEnd('/').Split([| '/'; ':' |]) |> Array.last
         if segment.EndsWith(".git") then segment.[..segment.Length - 5]
@@ -180,3 +186,33 @@ module Source =
                     | Error e ->
                         eprintfn $"Error: {e}"
                         1
+
+    let remove (deps: Deps) (cmd: RemoveCommand) : int =
+        if cmd.IsGlobal then
+            match deps.ReadGlobalConfig () with
+            | Error e -> eprintfn $"Error: {e}"; 1
+            | Ok None -> eprintfn "Error: no global config found."; 1
+            | Ok (Some g) ->
+                if not (g.DefaultSources |> List.exists (fun s -> s.Name = cmd.Name)) then
+                    eprintfn $"Error: source '{cmd.Name}' not found in global config."; 1
+                elif cmd.DryRun then
+                    printfn $"Would remove source '{cmd.Name}' from global config."; 0
+                else
+                    let updated = { g with DefaultSources = g.DefaultSources |> List.filter (fun s -> s.Name <> cmd.Name) }
+                    match deps.WriteGlobalConfig updated with
+                    | Ok ()   -> printfn $"Removed source '{cmd.Name}' from global config."; 0
+                    | Error e -> eprintfn $"Error: {e}"; 1
+        else
+            match deps.ReadLocalConfig () with
+            | Error e -> eprintfn $"Error: {e}"; 1
+            | Ok None -> eprintfn "Error: no .eru/config.json found. Run 'eru init' first."; 1
+            | Ok (Some local) ->
+                if not (local.Sources |> List.exists (fun s -> s.Name = cmd.Name)) then
+                    eprintfn $"Error: source '{cmd.Name}' not found in .eru/config.json."; 1
+                elif cmd.DryRun then
+                    printfn $"Would remove source '{cmd.Name}' from .eru/config.json."; 0
+                else
+                    let updated = { local with Sources = local.Sources |> List.filter (fun s -> s.Name <> cmd.Name) }
+                    match deps.WriteLocalConfig updated with
+                    | Ok ()   -> printfn $"Removed source '{cmd.Name}' from .eru/config.json."; 0
+                    | Error e -> eprintfn $"Error: {e}"; 1

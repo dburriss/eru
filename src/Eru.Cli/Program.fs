@@ -19,11 +19,13 @@ let main argv =
         | AddCmd cmd       -> Add.run    deps cmd
         | SearchCmd query  -> Search.run deps query
         | SyncCmd opts     -> Sync.run   deps opts
-        | SourceListCmd              -> Source.list deps
-        | SourceViewCmd (name, full) -> Source.view deps name full
-        | SourceAddCmd cmd           -> Source.add  deps cmd
-        | CollectionCreateCmd cmd    -> Collection.create  deps cmd
-        | CollectionAddFileCmd cmd   -> Collection.addFile deps cmd
+        | SourceListCmd              -> Source.list   deps
+        | SourceViewCmd (name, full) -> Source.view   deps name full
+        | SourceAddCmd cmd           -> Source.add    deps cmd
+        | SourceRemoveCmd cmd        -> Source.remove deps cmd
+        | CollectionCreateCmd cmd       -> Collection.create     deps cmd
+        | CollectionAddFileCmd cmd      -> Collection.addFile    deps cmd
+        | CollectionRemoveFileCmd cmd   -> Collection.removeFile deps cmd
         | ManifestInitCmd cmd        -> Manifest.init       deps cmd
         | ManifestAddCmd cmd         -> Manifest.addFile    deps cmd
         | ManifestRemoveCmd cmd      -> Manifest.removeFile deps cmd
