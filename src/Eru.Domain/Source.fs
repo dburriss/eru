@@ -17,6 +17,47 @@ module Source =
     let private detectBasePath (topLevel: string list) : string option =
         topLevel |> List.tryFind (fun e -> e = "KNOWLEDGE" || e = "knowledge")
 
+    let list (deps: Deps) : int =
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+        | Error e, _ | _, Error e -> eprintfn $"Error: {e}"; 1
+        | Ok globalCfg, Ok localCfg ->
+            let globalSources = globalCfg |> Option.map (fun g -> g.DefaultSources) |> Option.defaultValue []
+            let localSources  = localCfg  |> Option.map (fun l -> l.Sources)        |> Option.defaultValue []
+            let localNames    = localSources |> List.map (fun s -> s.Name) |> Set.ofList
+
+            let formatTags (src: SourceConfig) =
+                match deps.ReadCachedManifest src.Name with
+                | Ok (Some manifest) ->
+                    let tags =
+                        manifest.Files
+                        |> List.collect (fun f -> f.Tags)
+                        |> List.distinct
+                        |> List.sort
+                    if tags.IsEmpty then ""
+                    else
+                        let tagStr = tags |> String.concat ", "
+                        $" [tags: {tagStr}]"
+                | _ -> ""
+
+            let fmt (src: SourceConfig) (origin: string) =
+                let url      = src.Url      |> Option.defaultValue "(inherits from global)"
+                let branch   = src.Branch   |> Option.map (fun b -> $" [branch: {b}]")   |> Option.defaultValue ""
+                let basePath = src.BasePath |> Option.map (fun p -> $" [basepath: {p}]") |> Option.defaultValue ""
+                let tags     = formatTags src
+                printfn $"  {src.Name}  {url}{branch}{basePath}  [{origin}]{tags}"
+
+            for src in localSources do
+                let origin = if src.Url.IsSome then "local" else "local → global alias"
+                fmt src origin
+
+            for src in globalSources |> List.filter (fun s -> not (Set.contains s.Name localNames)) do
+                fmt src "global"
+
+            if globalSources.IsEmpty && localSources.IsEmpty then
+                printfn "No sources configured."
+
+            0
+
     let add (deps: Deps) (cmd: AddCommand) : int =
         let name = cmd.Name |> Option.defaultWith (fun () -> deriveNameFromUrl cmd.Url)
 

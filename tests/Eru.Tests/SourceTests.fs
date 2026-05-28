@@ -1,5 +1,6 @@
 module Eru.Tests.SourceTests
 
+open System.IO
 open Xunit
 open Eru
 
@@ -166,3 +167,93 @@ let ``errors on duplicate source name in global config`` () =
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb"; IsGlobal = true }
     let exitCode = Source.add deps cmd
     Assert.Equal(1, exitCode)
+
+// ── Source.list ──────────────────────────────────────────────────────────────
+
+let private captureStdout (f: unit -> unit) : string =
+    let sw = new StringWriter()
+    let orig = System.Console.Out
+    System.Console.SetOut sw
+    try f ()
+    finally System.Console.SetOut orig
+    sw.ToString()
+
+[<Fact>]
+let ``list returns 0 and prints no-sources message when both configs empty`` () =
+    let deps    = makeDeps (Some emptyLocal) (Some emptyGlobal) [] (ref None) (ref None)
+    let mutable exitCode = -1
+    let output  = captureStdout (fun () -> exitCode <- Source.list deps)
+    Assert.Equal(0, exitCode)
+    Assert.Contains("No sources configured.", output)
+
+[<Fact>]
+let ``list returns 1 on global config read error`` () =
+    let deps = { makeDeps None None [] (ref None) (ref None) with ReadGlobalConfig = fun () -> Error "boom" }
+    Assert.Equal(1, Source.list deps)
+
+[<Fact>]
+let ``list returns 1 on local config read error`` () =
+    let deps = { makeDeps None None [] (ref None) (ref None) with ReadLocalConfig = fun () -> Error "boom" }
+    Assert.Equal(1, Source.list deps)
+
+[<Fact>]
+let ``list shows local source with [local] label`` () =
+    let local = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
+    let deps  = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
+    let output = captureStdout (fun () -> Source.list deps |> ignore)
+    Assert.Contains("kb", output)
+    Assert.Contains("https://example.com/kb.git", output)
+    Assert.Contains("[local]", output)
+
+[<Fact>]
+let ``list shows local alias source with [local → global alias] label`` () =
+    let localCfg  = { emptyLocal  with Sources        = [{ Name = "kb"; Url = None; Branch = None; BasePath = None }] }
+    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
+    let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
+    let output    = captureStdout (fun () -> Source.list deps |> ignore)
+    Assert.Contains("kb", output)
+    Assert.Contains("[local → global alias]", output)
+
+[<Fact>]
+let ``list shows global-only source with [global] label`` () =
+    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "shared"; Url = Some "https://example.com/shared.git"; Branch = None; BasePath = None }] }
+    let deps      = makeDeps (Some emptyLocal) (Some globalCfg) [] (ref None) (ref None)
+    let output    = captureStdout (fun () -> Source.list deps |> ignore)
+    Assert.Contains("shared", output)
+    Assert.Contains("https://example.com/shared.git", output)
+    Assert.Contains("[global]", output)
+
+[<Fact>]
+let ``list shows local sources before global-only sources`` () =
+    let localCfg  = { emptyLocal  with Sources        = [{ Name = "local-src";  Url = Some "https://example.com/local.git";  Branch = None; BasePath = None }] }
+    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "global-src"; Url = Some "https://example.com/global.git"; Branch = None; BasePath = None }] }
+    let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
+    let output    = captureStdout (fun () -> Source.list deps |> ignore)
+    let localIdx  = output.IndexOf("local-src")
+    let globalIdx = output.IndexOf("global-src")
+    Assert.True(localIdx < globalIdx, "local source should appear before global-only source")
+
+[<Fact>]
+let ``list includes branch and basepath when set`` () =
+    let src    = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = Some "main"; BasePath = Some "KNOWLEDGE" }
+    let local  = { emptyLocal with Sources = [src] }
+    let deps   = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
+    let output = captureStdout (fun () -> Source.list deps |> ignore)
+    Assert.Contains("[branch: main]", output)
+    Assert.Contains("[basepath: KNOWLEDGE]", output)
+
+[<Fact>]
+let ``list shows tags from cached manifest`` () =
+    let local    = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
+    let f1       = { Path = "a.md"; Tags = ["dotnet"; "adr"];          Description = None }
+    let f2       = { Path = "b.md"; Tags = ["dotnet"; "architecture"]; Description = None }
+    let manifest = { Version = 1; Files = [f1; f2] }
+    let deps     = { makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None) with
+                       ReadCachedManifest = fun _ -> Ok (Some manifest) }
+    let output   = captureStdout (fun () -> Source.list deps |> ignore)
+    Assert.Contains("tags:", output)
+    Assert.Contains("adr", output)
+    Assert.Contains("architecture", output)
+    // deduplication: "dotnet" appears exactly once in the tags line
+    let tagsLine = output.Split('\n') |> Array.find (fun l -> l.Contains("tags:"))
+    Assert.Equal(1, tagsLine.Split("dotnet").Length - 1)

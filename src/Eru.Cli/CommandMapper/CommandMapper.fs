@@ -51,12 +51,22 @@ let (|McpCmd|_|) (r: ParseResults<EruArgs>) =
 let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Source args ->
-            args.TryGetSubCommand() |> Option.map (fun (SourceArgs.Add addArgs) ->
-                {
-                    Url      = addArgs.GetResult SourceAddArgs.Url
-                    Name     = addArgs.TryGetResult SourceAddArgs.Name
-                    Branch   = addArgs.TryGetResult SourceAddArgs.Branch
-                    BasePath = addArgs.TryGetResult SourceAddArgs.Basepath
-                    IsGlobal = addArgs.Contains SourceAddArgs.Global
-                } : Source.AddCommand)
+            args.TryGetSubCommand() |> Option.bind (function
+                | SourceArgs.Add addArgs ->
+                    Some ({
+                        Url      = addArgs.GetResult  SourceAddArgs.Url
+                        Name     = addArgs.TryGetResult SourceAddArgs.Name
+                        Branch   = addArgs.TryGetResult SourceAddArgs.Branch
+                        BasePath = addArgs.TryGetResult SourceAddArgs.Basepath
+                        IsGlobal = addArgs.Contains   SourceAddArgs.Global
+                    } : Source.AddCommand)
+                | _ -> None)
+        | _ -> None)
+
+let (|SourceListCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Source args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | SourceArgs.List _ -> Some ()
+                | _ -> None)
         | _ -> None)

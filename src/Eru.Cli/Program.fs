@@ -19,7 +19,8 @@ let main argv =
         | AddCmd cmd       -> Add.run    deps cmd
         | SearchCmd query  -> Search.run deps query
         | SyncCmd opts     -> Sync.run   deps opts
-        | SourceAddCmd cmd -> Source.add deps cmd
+        | SourceListCmd    -> Source.list deps
+        | SourceAddCmd cmd -> Source.add  deps cmd
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0
