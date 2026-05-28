@@ -7,6 +7,7 @@ module Source =
         Branch   : string option
         BasePath : string option
         IsGlobal : bool
+        DryRun   : bool
     }
 
     let private deriveNameFromUrl (url: string) : string =
@@ -137,6 +138,9 @@ module Source =
                 if g.DefaultSources |> List.exists (fun s -> s.Name = name) then
                     eprintfn $"Error: source '{name}' already exists."
                     1
+                elif cmd.DryRun then
+                    printfn $"Would add source '{name}' to global config."
+                    0
                 else
                     let updated = { g with DefaultSources = g.DefaultSources @ [newSource] }
                     match deps.WriteGlobalConfig updated with
@@ -160,6 +164,9 @@ module Source =
                 if local.Sources |> List.exists (fun s -> s.Name = name) then
                     eprintfn $"Error: source '{name}' already exists."
                     1
+                elif cmd.DryRun then
+                    printfn $"Would add source '{name}' to .eru/config.json."
+                    0
                 else
                     let updated = { local with Sources = local.Sources @ [newSource] }
                     match deps.WriteLocalConfig updated with

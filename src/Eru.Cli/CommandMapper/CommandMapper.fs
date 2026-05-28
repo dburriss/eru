@@ -54,11 +54,12 @@ let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
             args.TryGetSubCommand() |> Option.bind (function
                 | SourceArgs.Add addArgs ->
                     Some ({
-                        Url      = addArgs.GetResult  SourceAddArgs.Url
+                        Url      = addArgs.GetResult    SourceAddArgs.Url
                         Name     = addArgs.TryGetResult SourceAddArgs.Name
                         Branch   = addArgs.TryGetResult SourceAddArgs.Branch
                         BasePath = addArgs.TryGetResult SourceAddArgs.Basepath
-                        IsGlobal = addArgs.Contains   SourceAddArgs.Global
+                        IsGlobal = addArgs.Contains     SourceAddArgs.Global
+                        DryRun   = addArgs.Contains     SourceAddArgs.Dryrun
                     } : Source.AddCommand)
                 | _ -> None)
         | _ -> None)
@@ -92,10 +93,11 @@ let (|CollectionCreateCmd|_|) (r: ParseResults<EruArgs>) =
             args.TryGetSubCommand() |> Option.bind (function
                 | CollectionArgs.Create createArgs ->
                     Some ({
-                        Collection.CreateCommand.Name        = createArgs.GetResult  CollectionCreateArgs.Name
-                        Collection.CreateCommand.Tags        = createArgs.GetResults CollectionCreateArgs.Tag
+                        Collection.CreateCommand.Name        = createArgs.GetResult    CollectionCreateArgs.Name
+                        Collection.CreateCommand.Tags        = createArgs.GetResults   CollectionCreateArgs.Tag
                         Collection.CreateCommand.Description = createArgs.TryGetResult CollectionCreateArgs.Description
-                        Collection.CreateCommand.IsGlobal    = createArgs.Contains   CollectionCreateArgs.Global
+                        Collection.CreateCommand.IsGlobal    = createArgs.Contains     CollectionCreateArgs.Global
+                        Collection.CreateCommand.DryRun      = createArgs.Contains     CollectionCreateArgs.Dryrun
                     })
                 | _ -> None)
         | _ -> None)
@@ -110,12 +112,13 @@ let (|CollectionAddFileCmd|_|) (r: ParseResults<EruArgs>) =
                     | Error e -> eprintfn $"Error: {e}"; None
                     | Ok (source, remotePath) ->
                         Some ({
-                            Collection.AddFileCommand.CollectionName = addArgs.GetResult  CollectionAddArgs.Collection
+                            Collection.AddFileCommand.CollectionName = addArgs.GetResult    CollectionAddArgs.Collection
                             Collection.AddFileCommand.Source         = source
                             Collection.AddFileCommand.RemotePath     = remotePath
-                            Collection.AddFileCommand.Tags           = addArgs.GetResults CollectionAddArgs.Tag
+                            Collection.AddFileCommand.Tags           = addArgs.GetResults   CollectionAddArgs.Tag
                             Collection.AddFileCommand.Description    = addArgs.TryGetResult CollectionAddArgs.Description
-                            Collection.AddFileCommand.IsGlobal       = addArgs.Contains   CollectionAddArgs.Global
+                            Collection.AddFileCommand.IsGlobal       = addArgs.Contains     CollectionAddArgs.Global
+                            Collection.AddFileCommand.DryRun         = addArgs.Contains     CollectionAddArgs.Dryrun
                         })
                 | _ -> None)
         | _ -> None)
