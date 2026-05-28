@@ -63,13 +63,20 @@ type SourceAddArgs =
             | Basepath _ -> "Explicitly set the base path, skipping auto-detection."
             | Global     -> "Write to global config (~/.config/eru/config.json)."
 
+type SourceListArgs =
+    | [<Hidden>] Placeholder
+    interface IArgParserTemplate with
+        member a.Usage = match a with Placeholder -> ""
+
 [<CliPrefix(CliPrefix.None)>]
 type SourceArgs =
-    | [<SubCommand>] Add of ParseResults<SourceAddArgs>
+    | [<SubCommand>] Add  of ParseResults<SourceAddArgs>
+    | [<SubCommand>] List of ParseResults<SourceListArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Add _ -> "Add a new knowledge source."
+            | Add  _ -> "Add a new knowledge source."
+            | List _ -> "List configured knowledge sources."
 
 type McpArgs =
     | [<Hidden>] Placeholder
