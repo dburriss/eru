@@ -76,6 +76,18 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
 | `-g` | Write to global config |
 | `--dryrun` | Show what would be added without writing anything |
 
+## `eru source remove`
+
+```
+eru source remove <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the source to remove (required) |
+| `-g` | Remove from global config |
+| `--dryrun` | Show what would be removed without writing anything |
+
 ## `eru source list`
 
 No arguments.
@@ -121,6 +133,21 @@ eru collection add <collection> -f <source:path> [-t <tag>] [-d <description>] [
 | `-d <description>` | Short description of the file reference |
 | `-g` | Write to global config |
 | `--dryrun` | Show what would be added without writing anything |
+
+## `eru collection remove`
+
+```
+eru collection remove <collection> -f <source:path> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<collection>` | Name of the collection (required) |
+| `-f <source:path>` | File reference to remove as `source:remotePath` (required) |
+| `-g` | Write to global config |
+| `--dryrun` | Show what would be removed without writing anything |
+
+If removing the file leaves the collection empty, the collection entry itself is also removed.
 
 ---
 

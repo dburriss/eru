@@ -1,6 +1,6 @@
 ---
 name: eru
-description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "set up eru", "pull a knowledge file", "add a source to eru", "create a manifest", "verify a manifest", or any question about using the eru CLI tool.
+description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", or any question about using the eru CLI tool.
 ---
 
 # eru
@@ -86,6 +86,9 @@ eru source add https://github.com/my-org/knowledge --name org-knowledge --branch
 eru source list
 eru source view knowledge
 eru source view knowledge --full
+eru source remove knowledge
+eru source remove org-knowledge --global
+eru source remove knowledge --dryrun
 ```
 
 ---
@@ -99,7 +102,12 @@ eru collection create onboarding-docs --description "Files every new engineer ne
 eru collection create adr-pack --tag adr --tag docs --global
 eru collection add onboarding-docs --file knowledge:docs/adr-template.md
 eru collection add adr-pack --file knowledge:KNOWLEDGE/adr/template.md --tag adr --global
+eru collection remove onboarding-docs --file knowledge:docs/adr-template.md
+eru collection remove adr-pack --file knowledge:KNOWLEDGE/adr/template.md --global
+eru collection remove onboarding-docs --file knowledge:docs/old.md --dryrun
 ```
+
+Removing the last file from a collection also removes the collection entry itself.
 
 ---
 
