@@ -38,7 +38,7 @@ let ``init writes .eru/config.json in cwd by default`` () =
     Assert.Equal(0, exitCode)
     match capturedFile.Value with
     | None           -> Assert.Fail "nothing written"
-    | Some (path, _) -> Assert.Equal("/tmp/cwd/.eru/config.json", path)
+    | Some (path, _) -> Assert.Equal(System.IO.Path.Combine("/tmp/cwd", ".eru", "config.json"), path)
 
 [<Fact>]
 let ``init writes .eru/config.json in provided path`` () =
@@ -48,7 +48,7 @@ let ``init writes .eru/config.json in provided path`` () =
     Assert.Equal(0, exitCode)
     match capturedFile.Value with
     | None           -> Assert.Fail "nothing written"
-    | Some (path, _) -> Assert.Equal("/custom/dir/.eru/config.json", path)
+    | Some (path, _) -> Assert.Equal(System.IO.Path.Combine("/custom/dir", ".eru", "config.json"), path)
 
 // ── Global init ──────────────────────────────────────────────────────────────
 
