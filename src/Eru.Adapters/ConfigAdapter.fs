@@ -22,7 +22,12 @@ module ConfigAdapter =
             try
                 File.ReadAllText path
                 |> Serialization.deserialize<LocalConfig>
-                |> Result.map Some
+                |> Result.map (fun cfg ->
+                    let cfg =
+                        if cfg.Collections |> box |> isNull
+                        then { cfg with Collections = [] }
+                        else cfg
+                    Some cfg)
             with ex -> Error ex.Message
 
     let writeLocalConfig (cwd: string) (cfg: LocalConfig) : Result<unit, string> =

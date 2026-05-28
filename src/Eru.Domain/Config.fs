@@ -58,6 +58,7 @@ type LocalSettings = {
 type LocalConfig = {
     Version: int
     Sources: SourceConfig list
+    Collections: CollectionConfig list
     Settings: LocalSettings option
 }
 
@@ -150,9 +151,9 @@ module Config =
                 resolvedLocal @ globalOnly))
         |> Result.bind (fun mergedSources ->
             let validateCollections =
-                match globalCfg with
-                | None -> Ok ()
-                | Some g -> checkCollectionSources g.Collections mergedSources
+                let globalCols = globalCfg |> Option.map (fun g -> g.Collections) |> Option.defaultValue []
+                let localCols  = localCfg  |> Option.map (fun l -> l.Collections) |> Option.defaultValue []
+                checkCollectionSources (globalCols @ localCols) mergedSources
             validateCollections |> Result.map (fun () -> mergedSources))
         |> Result.map (fun mergedSources ->
             let globalCommitOnPull =
@@ -177,9 +178,9 @@ module Config =
                 CommitOnPull = localCommitOnPull |> Option.defaultValue globalCommitOnPull
                 StateFile    = stateFile
                 Collections  =
-                    globalCfg
-                    |> Option.map (fun g -> g.Collections |> List.collect (fun col -> col.Files))
-                    |> Option.defaultValue []
+                    let globalCols = globalCfg |> Option.map (fun g -> g.Collections |> List.collect (fun col -> col.Files)) |> Option.defaultValue []
+                    let localCols  = localCfg  |> Option.map (fun l -> l.Collections |> List.collect (fun col -> col.Files)) |> Option.defaultValue []
+                    globalCols @ localCols
                 McpRefreshIntervalMinutes =
                     globalCfg
                     |> Option.bind (fun g -> g.Defaults)

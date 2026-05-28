@@ -7,6 +7,7 @@ module Init =
     let private scaffold = """{
   "version": 1,
   "sources": [],
+  "collections": [],
   "settings": null
 }
 """

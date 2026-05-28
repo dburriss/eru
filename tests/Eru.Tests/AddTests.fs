@@ -51,7 +51,7 @@ let private makeGlobal sources collections : GlobalConfig =
     { Version = 1; DefaultSources = sources; Collections = collections; Defaults = None }
 
 let private makeLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Settings = None }
+    { Version = 1; Sources = sources; Collections = []; Settings = None }
 
 let private makeCollection name tags files : CollectionConfig =
     { Name = name; Tags = tags; Files = files; Description = None }

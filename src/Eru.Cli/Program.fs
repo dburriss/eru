@@ -22,6 +22,8 @@ let main argv =
         | SourceListCmd              -> Source.list deps
         | SourceViewCmd (name, full) -> Source.view deps name full
         | SourceAddCmd cmd           -> Source.add  deps cmd
+        | CollectionCreateCmd cmd    -> Collection.create  deps cmd
+        | CollectionAddFileCmd cmd   -> Collection.addFile deps cmd
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0

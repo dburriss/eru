@@ -34,13 +34,13 @@ let ``merge uses global sources when no local config`` () =
 [<Fact>]
 let ``merge prefers local CommitOnPull over global default`` () =
     let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None } }
-    let l = { Version = 1; Sources = []; Settings = Some { CommitOnPull = Some true; StateFile = None } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "commitOnPull"
     Assert.True result.CommitOnPull
 
 [<Fact>]
 let ``merge uses custom StateFile from local settings`` () =
-    let l = { Version = 1; Sources = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock" } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock" } }
     let result = Config.merge None (Some l) |> unwrapOk "stateFile"
     Assert.Equal("custom.lock", result.StateFile)
 
@@ -63,6 +63,7 @@ let ``merge preserves local source declaration order`` () =
     let l = {
         Version = 1
         Sources = [ makeSource "b" None; makeSource "a" (Some "https://a-override.com") ]
+        Collections = []
         Settings = None
     }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "ordering"
@@ -73,7 +74,7 @@ let ``merge preserves local source declaration order`` () =
 [<Fact>]
 let ``merge appends global-only sources after local sources`` () =
     let g = makeGlobal [ makeSource "local-one" (Some "https://l.com"); makeSource "global-only" (Some "https://g.com") ] []
-    let l = { Version = 1; Sources = [ makeSource "local-one" None ]; Settings = None }
+    let l = { Version = 1; Sources = [ makeSource "local-one" None ]; Collections = []; Settings = None }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "global-only appended"
     Assert.Equal(2, result.Sources.Length)
     Assert.Equal("local-one", result.Sources[0].Name)
@@ -84,7 +85,7 @@ let ``merge appends global-only sources after local sources`` () =
 [<Fact>]
 let ``merge errors when inherited local source not found in global config`` () =
     let g = makeGlobal [ makeSource "other" (Some "https://other.com") ] []
-    let l = { Version = 1; Sources = [ makeSource "missing" None ]; Settings = None }
+    let l = { Version = 1; Sources = [ makeSource "missing" None ]; Collections = []; Settings = None }
     Config.merge (Some g) (Some l)
     |> assertError "missing"
 
@@ -96,7 +97,7 @@ let ``merge errors when global config version too high`` () =
 
 [<Fact>]
 let ``merge errors when local config version too high`` () =
-    let l = { Version = 99; Sources = []; Settings = None }
+    let l = { Version = 99; Sources = []; Collections = []; Settings = None }
     Config.merge None (Some l)
     |> assertError "please upgrade eru"
 
@@ -108,7 +109,7 @@ let ``merge errors on duplicate source name in global config`` () =
 
 [<Fact>]
 let ``merge errors on duplicate source name in local config`` () =
-    let l = { Version = 1; Sources = [ makeSource "dup" None; makeSource "dup" None ]; Settings = None }
+    let l = { Version = 1; Sources = [ makeSource "dup" None; makeSource "dup" None ]; Collections = []; Settings = None }
     Config.merge None (Some l)
     |> assertError "Duplicate source name 'dup'"
 

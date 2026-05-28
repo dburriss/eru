@@ -4,7 +4,7 @@ open System.IO
 open Xunit
 open Eru
 
-let private emptyLocal : LocalConfig = { Version = 1; Sources = []; Settings = None }
+let private emptyLocal : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = None }
 let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
 
 let private makeDeps

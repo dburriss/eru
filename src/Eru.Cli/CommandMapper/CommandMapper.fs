@@ -80,3 +80,42 @@ let (|SourceViewCmd|_|) (r: ParseResults<EruArgs>) =
                           viewArgs.Contains SourceViewArgs.Full)
                 | _ -> None)
         | _ -> None)
+
+let private parseSourcePath (raw: string) : Result<string * string, string> =
+    let idx = raw.IndexOf(':')
+    if idx <= 0 then Error $"Invalid source:path format '{raw}' — expected <source>:<remotePath>"
+    else Ok (raw.[..idx-1], raw.[idx+1..])
+
+let (|CollectionCreateCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Collection args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | CollectionArgs.Create createArgs ->
+                    Some ({
+                        Collection.CreateCommand.Name        = createArgs.GetResult  CollectionCreateArgs.Name
+                        Collection.CreateCommand.Tags        = createArgs.GetResults CollectionCreateArgs.Tag
+                        Collection.CreateCommand.Description = createArgs.TryGetResult CollectionCreateArgs.Description
+                        Collection.CreateCommand.IsGlobal    = createArgs.Contains   CollectionCreateArgs.Global
+                    })
+                | _ -> None)
+        | _ -> None)
+
+let (|CollectionAddFileCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Collection args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | CollectionArgs.Add addArgs ->
+                    let raw = addArgs.GetResult CollectionAddArgs.File
+                    match parseSourcePath raw with
+                    | Error e -> eprintfn $"Error: {e}"; None
+                    | Ok (source, remotePath) ->
+                        Some ({
+                            Collection.AddFileCommand.CollectionName = addArgs.GetResult  CollectionAddArgs.Collection
+                            Collection.AddFileCommand.Source         = source
+                            Collection.AddFileCommand.RemotePath     = remotePath
+                            Collection.AddFileCommand.Tags           = addArgs.GetResults CollectionAddArgs.Tag
+                            Collection.AddFileCommand.Description    = addArgs.TryGetResult CollectionAddArgs.Description
+                            Collection.AddFileCommand.IsGlobal       = addArgs.Contains   CollectionAddArgs.Global
+                        })
+                | _ -> None)
+        | _ -> None)
