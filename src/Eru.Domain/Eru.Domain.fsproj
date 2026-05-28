@@ -10,6 +10,7 @@
     <Compile Include="LockFile.fs" />
     <Compile Include="Deps.fs" />
     <Compile Include="Source.fs" />
+    <Compile Include="Collection.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="UrlParser.fs" />
     <Compile Include="Add.fs" />

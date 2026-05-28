@@ -89,6 +89,44 @@ type SourceArgs =
             | List _ -> "List configured knowledge sources."
             | View _ -> "Show details and available files for a source."
 
+type CollectionCreateArgs =
+    | [<MainCommand; ExactlyOnce>] Name        of name: string
+    | [<AltCommandLine("-t")>]     Tag         of tag: string
+    | [<AltCommandLine("-d")>]     Description of desc: string
+    | [<AltCommandLine("-g")>]     Global
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name _        -> "Name of the new collection."
+            | Tag _         -> "Tag for the collection; repeat for multiple tags."
+            | Description _ -> "Short description of the collection."
+            | Global        -> "Write to global config (~/.config/eru/config.json)."
+
+type CollectionAddArgs =
+    | [<MainCommand; ExactlyOnce>] Collection   of name: string
+    | [<AltCommandLine("-f"); ExactlyOnce>] File of sourceAndPath: string
+    | [<AltCommandLine("-t")>]     Tag          of tag: string
+    | [<AltCommandLine("-d")>]     Description  of desc: string
+    | [<AltCommandLine("-g")>]     Global
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Collection _  -> "Name of the collection to add the file to."
+            | File _        -> "File reference as source:remotePath (e.g. gh-repo:docs/guide.md)."
+            | Tag _         -> "Tag for the file reference; repeat for multiple tags."
+            | Description _ -> "Short description of the file reference."
+            | Global        -> "Write to global config (~/.config/eru/config.json)."
+
+[<CliPrefix(CliPrefix.None)>]
+type CollectionArgs =
+    | [<SubCommand>] Create of ParseResults<CollectionCreateArgs>
+    | [<SubCommand>] Add    of ParseResults<CollectionAddArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Create _ -> "Create a new collection."
+            | Add    _ -> "Add a file reference to an existing collection."
+
 type McpArgs =
     | [<Hidden>] Placeholder
     interface IArgParserTemplate with
@@ -101,15 +139,17 @@ type EruArgs =
     | [<SubCommand>] Add    of ParseResults<AddArgs>
     | [<SubCommand>] Search of ParseResults<SearchArgs>
     | [<SubCommand>] Sync   of ParseResults<SyncArgs>
-    | [<SubCommand>] Source of ParseResults<SourceArgs>
-    | [<SubCommand>] Mcp    of ParseResults<McpArgs>
+    | [<SubCommand>] Source     of ParseResults<SourceArgs>
+    | [<SubCommand>] Collection of ParseResults<CollectionArgs>
+    | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Debug    -> "Enable verbose/debug output (show git clone progress etc.)."
-            | Init _   -> "Initialise a new eru configuration in the current repo."
-            | Add _    -> "Pull a file from a knowledge source into this repo."
-            | Search _ -> "Search across configured knowledge sources."
-            | Sync _   -> "Synchronise local files with knowledge sources."
-            | Source _ -> "Manage knowledge sources."
-            | Mcp _    -> "Start an MCP stdio server for AI agent use."
+            | Debug      -> "Enable verbose/debug output (show git clone progress etc.)."
+            | Init _     -> "Initialise a new eru configuration in the current repo."
+            | Add _      -> "Pull a file from a knowledge source into this repo."
+            | Search _   -> "Search across configured knowledge sources."
+            | Sync _     -> "Synchronise local files with knowledge sources."
+            | Source _   -> "Manage knowledge sources."
+            | Collection _ -> "Manage collections of knowledge file references."
+            | Mcp _      -> "Start an MCP stdio server for AI agent use."
