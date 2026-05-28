@@ -70,3 +70,13 @@ let (|SourceListCmd|_|) (r: ParseResults<EruArgs>) =
                 | SourceArgs.List _ -> Some ()
                 | _ -> None)
         | _ -> None)
+
+let (|SourceViewCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Source args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | SourceArgs.View viewArgs ->
+                    Some (viewArgs.GetResult SourceViewArgs.Name,
+                          viewArgs.Contains SourceViewArgs.Full)
+                | _ -> None)
+        | _ -> None)
