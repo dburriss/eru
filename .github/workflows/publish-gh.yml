@@ -1,0 +1,99 @@
+name: Publish GitHub Release (.NET 10)
+
+on:
+  push:
+    tags:
+      - 'v*'    # e.g., v1.2.3
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create GitHub Releases and upload assets
+
+jobs:
+  # Extract changelog body for the release notes once, share via output
+  changelog:
+    runs-on: ubuntu-latest
+    outputs:
+      body: ${{ steps.extract.outputs.body }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract changelog section for tag
+        id: extract
+        run: |
+          TAG="${GITHUB_REF_NAME:-}"
+          VERSION="${TAG#v}"
+          # Extract lines between ## [VERSION] and the next ## heading
+          BODY=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          # Write multiline output safely
+          {
+            echo 'body<<EOF'
+            echo "$BODY"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: changelog
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: eru
+            suffix: ""
+          - os: windows-latest
+            rid: win-x64
+            artifact: eru.exe
+            suffix: ".exe"
+          - os: macos-latest
+            rid: osx-x64
+            artifact: eru
+            suffix: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Publish self-contained binary
+        run: >
+          dotnet publish src/Eru.Cli/Eru.Cli.fsproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=true
+          --output ./publish/${{ matrix.rid }}
+
+      - name: Rename artifact (non-Windows)
+        if: matrix.os != 'windows-latest'
+        run: mv ./publish/${{ matrix.rid }}/eru ./publish/${{ matrix.rid }}/eru-${{ matrix.rid }}
+
+      - name: Rename artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: Rename-Item ./publish/${{ matrix.rid }}/eru.exe eru-${{ matrix.rid }}.exe
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: ${{ needs.changelog.outputs.body }}
+          files: |
+            ./publish/${{ matrix.rid }}/eru-${{ matrix.rid }}*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
