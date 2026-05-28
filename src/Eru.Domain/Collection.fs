@@ -6,6 +6,7 @@ module Collection =
         Tags        : string list
         Description : string option
         IsGlobal    : bool
+        DryRun      : bool
     }
 
     type AddFileCommand = {
@@ -15,6 +16,7 @@ module Collection =
         Tags           : string list
         Description    : string option
         IsGlobal       : bool
+        DryRun         : bool
     }
 
     let create (deps: Deps) (cmd: CreateCommand) : int =
@@ -35,6 +37,8 @@ module Collection =
             | Ok g ->
                 if g.Collections |> List.exists (fun c -> c.Name = cmd.Name) then
                     eprintfn $"Error: collection '{cmd.Name}' already exists in global config."; 1
+                elif cmd.DryRun then
+                    printfn $"Would create collection '{cmd.Name}' in global config."; 0
                 else
                     let updated = { g with Collections = g.Collections @ [newCol] }
                     match deps.WriteGlobalConfig updated with
@@ -48,6 +52,8 @@ module Collection =
             | Ok (Some local) ->
                 if local.Collections |> List.exists (fun c -> c.Name = cmd.Name) then
                     eprintfn $"Error: collection '{cmd.Name}' already exists in .eru/config.json."; 1
+                elif cmd.DryRun then
+                    printfn $"Would create collection '{cmd.Name}' in .eru/config.json."; 0
                 else
                     let updated = { local with Collections = local.Collections @ [newCol] }
                     match deps.WriteLocalConfig updated with
@@ -76,6 +82,8 @@ module Collection =
                 | Some col ->
                     if col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath) then
                         eprintfn $"Error: '{cmd.Source}:{cmd.RemotePath}' is already in collection '{cmd.CollectionName}'."; 1
+                    elif cmd.DryRun then
+                        printfn $"Would add '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in global config."; 0
                     else
                         let updatedCol  = { col with Files = col.Files @ [fileRef] }
                         let updatedCols = g.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then updatedCol else c)
@@ -95,6 +103,8 @@ module Collection =
                 | Some col ->
                     if col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath) then
                         eprintfn $"Error: '{cmd.Source}:{cmd.RemotePath}' is already in collection '{cmd.CollectionName}'."; 1
+                    elif cmd.DryRun then
+                        printfn $"Would add '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in .eru/config.json."; 0
                     else
                         let updatedCol  = { col with Files = col.Files @ [fileRef] }
                         let updatedCols = local.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then updatedCol else c)

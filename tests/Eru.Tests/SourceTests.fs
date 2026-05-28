@@ -35,6 +35,7 @@ let private simpleCmd url = {
     Source.AddCommand.Branch   = None
     Source.AddCommand.BasePath = None
     Source.AddCommand.IsGlobal = false
+    Source.AddCommand.DryRun   = false
 }
 
 // ── Name derivation ──────────────────────────────────────────────────────────

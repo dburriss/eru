@@ -54,6 +54,7 @@ type SourceAddArgs =
     | [<AltCommandLine("-b")>]     Branch   of branch: string
     | [<AltCommandLine("-p")>]     Basepath of path: string
     | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -62,6 +63,7 @@ type SourceAddArgs =
             | Branch _   -> "Branch to track."
             | Basepath _ -> "Explicitly set the base path, skipping auto-detection."
             | Global     -> "Write to global config (~/.config/eru/config.json)."
+            | Dryrun     -> "Show what would be added without writing anything."
 
 type SourceListArgs =
     | [<Hidden>] Placeholder
@@ -94,6 +96,7 @@ type CollectionCreateArgs =
     | [<AltCommandLine("-t")>]     Tag         of tag: string
     | [<AltCommandLine("-d")>]     Description of desc: string
     | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -101,6 +104,7 @@ type CollectionCreateArgs =
             | Tag _         -> "Tag for the collection; repeat for multiple tags."
             | Description _ -> "Short description of the collection."
             | Global        -> "Write to global config (~/.config/eru/config.json)."
+            | Dryrun        -> "Show what would be created without writing anything."
 
 type CollectionAddArgs =
     | [<MainCommand; ExactlyOnce>] Collection   of name: string
@@ -108,6 +112,7 @@ type CollectionAddArgs =
     | [<AltCommandLine("-t")>]     Tag          of tag: string
     | [<AltCommandLine("-d")>]     Description  of desc: string
     | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -116,6 +121,7 @@ type CollectionAddArgs =
             | Tag _         -> "Tag for the file reference; repeat for multiple tags."
             | Description _ -> "Short description of the file reference."
             | Global        -> "Write to global config (~/.config/eru/config.json)."
+            | Dryrun        -> "Show what would be added without writing anything."
 
 [<CliPrefix(CliPrefix.None)>]
 type CollectionArgs =
