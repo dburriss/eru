@@ -15,6 +15,8 @@
     <Compile Include="SearchTypes.fs" />
     <Compile Include="SimpleScan.fs" />
     <Compile Include="IndexedSearch.fs" />
+    <Compile Include="CkSearch.fs" />
+    <Compile Include="IndexService.fs" />
     <Compile Include="CollectionCacheService.fs" />
     <Compile Include="McpTools.fs" />
     <Compile Include="McpServer.fs" />
