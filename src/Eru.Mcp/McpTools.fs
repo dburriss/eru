@@ -12,6 +12,11 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
 
     let cacheRoot = Paths.collectionCachePath ()
 
+    let backend : SearchFn =
+        match Environment.GetEnvironmentVariable "ERU_SEARCH_BACKEND" with
+        | "simple" -> SimpleScan.search
+        | _        -> IndexedSearch.search
+
     let parseTerms (query: string) =
         query.Split(' ', StringSplitOptions.RemoveEmptyEntries)
         |> Array.toList
@@ -22,36 +27,24 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         |> Array.toList
         |> List.map (fun t -> t.Trim().ToLowerInvariant())
 
-    let matchesTerms (termList: string list) (text: string) =
-        let lower = text.ToLowerInvariant()
-        termList = [] || termList |> List.exists lower.Contains
-
-    let firstMatchingLine (termList: string list) (content: string) =
-        if termList = [] then
-            content.Split('\n') |> Array.tryHead |> Option.defaultValue ""
-        else
-            content.Split('\n')
-            |> Array.tryFind (fun line ->
-                termList |> List.exists (fun t -> line.ToLowerInvariant().Contains(t)))
-            |> Option.defaultValue ""
-
     let hasTags (required: string list) (itemTags: string list) =
         required = [] ||
         required |> List.forall (fun t ->
             itemTags |> List.exists (fun it -> it.ToLowerInvariant() = t))
 
     [<McpServerTool(Name = "search_knowledge")>]
-    [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and a content excerpt.")>]
+    [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and content excerpts.")>]
     member _.Search(
-        [<Description("Search terms (space-separated, OR semantics). Matched against file content, path, and description. Leave empty to list all known artifacts.")>] query: string,
+        [<Description("Search terms (space-separated, OR semantics). Matched against file content and path. Leave empty to list all known artifacts.")>] query: string,
         [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string) : string =
 
         let termList     = parseTerms query
         let requiredTags = parseTags tags
-        let results      = System.Collections.Generic.List<string>()
 
         let isPathAllowed path =
             not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
+
+        let candidates = System.Collections.Generic.List<CandidateFile>()
 
         // 1. Cached collection files
         if Directory.Exists(cacheRoot) then
@@ -62,16 +55,16 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                 let remotePath = if parts.Length > 1 then parts.[1] else relPath
                 let meta       = eff.Collections |> List.tryFind (fun c -> c.Source = sourceName && c.RemotePath = remotePath)
                 let fileTags   = meta |> Option.map (fun m -> m.Tags) |> Option.defaultValue []
-                let desc       = meta |> Option.bind (fun m -> m.Description) |> Option.defaultValue ""
+                let desc       = meta |> Option.bind (fun m -> m.Description)
                 if hasTags requiredTags fileTags && isPathAllowed remotePath then
-                    try
-                        let content = File.ReadAllText(file)
-                        if matchesTerms termList (content + " " + relPath + " " + desc) then
-                            let excerpt  = firstMatchingLine termList content
-                            let tagsStr  = if fileTags = [] then "" else " [tags: " + String.concat "," fileTags + "]"
-                            let descStr  = if desc = "" then "" else " — " + desc
-                            results.Add($"[collection] {relPath}{tagsStr}{descStr}\n  > {excerpt.Trim()}")
-                    with _ -> ()
+                    candidates.Add({
+                        AbsPath     = file
+                        RelPath     = relPath
+                        Source      = Cache
+                        SourceName  = Some sourceName
+                        Tags        = fileTags
+                        Description = desc
+                    })
 
         // 2. Lock file entries
         let lockPath = Paths.lockFilePath (deps.GetCwd()) (Some eff.StateFile)
@@ -79,12 +72,14 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         | Ok entries ->
             for entry in entries do
                 if hasTags requiredTags [] && isPathAllowed entry.RemotePath && File.Exists(entry.LocalPath) then
-                    try
-                        let content = File.ReadAllText(entry.LocalPath)
-                        if matchesTerms termList (content + " " + entry.LocalPath) then
-                            let excerpt = firstMatchingLine termList content
-                            results.Add($"[lock] {entry.LocalPath} (from {entry.SourceName}:{entry.RemotePath})\n  > {excerpt.Trim()}")
-                    with _ -> ()
+                    candidates.Add({
+                        AbsPath     = entry.LocalPath
+                        RelPath     = entry.LocalPath
+                        Source      = Lock
+                        SourceName  = Some entry.SourceName
+                        Tags        = []
+                        Description = Some entry.RemotePath
+                    })
         | Error _ -> ()
 
         // 3. Local knowledge directories
@@ -95,14 +90,36 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                 for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
                     let relPath = Path.GetRelativePath(cwd, file)
                     if hasTags requiredTags [] && isPathAllowed relPath then
-                        try
-                            let content  = File.ReadAllText(file)
-                            if matchesTerms termList (content + " " + relPath) then
-                                let excerpt = firstMatchingLine termList content
-                                results.Add($"[local] {relPath}\n  > {excerpt.Trim()}")
-                        with _ -> ()
+                        candidates.Add({
+                            AbsPath     = file
+                            RelPath     = relPath
+                            Source      = Local
+                            SourceName  = None
+                            Tags        = []
+                            Description = None
+                        })
 
-        if results.Count = 0 then "No matching artifacts found."
+        let hits = backend termList (candidates |> Seq.toList)
+
+        let results =
+            hits |> List.map (fun (f, excerpts) ->
+                let label =
+                    match f.Source with
+                    | Lock ->
+                        let remotePath  = f.Description |> Option.defaultValue f.RelPath
+                        let sourceName  = f.SourceName  |> Option.defaultValue ""
+                        $"[lock] {f.RelPath} (from {sourceName}:{remotePath})"
+                    | Local -> $"[local] {f.RelPath}"
+                    | Cache ->
+                        let tagsStr = if f.Tags = [] then "" else " [tags: " + String.concat "," f.Tags + "]"
+                        let descStr = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
+                        $"[collection] {f.RelPath}{tagsStr}{descStr}"
+                if excerpts.IsEmpty then label
+                else
+                    let excerptBlock = excerpts |> String.concat "\n  > "
+                    $"{label}\n  > {excerptBlock}")
+
+        if results.IsEmpty then "No matching artifacts found."
         else String.concat "\n\n" results
 
     [<McpServerTool(Name = "read_artifact")>]

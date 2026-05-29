@@ -12,6 +12,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SearchTypes.fs" />
+    <Compile Include="SimpleScan.fs" />
+    <Compile Include="IndexedSearch.fs" />
     <Compile Include="CollectionCacheService.fs" />
     <Compile Include="McpTools.fs" />
     <Compile Include="McpServer.fs" />
