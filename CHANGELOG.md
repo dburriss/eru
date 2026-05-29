@@ -1,6 +1,14 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- Serilog rolling-file logging for the MCP server — warnings and errors from background syncs are written to `~/.cache/eru/mcp-YYYYMMDD.log` (XDG-aware; `%LOCALAPPDATA%\eru\` on Windows); daily rotation, 7-day retention
+
+### Changed
+- `refresh_knowledge` MCP tool now returns immediately instead of blocking until all git fetches complete — the sync runs on a background thread and any errors are written to the MCP log file rather than returned inline
+- `CollectionCacheService` timer ticks also go through the new background-sync path, freeing the timer thread from blocking on network I/O
+- Concurrent sync calls are deduplicated — if a sync is already in progress (from the timer or a previous `refresh_knowledge` call), the tool returns `"A knowledge refresh is already in progress."` rather than starting a second parallel sync
+
 ### Fixed
 - Git operations no longer prompt for credentials — `GIT_TERMINAL_PROMPT=0` and `GIT_ASKPASS=echo` are now set for all git invocations, preventing interactive auth prompts from blocking or corrupting the JSON-RPC stdio channel
 - MCP server checks source accessibility at startup — runs `git ls-remote` against each configured source URL before the host starts and writes a warning to stderr if any source is unreachable (e.g. due to missing credentials), surfacing auth failures immediately rather than on the first hanging tool call

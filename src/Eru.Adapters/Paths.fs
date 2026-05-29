@@ -57,3 +57,14 @@ module Paths =
                 if xdgCache <> null && xdgCache <> "" then xdgCache
                 else IO.Path.Combine(Environment.GetFolderPath Environment.SpecialFolder.UserProfile, ".cache")
             IO.Path.Combine(cacheHome, "eru", "index")
+
+    let mcpLogPath () =
+        if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
+            let localAppData = Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData
+            IO.Path.Combine(localAppData, "eru", "mcp.log")
+        else
+            let xdgCache = Environment.GetEnvironmentVariable "XDG_CACHE_HOME"
+            let cacheHome =
+                if xdgCache <> null && xdgCache <> "" then xdgCache
+                else IO.Path.Combine(Environment.GetFolderPath Environment.SpecialFolder.UserProfile, ".cache")
+            IO.Path.Combine(cacheHome, "eru", "mcp.log")

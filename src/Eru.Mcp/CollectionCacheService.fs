@@ -8,8 +8,8 @@ type CollectionCacheService(sync: KnowledgeSyncService) =
 
     override _.ExecuteAsync(ct: CancellationToken) =
         task {
-            sync.Sync() |> ignore
+            sync.TriggerBackgroundSync() |> ignore
             use timer = new PeriodicTimer(System.TimeSpan.FromMinutes(float sync.CurrentEff.McpRefreshIntervalMinutes))
             while! timer.WaitForNextTickAsync(ct) do
-                sync.Sync() |> ignore
+                sync.TriggerBackgroundSync() |> ignore
         }

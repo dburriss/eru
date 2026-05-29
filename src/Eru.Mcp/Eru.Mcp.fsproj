@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="1.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="9.*" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.*" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SearchTypes.fs" />
