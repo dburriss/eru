@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-29
+### Added
+- MCP Resources for browsing sources and installed artifacts — three new resources exposed by `eru mcp`:
+  - `eru://sources` lists all configured knowledge sources with URL, branch, and collection doc count
+  - `eru://sources/{name}` returns config details and collection docs for a specific source
+  - `eru://installed` lists all locally pulled artifacts from the lock file, grouped by source; missing files are flagged `[missing]`
+
 ## [0.5.1] - 2026-05-29
 ### Fixed
 - MCP server no longer writes log output to stdout — default console logging providers are cleared at startup so ASP.NET Core log lines no longer corrupt the JSON-RPC stdio stream
