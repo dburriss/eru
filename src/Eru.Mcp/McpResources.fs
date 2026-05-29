@@ -9,7 +9,7 @@ open ModelContextProtocol.Server
 [<McpServerResourceType>]
 type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
 
-    [<McpServerResource(UriTemplate = "eru://sources", Name = "sources")>]
+    [<McpServerResource(UriTemplate = "eru://sources", Name = "sources", MimeType = "text/plain")>]
     [<Description("List all configured knowledge sources with name, URL, branch, and collection doc count.")>]
     member _.ListSources() : string =
         let eff = syncService.CurrentEff
@@ -23,7 +23,7 @@ type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
                 $"{s.Name}{urlPart}{branchPart} ({docCount} docs)")
             |> String.concat "\n"
 
-    [<McpServerResource(UriTemplate = "eru://sources/{name}", Name = "source")>]
+    [<McpServerResource(UriTemplate = "eru://sources/{name}", Name = "source", MimeType = "text/plain")>]
     [<Description("Config details and known collection docs for a specific source.")>]
     member _.GetSource(
         [<Description("Source name.")>] name: string) : string =
@@ -46,7 +46,7 @@ type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
                     |> String.concat "\n"
                 $"{header}\n{docLines}"
 
-    [<McpServerResource(UriTemplate = "eru://installed", Name = "installed")>]
+    [<McpServerResource(UriTemplate = "eru://installed", Name = "installed", MimeType = "text/plain")>]
     [<Description("All locally pulled artifacts from the lock file, grouped by source.")>]
     member _.ListInstalled() : string =
         let eff = syncService.CurrentEff
