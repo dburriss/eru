@@ -28,6 +28,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   BlockPatterns             = Config.defaultBlockPatterns
                   AllowPatterns             = Config.defaultAllowPatterns
                   AllowBinaries             = Config.defaultAllowBinaries })
+            |> Config.withManifests deps.ReadCachedManifest
 
         let builder = Host.CreateApplicationBuilder()
         builder.Services
