@@ -1,5 +1,8 @@
 namespace Eru.Mcp
 
+open System.Threading
+open System.Threading.Tasks
+open Microsoft.Extensions.Logging
 open Eru
 open Eru.Adapters
 
@@ -9,8 +12,9 @@ type SyncResult = {
     Errors           : string list
 }
 
-type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig) =
+type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig, logger: ILogger<KnowledgeSyncService>) =
     let mutable currentEff = startupEff
+    let mutable syncRunning = 0   // 0 = idle, 1 = running; Interlocked-guarded
     let cacheRoot = Paths.collectionCachePath ()
 
     let buildEff () =
@@ -29,7 +33,7 @@ type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig) =
                 | _ -> ()
         Config.withManifests deps.ReadCachedManifest baseEff
 
-    member _.CurrentEff = currentEff
+    member _.CurrentEff = Volatile.Read(&currentEff)
 
     member _.Sync() =
         let mutable errors     = []
@@ -55,5 +59,21 @@ type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig) =
                             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName dest) |> ignore
                             System.IO.File.WriteAllText(dest, content)
                             filesCached <- filesCached + 1))
-        currentEff <- freshEff
+        Volatile.Write(&currentEff, freshEff)
         { SourcesRefreshed = freshEff.Sources.Length; FilesCached = filesCached; Errors = errors }
+
+    member this.TriggerBackgroundSync() : bool =
+        if Interlocked.CompareExchange(&syncRunning, 1, 0) = 0 then
+            Task.Run(fun () ->
+                try
+                    try
+                        let result = this.Sync()
+                        if result.Errors <> [] then
+                            logger.LogWarning("Sync completed with errors: {Errors}", String.concat "; " result.Errors)
+                    with ex ->
+                        logger.LogError(ex, "Sync threw an unhandled exception")
+                finally
+                    Interlocked.Exchange(&syncRunning, 0) |> ignore) |> ignore
+            true
+        else
+            false

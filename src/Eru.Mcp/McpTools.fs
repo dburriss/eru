@@ -189,10 +189,9 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
             $"Error: artifact not found: {path}"
 
     [<McpServerTool(Name = "refresh_knowledge")>]
-    [<Description("Trigger an immediate refresh of the knowledge cache, re-reading config and re-fetching all collection files from configured sources. Returns a summary of sources and files synced.")>]
+    [<Description("Trigger a background refresh of the knowledge cache. Returns immediately; sync runs in the background and errors are written to the eru log file.")>]
     member _.Refresh() : string =
-        let result = syncService.Sync()
-        let errorPart =
-            if result.Errors = [] then "none"
-            else result.Errors |> String.concat "; "
-        $"Refreshed: {result.SourcesRefreshed} sources, {result.FilesCached} files cached. Errors: {errorPart}"
+        if syncService.TriggerBackgroundSync() then
+            "Knowledge refresh started in the background."
+        else
+            "A knowledge refresh is already in progress."

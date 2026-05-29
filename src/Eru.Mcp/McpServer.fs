@@ -5,6 +5,7 @@ open Eru.Adapters
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
+open Serilog
 
 let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
     task {
@@ -39,8 +40,21 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                 | Ok ()   -> ()
                 | Error e -> eprintfn "[eru] WARNING: source '%s' (%s) is not accessible: %s" src.Name url e
 
+        let logFile = Paths.mcpLogPath ()
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName logFile) |> ignore
+        Log.Logger <-
+            LoggerConfiguration()
+                .MinimumLevel.Warning()
+                .WriteTo.File(
+                    logFile,
+                    rollingInterval        = RollingInterval.Day,
+                    retainedFileCountLimit = System.Nullable 7,
+                    outputTemplate         = "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+                .CreateLogger()
+
         let builder = Host.CreateApplicationBuilder()
         builder.Logging.ClearProviders() |> ignore
+        builder.Logging.AddSerilog(dispose = true) |> ignore
         builder.Services
             .AddSingleton<Deps>(deps)
             .AddSingleton<EffectiveConfig>(eff)
