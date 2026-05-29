@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.5.0] - 2026-05-29
+### Added
+- `refresh_knowledge` MCP tool — triggers an on-demand sync of the knowledge cache without waiting for the next timer tick; returns a summary of sources refreshed, files cached, and any errors
+
 ### Fixed
 - MCP server now incorporates cached source manifests into the effective config at startup — manifest files were previously invisible to `search_knowledge` and `CollectionCacheService` even after `eru source add` had cached them on disk
 - `CollectionCacheService` now rebuilds the effective config on every refresh cycle: re-reads global and local config, re-fetches `.eru/manifest.json` from each source, and re-applies manifests — sources added after the MCP server starts and remote manifest changes are picked up automatically on the next tick
