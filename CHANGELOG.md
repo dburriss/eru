@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- MCP server no longer writes log output to stdout — default console logging providers are cleared at startup so ASP.NET Core log lines no longer corrupt the JSON-RPC stdio stream
 
 ## [0.5.0] - 2026-05-29
 ### Added
