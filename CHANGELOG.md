@@ -4,6 +4,8 @@
 ### Added
 - `eru source remove <name>` — remove a named source from local config (or global with `--global`); supports `--dryrun`
 - `eru collection remove <collection> -f <source:path>` — remove a file reference from a collection; if it was the last file the collection entry is also removed; supports `--global` and `--dryrun`
+- Indexed word search for `search_knowledge` MCP tool — per-file inverted index stored at `~/.cache/eru/index/` invalidated by content hash; all matching lines returned as excerpts (OR semantics) instead of just the first hit
+- `SimpleScan` baseline backend for `search_knowledge` — reads files directly without indexing; selectable via `ERU_SEARCH_BACKEND=simple`
 
 ## [0.3.0] - 2026-05-28
 ### Added
