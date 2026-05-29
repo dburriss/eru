@@ -15,6 +15,7 @@
     <Compile Include="Init.fs" />
     <Compile Include="UrlParser.fs" />
     <Compile Include="Patterns.fs" />
+    <Compile Include="Frontmatter.fs" />
     <Compile Include="Add.fs" />
     <Compile Include="Search.fs" />
     <Compile Include="Sync.fs" />

@@ -2,10 +2,13 @@
 
 ## [Unreleased]
 ### Added
+- YAML frontmatter support in knowledge files — `description` and `tags` fields in a `---` block are automatically picked up by the `search_knowledge` MCP tool; applies to cached collection files, lock-file entries, and local `knowledge/` directories; configured description takes precedence over frontmatter; tags are merged (union, deduplicated)
 - `eru source remove <name>` — remove a named source from local config (or global with `--global`); supports `--dryrun`
 - `eru collection remove <collection> -f <source:path>` — remove a file reference from a collection; if it was the last file the collection entry is also removed; supports `--global` and `--dryrun`
 - Indexed word search for `search_knowledge` MCP tool — per-file inverted index stored at `~/.cache/eru/index/` invalidated by content hash; all matching lines returned as excerpts (OR semantics) instead of just the first hit
 - `SimpleScan` baseline backend for `search_knowledge` — reads files directly without indexing; selectable via `ERU_SEARCH_BACKEND=simple`
+- `ck` semantic + keyword search backend for `search_knowledge` — uses `ck --hybrid` per candidate file; selectable via `ERU_SEARCH_BACKEND=ck`; requires `ck` to be installed and on PATH
+- `IndexService` — background service that pre-builds the search index at MCP server startup and on each refresh tick; activates for `ERU_SEARCH_BACKEND=indexed` (word index) and `ERU_SEARCH_BACKEND=ck` (vector index); indexing runs in parallel across files and directories
 
 ## [0.3.0] - 2026-05-28
 ### Added
