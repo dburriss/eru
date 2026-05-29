@@ -11,10 +11,27 @@ type CollectionCacheService(deps: Deps, effectiveCfg: EffectiveConfig) =
 
     let cacheRoot = Paths.collectionCachePath ()
 
+    let buildEff () =
+        let globalCfgOpt = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
+        let localCfgOpt  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
+        let baseEff =
+            Config.merge globalCfgOpt localCfgOpt
+            |> Result.defaultWith (fun _ -> effectiveCfg)
+        for src in baseEff.Sources do
+            match src.Url with
+            | None -> ()
+            | Some url ->
+                let branch = src.Branch |> Option.defaultValue "HEAD"
+                match deps.FetchRemoteContent url branch ".eru/manifest.json" with
+                | Ok ((_, raw) :: _) -> deps.CacheSourceManifest src.Name raw |> ignore
+                | _ -> ()
+        Config.withManifests deps.ReadCachedManifest baseEff
+
     let syncAll () =
-        effectiveCfg.Collections
+        let eff = buildEff ()
+        eff.Collections
         |> List.iter (fun f ->
-            match effectiveCfg.Sources |> List.tryFind (fun s -> s.Name = f.Source) with
+            match eff.Sources |> List.tryFind (fun s -> s.Name = f.Source) with
             | None -> eprintfn "eru: collection cache: unknown source '%s'" f.Source
             | Some src ->
                 let branch = src.Branch |> Option.defaultValue "HEAD"
