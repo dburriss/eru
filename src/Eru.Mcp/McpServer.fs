@@ -31,6 +31,14 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   AllowBinaries             = Config.defaultAllowBinaries })
             |> Config.withManifests deps.ReadCachedManifest
 
+        for src in eff.Sources do
+            match src.Url with
+            | None -> ()
+            | Some url ->
+                match GitAdapter.checkRemoteAccess url with
+                | Ok ()   -> ()
+                | Error e -> eprintfn "[eru] WARNING: source '%s' (%s) is not accessible: %s" src.Name url e
+
         let builder = Host.CreateApplicationBuilder()
         builder.Logging.ClearProviders() |> ignore
         builder.Services
@@ -42,6 +50,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly(typeof<KnowledgeTools>.Assembly)
+            .WithResourcesFromAssembly(typeof<SourceResources>.Assembly)
         |> ignore
 
         do! builder.Build().RunAsync()

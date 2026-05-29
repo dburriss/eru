@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Git operations no longer prompt for credentials — `GIT_TERMINAL_PROMPT=0` and `GIT_ASKPASS=echo` are now set for all git invocations, preventing interactive auth prompts from blocking or corrupting the JSON-RPC stdio channel
+- MCP server checks source accessibility at startup — runs `git ls-remote` against each configured source URL before the host starts and writes a warning to stderr if any source is unreachable (e.g. due to missing credentials), surfacing auth failures immediately rather than on the first hanging tool call
 
 ## [0.6.0] - 2026-05-29
 ### Added
