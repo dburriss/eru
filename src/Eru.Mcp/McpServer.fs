@@ -33,6 +33,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
         builder.Services
             .AddSingleton<Deps>(deps)
             .AddSingleton<EffectiveConfig>(eff)
+            .AddHostedService<IndexService>()
             .AddHostedService<CollectionCacheService>()
             .AddMcpServer()
             .WithStdioServerTransport()

@@ -14,6 +14,7 @@
     <Compile Include="Paths.fs" />
     <Compile Include="Serialization.fs" />
     <Compile Include="SearchIndexAdapter.fs" />
+    <Compile Include="CkAdapter.fs" />
     <Compile Include="ConfigAdapter.fs" />
     <Compile Include="LockFileAdapter.fs" />
     <Compile Include="GitAdapter.fs" />

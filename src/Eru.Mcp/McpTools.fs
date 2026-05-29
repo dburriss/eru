@@ -14,8 +14,9 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
 
     let backend : SearchFn =
         match Environment.GetEnvironmentVariable "ERU_SEARCH_BACKEND" with
-        | "simple" -> SimpleScan.search
-        | _        -> IndexedSearch.search
+        | "indexed" -> IndexedSearch.search
+        | "ck"      -> CkSearch.search
+        | _         -> SimpleScan.search
 
     let parseTerms (query: string) =
         query.Split(' ', StringSplitOptions.RemoveEmptyEntries)
