@@ -4,6 +4,7 @@ open Eru
 open Eru.Adapters
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
+open Microsoft.Extensions.Logging
 
 let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
     task {
@@ -31,6 +32,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
             |> Config.withManifests deps.ReadCachedManifest
 
         let builder = Host.CreateApplicationBuilder()
+        builder.Logging.ClearProviders() |> ignore
         builder.Services
             .AddSingleton<Deps>(deps)
             .AddSingleton<EffectiveConfig>(eff)
