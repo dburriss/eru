@@ -34,6 +34,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
         builder.Services
             .AddSingleton<Deps>(deps)
             .AddSingleton<EffectiveConfig>(eff)
+            .AddSingleton<KnowledgeSyncService>()
             .AddHostedService<IndexService>()
             .AddHostedService<CollectionCacheService>()
             .AddMcpServer()

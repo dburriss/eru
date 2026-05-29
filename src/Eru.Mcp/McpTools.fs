@@ -8,7 +8,7 @@ open Eru.Adapters
 open ModelContextProtocol.Server
 
 [<McpServerToolType>]
-type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
+type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
 
     let cacheRoot = Paths.collectionCachePath ()
 
@@ -43,6 +43,7 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         [<Description("Search terms (space-separated, OR semantics). Matched against file content and path. Leave empty to list all known artifacts.")>] query: string,
         [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string) : string =
 
+        let eff          = syncService.CurrentEff
         let termList     = parseTerms query
         let requiredTags = parseTags tags
 
@@ -142,7 +143,8 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
     member _.Read(
         [<Description("Artifact path: a local file path (relative or absolute), 'sourceName:remotePath', or a path from search_knowledge results.")>] path: string) : string =
 
-        let cwd = deps.GetCwd()
+        let eff  = syncService.CurrentEff
+        let cwd  = deps.GetCwd()
 
         // 1. Local file (relative to CWD or absolute)
         let localPath = if Path.IsPathRooted(path) then path else Path.Combine(cwd, path)
@@ -185,3 +187,12 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                     | Error e -> $"Error fetching {path}: {e}"
         else
             $"Error: artifact not found: {path}"
+
+    [<McpServerTool(Name = "refresh_knowledge")>]
+    [<Description("Trigger an immediate refresh of the knowledge cache, re-reading config and re-fetching all collection files from configured sources. Returns a summary of sources and files synced.")>]
+    member _.Refresh() : string =
+        let result = syncService.Sync()
+        let errorPart =
+            if result.Errors = [] then "none"
+            else result.Errors |> String.concat "; "
+        $"Refreshed: {result.SourcesRefreshed} sources, {result.FilesCached} files cached. Errors: {errorPart}"
