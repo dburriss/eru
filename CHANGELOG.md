@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.7.1] - 2026-05-29
 ### Fixed
 - MCP resources now declare `text/plain` MIME type — previously the SDK defaulted to `application/octet-stream`, causing many MCP clients and inspectors to not display the `eru://sources`, `eru://sources/{name}`, and `eru://installed` resources
 
