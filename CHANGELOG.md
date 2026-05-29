@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.4.0] - 2026-05-29
 ### Added
 - YAML frontmatter support in knowledge files — `description` and `tags` fields in a `---` block are automatically picked up by the `search_knowledge` MCP tool; applies to cached collection files, lock-file entries, and local `knowledge/` directories; configured description takes precedence over frontmatter; tags are merged (union, deduplicated)
 - `eru source remove <name>` — remove a named source from local config (or global with `--global`); supports `--dryrun`
