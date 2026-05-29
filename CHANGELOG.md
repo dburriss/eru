@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.7.0] - 2026-05-29
 ### Added
 - Serilog rolling-file logging for the MCP server — warnings and errors from background syncs are written to `~/.cache/eru/mcp-YYYYMMDD.log` (XDG-aware; `%LOCALAPPDATA%\eru\` on Windows); daily rotation, 7-day retention
 
