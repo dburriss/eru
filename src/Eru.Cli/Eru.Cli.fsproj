@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,10 +16,13 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>`eru manifest init` — create `.eru/manifest.json` in a knowledge-source repo
-`eru manifest add &lt;path&gt;` — add a file or glob entry to the manifest with optional tags and description
-`eru manifest remove &lt;path&gt;` — remove an entry from the manifest by exact path
-`eru manifest verify` — resolve all manifest entries against local files; exits 1 if any match nothing</PackageReleaseNotes>
+    <PackageReleaseNotes>YAML frontmatter support in knowledge files — `description` and `tags` fields in a `---` block are automatically picked up by the `search_knowledge` MCP tool; applies to cached collection files, lock-file entries, and local `knowledge/` directories; configured description takes precedence over frontmatter; tags are merged (union, deduplicated)
+`eru source remove &lt;name&gt;` — remove a named source from local config (or global with `--global`); supports `--dryrun`
+`eru collection remove &lt;collection&gt; -f &lt;source:path&gt;` — remove a file reference from a collection; if it was the last file the collection entry is also removed; supports `--global` and `--dryrun`
+Indexed word search for `search_knowledge` MCP tool — per-file inverted index stored at `~/.cache/eru/index/` invalidated by content hash; all matching lines returned as excerpts (OR semantics) instead of just the first hit
+`SimpleScan` baseline backend for `search_knowledge` — reads files directly without indexing; selectable via `ERU_SEARCH_BACKEND=simple`
+`ck` semantic + keyword search backend for `search_knowledge` — uses `ck --hybrid` per candidate file; selectable via `ERU_SEARCH_BACKEND=ck`; requires `ck` to be installed and on PATH
+`IndexService` — background service that pre-builds the search index at MCP server startup and on each refresh tick; activates for `ERU_SEARCH_BACKEND=indexed` (word index) and `ERU_SEARCH_BACKEND=ck` (vector index); indexing runs in parallel across files and directories</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
