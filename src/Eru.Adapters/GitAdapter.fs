@@ -19,15 +19,20 @@ module GitAdapter =
     let private branchFlag (branch: string) =
         if branch = "HEAD" then "" else $"--branch {branch} "
 
+    let private noPromptEnv =
+        System.Action<System.Collections.Generic.IDictionary<string, string>>(fun env ->
+            env["GIT_TERMINAL_PROMPT"] <- "0"
+            env["GIT_ASKPASS"] <- "echo")
+
     let private runGit (verbose: bool) (args: string) (workingDirectory: string option) =
         if verbose then
             match workingDirectory with
-            | Some wd -> Command.Run("git", args, workingDirectory = wd, noEcho = true)
-            | None    -> Command.Run("git", args, noEcho = true)
+            | Some wd -> Command.Run("git", args, workingDirectory = wd, configureEnvironment = noPromptEnv, noEcho = true)
+            | None    -> Command.Run("git", args, configureEnvironment = noPromptEnv, noEcho = true)
         else
             match workingDirectory with
-            | Some wd -> Command.ReadAsync("git", args, wd).Result |> ignore
-            | None    -> Command.ReadAsync("git", args).Result |> ignore
+            | Some wd -> Command.ReadAsync("git", args, wd, noPromptEnv).Result |> ignore
+            | None    -> Command.ReadAsync("git", args, configureEnvironment = noPromptEnv).Result |> ignore
 
     let fetchRemoteContent (verbose: bool) (url: string) (branch: string) (remotePath: string) : Result<(string * string) list, string> =
         withTempDir (fun tmpDir ->
@@ -50,13 +55,20 @@ module GitAdapter =
             with ex ->
                 Error ex.Message)
 
+    let checkRemoteAccess (url: string) : Result<unit, string> =
+        try
+            Command.ReadAsync("git", $"ls-remote {url} HEAD", configureEnvironment = noPromptEnv).Result |> ignore
+            Ok ()
+        with ex ->
+            Error ex.Message
+
     let listRemoteTopLevel (verbose: bool) (url: string) (branch: string option) : Result<string list, string> =
         let bFlag = branch |> Option.map (fun b -> $"--branch {b} ") |> Option.defaultValue ""
         withTempDir (fun tmpDir ->
             try
                 runGit verbose $"clone --filter=blob:none --depth=1 --no-checkout {bFlag}-- {url} {tmpDir}" None
                 let struct (stdout, _) : struct (string * string) =
-                    Command.ReadAsync("git", "ls-tree HEAD --name-only", tmpDir).Result
+                    Command.ReadAsync("git", "ls-tree HEAD --name-only", tmpDir, noPromptEnv).Result
                 let entries =
                     stdout.Split([| '\n'; '\r' |], StringSplitOptions.RemoveEmptyEntries)
                     |> Array.toList

@@ -26,6 +26,42 @@ The default is 60 minutes. The server fetches all configured collection files in
 
 On startup, `eru mcp` pre-fetches every file referenced in your collections from their upstream sources and stores them in a local cache. This makes `search_knowledge` and `read_artifact` fast — no live git fetch is needed for cached files. The cache refreshes automatically at the interval set by `mcpRefreshIntervalMinutes`.
 
+## Available resources
+
+MCP Resources are URI-addressable data sources that clients can enumerate and read directly. They appear in `resources/list` or `resources/templates/list` depending on whether the URI is fixed or parameterised.
+
+### `eru://sources`
+
+Lists all configured knowledge sources.
+
+```
+sourceName — https://github.com/org/repo [main] (12 docs)
+```
+
+### `eru://sources/{name}`
+
+Config details and known collection docs for a specific source. Substitute `{name}` with the source name.
+
+```
+# sourceName
+URL: https://github.com/org/repo
+Branch: main
+  docs/guide.md [tags: guide,dotnet] — Getting started guide
+  docs/ref.md — API reference
+```
+
+### `eru://installed`
+
+All locally pulled artifacts from the lock file (`.eru/eru.lock`), grouped by source. Files no longer present on disk are marked `[missing]`.
+
+```
+## sourceName
+  docs/guide.md → knowledge/guide.md
+  docs/ref.md → knowledge/ref.md [missing]
+```
+
+---
+
 ## Available tools
 
 ### `search_knowledge`
