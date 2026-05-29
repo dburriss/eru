@@ -33,6 +33,10 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         required |> List.forall (fun t ->
             itemTags |> List.exists (fun it -> it.ToLowerInvariant() = t))
 
+    let readFrontmatter absPath =
+        try Frontmatter.parse (File.ReadAllText absPath)
+        with _ -> Frontmatter.empty
+
     [<McpServerTool(Name = "search_knowledge")>]
     [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and content excerpts.")>]
     member _.Search(
@@ -55,8 +59,11 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                 let sourceName = if parts.Length > 0 then parts.[0] else ""
                 let remotePath = if parts.Length > 1 then parts.[1] else relPath
                 let meta       = eff.Collections |> List.tryFind (fun c -> c.Source = sourceName && c.RemotePath = remotePath)
-                let fileTags   = meta |> Option.map (fun m -> m.Tags) |> Option.defaultValue []
-                let desc       = meta |> Option.bind (fun m -> m.Description)
+                let configTags = meta |> Option.map (fun m -> m.Tags) |> Option.defaultValue []
+                let configDesc = meta |> Option.bind (fun m -> m.Description)
+                let fm         = readFrontmatter file
+                let fileTags   = (configTags @ fm.Tags) |> List.distinct
+                let desc       = configDesc |> Option.orElse fm.Description
                 if hasTags requiredTags fileTags && isPathAllowed remotePath then
                     candidates.Add({
                         AbsPath     = file
@@ -72,15 +79,17 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
         match deps.ReadLockEntries lockPath with
         | Ok entries ->
             for entry in entries do
-                if hasTags requiredTags [] && isPathAllowed entry.RemotePath && File.Exists(entry.LocalPath) then
-                    candidates.Add({
-                        AbsPath     = entry.LocalPath
-                        RelPath     = entry.LocalPath
-                        Source      = Lock
-                        SourceName  = Some entry.SourceName
-                        Tags        = []
-                        Description = Some entry.RemotePath
-                    })
+                if isPathAllowed entry.RemotePath && File.Exists(entry.LocalPath) then
+                    let fm = readFrontmatter entry.LocalPath
+                    if hasTags requiredTags fm.Tags then
+                        candidates.Add({
+                            AbsPath     = entry.LocalPath
+                            RelPath     = entry.LocalPath
+                            Source      = Lock
+                            SourceName  = Some entry.SourceName
+                            Tags        = fm.Tags
+                            Description = fm.Description
+                        })
         | Error _ -> ()
 
         // 3. Local knowledge directories
@@ -90,15 +99,17 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
             if Directory.Exists(dirPath) then
                 for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
                     let relPath = Path.GetRelativePath(cwd, file)
-                    if hasTags requiredTags [] && isPathAllowed relPath then
-                        candidates.Add({
-                            AbsPath     = file
-                            RelPath     = relPath
-                            Source      = Local
-                            SourceName  = None
-                            Tags        = []
-                            Description = None
-                        })
+                    if isPathAllowed relPath then
+                        let fm = readFrontmatter file
+                        if hasTags requiredTags fm.Tags then
+                            candidates.Add({
+                                AbsPath     = file
+                                RelPath     = relPath
+                                Source      = Local
+                                SourceName  = None
+                                Tags        = fm.Tags
+                                Description = fm.Description
+                            })
 
         let hits = backend termList (candidates |> Seq.toList)
 
@@ -107,10 +118,13 @@ type KnowledgeTools(deps: Deps, eff: EffectiveConfig) =
                 let label =
                     match f.Source with
                     | Lock ->
-                        let remotePath  = f.Description |> Option.defaultValue f.RelPath
-                        let sourceName  = f.SourceName  |> Option.defaultValue ""
-                        $"[lock] {f.RelPath} (from {sourceName}:{remotePath})"
-                    | Local -> $"[local] {f.RelPath}"
+                        let sourcePart = f.SourceName |> Option.map (fun s -> $" (from {s})") |> Option.defaultValue ""
+                        let descPart   = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
+                        $"[lock] {f.RelPath}{sourcePart}{descPart}"
+                    | Local ->
+                        let tagsStr = if f.Tags = [] then "" else " [tags: " + String.concat "," f.Tags + "]"
+                        let descStr = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
+                        $"[local] {f.RelPath}{tagsStr}{descStr}"
                     | Cache ->
                         let tagsStr = if f.Tags = [] then "" else " [tags: " + String.concat "," f.Tags + "]"
                         let descStr = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
