@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.5.1</Version>
+    <Version>0.6.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,7 +16,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>MCP server no longer writes log output to stdout — default console logging providers are cleared at startup so ASP.NET Core log lines no longer corrupt the JSON-RPC stdio stream</PackageReleaseNotes>
+    <PackageReleaseNotes>MCP Resources for browsing sources and installed artifacts — three new resources exposed by `eru mcp`:
+`eru://sources` lists all configured knowledge sources with URL, branch, and collection doc count
+`eru://sources/{name}` returns config details and collection docs for a specific source
+`eru://installed` lists all locally pulled artifacts from the lock file, grouped by source; missing files are flagged `[missing]`</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
