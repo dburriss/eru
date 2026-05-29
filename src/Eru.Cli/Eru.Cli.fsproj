@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.5.0</Version>
+    <Version>0.5.1</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,9 +16,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>`refresh_knowledge` MCP tool — triggers an on-demand sync of the knowledge cache without waiting for the next timer tick; returns a summary of sources refreshed, files cached, and any errors
-MCP server now incorporates cached source manifests into the effective config at startup — manifest files were previously invisible to `search_knowledge` and `CollectionCacheService` even after `eru source add` had cached them on disk
-`CollectionCacheService` now rebuilds the effective config on every refresh cycle: re-reads global and local config, re-fetches `.eru/manifest.json` from each source, and re-applies manifests — sources added after the MCP server starts and remote manifest changes are picked up automatically on the next tick</PackageReleaseNotes>
+    <PackageReleaseNotes>MCP server no longer writes log output to stdout — default console logging providers are cleared at startup so ASP.NET Core log lines no longer corrupt the JSON-RPC stdio stream</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
