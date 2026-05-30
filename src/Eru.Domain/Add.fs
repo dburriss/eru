@@ -52,6 +52,23 @@ module Add =
         |> Option.map Ok
         |> Option.defaultWith (fun () -> Error $"source '{name}' not configured")
 
+    let private isShortHash (s: string) =
+        s.Length >= 3 && s.Length <= 8 && s |> Seq.forall (fun c -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
+
+    let private resolveShortHash
+        (deps: Deps) (source: SourceConfig) (prefix: string) : Result<string, string> =
+        match source.Url with
+        | None -> Error $"source '{source.Name}' has no URL"
+        | Some url ->
+            match deps.ListRemoteFiles url source.Branch source.BasePath with
+            | Error e -> Error e
+            | Ok paths ->
+                let matches = paths |> List.filter (fun p -> (Patterns.pathShortHash p).StartsWith prefix)
+                match matches with
+                | []  -> Error $"no file found for hash prefix '{prefix}'"
+                | [p] -> Ok p
+                | _   -> Error $"ambiguous short hash '{prefix}' — {matches.Length} files match, be more specific"
+
     let private pullOne
         (deps: Deps)
         (sources: SourceConfig list)
@@ -64,11 +81,14 @@ module Add =
         (remotePath: string) : Result<LockEntry list, string> =
         findSource sources sourceName
         |> Result.bind (fun source ->
+            (if isShortHash remotePath then resolveShortHash deps source remotePath
+             else Ok remotePath)
+            |> Result.bind (fun actualPath ->
             match source.Url with
             | None -> Error $"source '{sourceName}' has no URL"
             | Some url ->
                 let branch = source.Branch |> Option.defaultValue "HEAD"
-                deps.FetchRemoteContent url branch remotePath
+                deps.FetchRemoteContent url branch actualPath
                 |> Result.bind (fun files ->
                     let allowed, blocked =
                         files |> List.partition (fun (path, content) ->
@@ -86,7 +106,7 @@ module Add =
                                 deps.WriteLocalFile localPath content
                                 |> Result.map (fun () ->
                                     entries @ [{ LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])))
-                        (Ok [])))
+                        (Ok []))))
 
     let private pullMany
         (deps: Deps)
@@ -227,7 +247,9 @@ module Add =
                         |> Result.bind (fun sn ->
                             findSource eff.Sources sn
                             |> Result.bind (fun source ->
-                                let expandedPath = resolveRemotePath source remotePath
+                                let expandedPath =
+                                    if isShortHash remotePath then remotePath
+                                    else resolveRemotePath source remotePath
                                 pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn expandedPath))
 
         match pullResult with

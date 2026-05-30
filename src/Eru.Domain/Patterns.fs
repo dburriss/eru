@@ -39,6 +39,11 @@ module Patterns =
         if matchesAny allowPatterns path then false
         else matchesAny blockPatterns path
 
+    let pathShortHash (path: string) : string =
+        let bytes = System.Text.Encoding.UTF8.GetBytes path
+        let hex   = System.Convert.ToHexString(System.Security.Cryptography.SHA256.HashData bytes).ToLowerInvariant()
+        hex.[..7]
+
     // allow wins over block; binary check applied when allowBinaries=false
     let isBlocked
         (blockPatterns : string list)

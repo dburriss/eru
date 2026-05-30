@@ -153,9 +153,10 @@ module Source =
                             printfn "  (no files matched manifest patterns)"
                         else
                             for (path, tags, desc) in matched do
+                                let hash    = Patterns.pathShortHash path
                                 let tagStr  = if tags.IsEmpty then "" else $"""  [{tags |> String.concat ", "}]"""
                                 let descStr = desc |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
-                                printfn $"  {path}{tagStr}{descStr}"
+                                printfn $"  {hash}  {path}{tagStr}{descStr}"
                         0
 
     let add (deps: Deps) (cmd: AddCommand) : int =
