@@ -77,3 +77,20 @@ module GitAdapter =
                 Ok entries
             with ex ->
                 Error ex.Message)
+
+    let listRemoteFiles (verbose: bool) (url: string) (branch: string option) (basePath: string option) : Result<string list, string> =
+        let bFlag = branch |> Option.map (fun b -> $"--branch {b} ") |> Option.defaultValue ""
+        withTempDir (fun tmpDir ->
+            try
+                runGit verbose $"clone --filter=blob:none --depth=1 --no-checkout {bFlag}-- {url} {tmpDir}" None
+                let treeTarget = basePath |> Option.map (fun bp -> $"HEAD:{bp}") |> Option.defaultValue "HEAD"
+                let struct (stdout, _) : struct (string * string) =
+                    Command.ReadAsync("git", $"ls-tree -r --name-only {treeTarget}", tmpDir, noPromptEnv).Result
+                let entries =
+                    stdout.Split([| '\n'; '\r' |], StringSplitOptions.RemoveEmptyEntries)
+                    |> Array.toList
+                    |> List.map (fun s -> s.Trim())
+                    |> List.filter (fun s -> s <> "")
+                Ok entries
+            with ex ->
+                Error ex.Message)

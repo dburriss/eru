@@ -87,6 +87,15 @@ let private parseSourcePath (raw: string) : Result<string * string, string> =
     if idx <= 0 then Error $"Invalid source:path format '{raw}' — expected <source>:<remotePath>"
     else Ok (raw.[..idx-1], raw.[idx+1..])
 
+let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Source args ->
+            args.TryGetSubCommand() |> Option.bind (function
+                | SourceArgs.Files filesArgs ->
+                    Some (filesArgs.GetResult SourceFilesArgs.Name)
+                | _ -> None)
+        | _ -> None)
+
 let (|SourceRemoveCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Source args ->

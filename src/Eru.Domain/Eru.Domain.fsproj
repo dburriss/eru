@@ -9,12 +9,12 @@
     <Compile Include="Config.fs" />
     <Compile Include="LockFile.fs" />
     <Compile Include="Deps.fs" />
+    <Compile Include="Patterns.fs" />
     <Compile Include="Source.fs" />
     <Compile Include="Collection.fs" />
     <Compile Include="Manifest.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="UrlParser.fs" />
-    <Compile Include="Patterns.fs" />
     <Compile Include="Frontmatter.fs" />
     <Compile Include="Add.fs" />
     <Compile Include="Search.fs" />

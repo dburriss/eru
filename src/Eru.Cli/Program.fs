@@ -21,6 +21,7 @@ let main argv =
         | SyncCmd opts     -> Sync.run   deps opts
         | SourceListCmd              -> Source.list   deps
         | SourceViewCmd (name, full) -> Source.view   deps name full
+        | SourceFilesCmd name        -> Source.files  deps name
         | SourceAddCmd cmd           -> Source.add    deps cmd
         | SourceRemoveCmd cmd        -> Source.remove deps cmd
         | CollectionCreateCmd cmd       -> Collection.create     deps cmd

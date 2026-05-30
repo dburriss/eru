@@ -38,6 +38,7 @@ let private makeDeps
         WriteLockEntries   = fun _ entries -> state.WrittenLock <- entries; Ok ()
         FetchRemoteContent  = fun _ _ path -> Ok [(path, $"content:{path}")]
         ListRemoteTopLevel  = fun _ _ -> Ok []
+        ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun path content -> state.WrittenFiles <- state.WrittenFiles @ [(path, content)]; Ok ()
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/tmp"

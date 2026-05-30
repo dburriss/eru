@@ -9,6 +9,7 @@ type Deps = {
     WriteLockEntries   : string -> LockEntry list -> Result<unit, string>
     FetchRemoteContent : string -> string -> string -> Result<(string * string) list, string>
     ListRemoteTopLevel : string -> string option -> Result<string list, string>
+    ListRemoteFiles    : string -> string option -> string option -> Result<string list, string>
     WriteLocalFile     : string -> string -> Result<unit, string>
     HashContent        : string -> string
     GetCwd             : unit   -> string

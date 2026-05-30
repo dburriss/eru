@@ -79,6 +79,13 @@ type SourceViewArgs =
             | Name _ -> "Name of the source to view."
             | Full   -> "Show all files without the 20-entry cap."
 
+type SourceFilesArgs =
+    | [<MainCommand; ExactlyOnce>] Name of sourceName: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name _ -> "Name of the source."
+
 type SourceRemoveArgs =
     | [<MainCommand; ExactlyOnce>] Name   of name: string
     | [<AltCommandLine("-g")>]     Global
@@ -95,6 +102,7 @@ type SourceArgs =
     | [<SubCommand>] Add    of ParseResults<SourceAddArgs>
     | [<SubCommand>] List   of ParseResults<SourceListArgs>
     | [<SubCommand>] View   of ParseResults<SourceViewArgs>
+    | [<SubCommand>] Files  of ParseResults<SourceFilesArgs>
     | [<SubCommand>] Remove of ParseResults<SourceRemoveArgs>
     interface IArgParserTemplate with
         member a.Usage =
@@ -102,6 +110,7 @@ type SourceArgs =
             | Add    _ -> "Add a new knowledge source."
             | List   _ -> "List configured knowledge sources."
             | View   _ -> "Show details and available files for a source."
+            | Files  _ -> "List all concrete files exposed by a source, resolving any manifest glob patterns."
             | Remove _ -> "Remove a knowledge source."
 
 type CollectionCreateArgs =

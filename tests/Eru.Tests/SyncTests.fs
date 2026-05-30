@@ -42,6 +42,7 @@ let private makeDeps
             writeLock path entries
         FetchRemoteContent  = fetch
         ListRemoteTopLevel  = fun _ _ -> Ok []
+        ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun path content ->
             state.WrittenFiles <- state.WrittenFiles @ [(path, content)]
             Ok ()
