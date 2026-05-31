@@ -69,6 +69,21 @@ module Add =
                 | [p] -> Ok p
                 | _   -> Error $"ambiguous short hash '{prefix}' — {matches.Length} files match, be more specific"
 
+    let private resolveShortHashAcrossSources
+        (deps: Deps) (sources: SourceConfig list) (prefix: string) : Result<string * string, string> =
+        let matches =
+            sources
+            |> List.choose (fun source ->
+                match resolveShortHash deps source prefix with
+                | Ok path -> Some (source.Name, path)
+                | Error _ -> None)
+        match matches with
+        | []        -> Error $"no file found for hash prefix '{prefix}'"
+        | [(sn, p)] -> Ok (sn, p)
+        | many      ->
+            let sourceList = many |> List.map fst |> String.concat ", "
+            Error $"ambiguous short hash '{prefix}' — found in multiple sources: {sourceList}"
+
     let private pullOne
         (deps: Deps)
         (sources: SourceConfig list)
@@ -233,6 +248,15 @@ module Add =
                         Error "unsupported URL provider; supported providers: GitHub (https://github.com/...), GitLab (https://gitlab.com/...)"
                     else
                         let embeddedSrc, remotePath = parseDiscriminator rawPath
+                        let noSourceSpecified = embeddedSrc.IsNone && cmd.SourceName.IsNone
+                        if noSourceSpecified && isShortHash remotePath then
+                            if eff.Sources.IsEmpty then
+                                Error "no sources configured. Run 'eru source add' first"
+                            else
+                                resolveShortHashAcrossSources deps eff.Sources remotePath
+                                |> Result.bind (fun (sn, resolvedPath) ->
+                                    pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn resolvedPath)
+                        else
                         let srcName =
                             match embeddedSrc with
                             | Some s -> Ok s

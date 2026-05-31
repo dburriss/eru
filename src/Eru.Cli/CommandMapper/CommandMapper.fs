@@ -92,7 +92,7 @@ let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
         | EruArgs.Source args ->
             args.TryGetSubCommand() |> Option.bind (function
                 | SourceArgs.Files filesArgs ->
-                    Some (filesArgs.GetResult SourceFilesArgs.Name)
+                    Some (filesArgs.TryGetResult SourceFilesArgs.Name)
                 | _ -> None)
         | _ -> None)
 

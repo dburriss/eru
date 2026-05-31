@@ -80,11 +80,11 @@ type SourceViewArgs =
             | Full   -> "Show all files without the 20-entry cap."
 
 type SourceFilesArgs =
-    | [<MainCommand; ExactlyOnce>] Name of sourceName: string
+    | [<MainCommand>] Name of sourceName: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Name _ -> "Name of the source."
+            | Name _ -> "Name of the source. Omit to list files for all configured sources."
 
 type SourceRemoveArgs =
     | [<MainCommand; ExactlyOnce>] Name   of name: string

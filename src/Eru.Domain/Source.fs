@@ -108,56 +108,66 @@ module Source =
                         printfn $"  ... and {total - cap} more (pass --full to see all)"
                 0
 
-    let files (deps: Deps) (sourceName: string) : int =
+    let private filesForSource (deps: Deps) (src: SourceConfig) : int =
+        match deps.ReadCachedManifest src.Name with
+        | Error e ->
+            eprintfn $"Error reading manifest: {e}"; 1
+        | Ok None ->
+            eprintfn $"No manifest cached for '{src.Name}'. Run 'eru sync' to fetch source metadata."
+            1
+        | Ok (Some manifest) ->
+            let url = src.Url |> Option.defaultValue ""
+            match deps.ListRemoteFiles url src.Branch src.BasePath with
+            | Error e ->
+                eprintfn $"Error listing remote files: {e}"; 1
+            | Ok allFiles ->
+                printfn $"Files for source: {src.Name}\n"
+                let matched =
+                    allFiles
+                    |> List.choose (fun path ->
+                        let matchingEntries =
+                            manifest.Files
+                            |> List.filter (fun mf -> Patterns.matchesGlob mf.Path path)
+                        if matchingEntries.IsEmpty then None
+                        else
+                            let tags = matchingEntries |> List.collect (fun mf -> mf.Tags) |> List.distinct
+                            let desc = matchingEntries |> List.tryPick (fun mf -> mf.Description)
+                            Some (path, tags, desc))
+                if matched.IsEmpty then
+                    printfn "  (no files matched manifest patterns)"
+                else
+                    for (path, tags, desc) in matched do
+                        let hash    = Patterns.pathShortHash path
+                        let tagStr  = if tags.IsEmpty then "" else $"""  [{tags |> String.concat ", "}]"""
+                        let descStr = desc |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
+                        printfn $"  {hash}  {path}{tagStr}{descStr}"
+                0
+
+    let files (deps: Deps) (sourceName: string option) : int =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Error e, _ | _, Error e -> eprintfn $"Error: {e}"; 1
         | Ok globalCfg, Ok localCfg ->
             let globalSources = globalCfg |> Option.map (fun g -> g.DefaultSources) |> Option.defaultValue []
             let localSources  = localCfg  |> Option.map (fun l -> l.Sources)        |> Option.defaultValue []
+            let allSources    = localSources @ globalSources
 
-            let found =
-                localSources |> List.tryFind (fun s -> s.Name = sourceName) |> Option.map (fun s -> s, "local")
-                |> Option.orElseWith (fun () ->
-                    globalSources |> List.tryFind (fun s -> s.Name = sourceName) |> Option.map (fun s -> s, "global"))
-
-            match found with
+            match sourceName with
+            | Some name ->
+                let found =
+                    localSources |> List.tryFind (fun s -> s.Name = name)
+                    |> Option.orElseWith (fun () -> globalSources |> List.tryFind (fun s -> s.Name = name))
+                match found with
+                | None     -> eprintfn $"Error: source '{name}' not found."; 1
+                | Some src -> filesForSource deps src
             | None ->
-                eprintfn $"Error: source '{sourceName}' not found."
-                1
-            | Some (src, _) ->
-                match deps.ReadCachedManifest src.Name with
-                | Error e ->
-                    eprintfn $"Error reading manifest: {e}"; 1
-                | Ok None ->
-                    eprintfn $"No manifest cached for '{sourceName}'. Run 'eru sync' to fetch source metadata."
-                    1
-                | Ok (Some manifest) ->
-                    let url = src.Url |> Option.defaultValue ""
-                    match deps.ListRemoteFiles url src.Branch src.BasePath with
-                    | Error e ->
-                        eprintfn $"Error listing remote files: {e}"; 1
-                    | Ok allFiles ->
-                        printfn $"Files for source: {src.Name}\n"
-                        let matched =
-                            allFiles
-                            |> List.choose (fun path ->
-                                let matchingEntries =
-                                    manifest.Files
-                                    |> List.filter (fun mf -> Patterns.matchesGlob mf.Path path)
-                                if matchingEntries.IsEmpty then None
-                                else
-                                    let tags = matchingEntries |> List.collect (fun mf -> mf.Tags) |> List.distinct
-                                    let desc = matchingEntries |> List.tryPick (fun mf -> mf.Description)
-                                    Some (path, tags, desc))
-                        if matched.IsEmpty then
-                            printfn "  (no files matched manifest patterns)"
-                        else
-                            for (path, tags, desc) in matched do
-                                let hash    = Patterns.pathShortHash path
-                                let tagStr  = if tags.IsEmpty then "" else $"""  [{tags |> String.concat ", "}]"""
-                                let descStr = desc |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
-                                printfn $"  {hash}  {path}{tagStr}{descStr}"
-                        0
+                match allSources with
+                | [] -> eprintfn "No sources configured. Run 'eru source add' first."; 1
+                | _  ->
+                    allSources
+                    |> List.fold (fun code src ->
+                        let result = filesForSource deps src
+                        printfn ""
+                        if result <> 0 then result else code) 0
 
     let add (deps: Deps) (cmd: AddCommand) : int =
         let name = cmd.Name |> Option.defaultWith (fun () -> deriveNameFromUrl cmd.Url)

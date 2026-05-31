@@ -2,9 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- `eru add` now supports using hashes instead of the file path to add files to local repository
+
 ### Changed
 
 - Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
+- `eru add` searches through all sources for hash or file path
 
 ### Fixed
 
