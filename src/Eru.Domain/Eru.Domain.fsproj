@@ -25,6 +25,7 @@
     <Compile Include="ManifestAdd.fs" />
     <Compile Include="ManifestRemove.fs" />
     <Compile Include="Remove.fs" />
+    <Compile Include="Disconnect.fs" />
     <Compile Include="ManifestVerify.fs" />
     <Compile Include="Add.fs" />
     <Compile Include="Search.fs" />

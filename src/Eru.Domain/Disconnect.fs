@@ -1,0 +1,38 @@
+namespace Eru
+
+module Disconnect =
+
+    type Command = {
+        Target : string
+        DryRun : bool
+    }
+
+    let private resolveEntry (target: string) (entries: LockEntry list) : Result<LockEntry, string> =
+        let byHash = entries |> List.filter (fun e -> (Patterns.pathShortHash e.RemotePath).StartsWith target)
+        let byPath = entries |> List.filter (fun e -> e.LocalPath = target)
+        let matches = (byHash @ byPath) |> List.distinctBy (fun e -> e.LocalPath)
+        match matches with
+        | []  -> Error $"'{target}' did not match any tracked file."
+        | [e] -> Ok e
+        | _   -> Error $"'{target}' matched {matches.Length} files, be more specific."
+
+    let execute (deps: Deps) (cmd: Command) : Result<string, string> =
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+        | Error e, _ | _, Error e -> Error e
+        | Ok globalCfg, Ok localCfg ->
+        match Config.merge globalCfg localCfg with
+        | Error e -> Error e
+        | Ok eff ->
+        match deps.ReadLockEntries eff.StateFile with
+        | Error e -> Error $"Error reading lock file: {e}"
+        | Ok entries ->
+        match resolveEntry cmd.Target entries with
+        | Error e -> Error e
+        | Ok entry ->
+        if cmd.DryRun then
+            Ok $"Would disconnect '{entry.LocalPath}' from lock."
+        else
+            let remaining = entries |> List.filter (fun e -> e.LocalPath <> entry.LocalPath)
+            match deps.WriteLockEntries eff.StateFile remaining with
+            | Error e -> Error e
+            | Ok () -> Ok $"Disconnected '{entry.LocalPath}'."

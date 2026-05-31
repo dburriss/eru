@@ -261,6 +261,17 @@ type RemoveArgs =
             | Dryrun   -> "Show what would be removed without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
+type DisconnectArgs =
+    | [<MainCommand; ExactlyOnce>]           Target of target: string
+    | [<Unique>]                             Dryrun
+    | [<Unique; AltCommandLine("-o")>]       Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Target _ -> "Local path or path short hash of the artifact to disconnect."
+            | Dryrun   -> "Show what would be disconnected without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
 type McpArgs =
     | [<Hidden>] Placeholder
     interface IArgParserTemplate with
@@ -277,6 +288,7 @@ type EruArgs =
     | [<SubCommand>] Collection of ParseResults<CollectionArgs>
     | [<SubCommand>] Manifest   of ParseResults<ManifestArgs>
     | [<SubCommand>] Remove     of ParseResults<RemoveArgs>
+    | [<SubCommand>] Disconnect of ParseResults<DisconnectArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     interface IArgParserTemplate with
         member a.Usage =
@@ -290,4 +302,5 @@ type EruArgs =
             | Collection _ -> "Manage collections of knowledge file references."
             | Manifest _   -> "Manage the .eru/manifest.json for this knowledge source."
             | Remove _     -> "Remove a tracked artifact from disk and the lock file."
+            | Disconnect _ -> "Remove a tracked artifact from the lock file without deleting the local file."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."

@@ -28,6 +28,7 @@
     <Compile Include="InitTests.fs" />
     <Compile Include="ManifestTests.fs" />
     <Compile Include="RemoveTests.fs" />
+    <Compile Include="DisconnectTests.fs" />
     <Compile Include="GitAdapterTests.fs" />
   </ItemGroup>
 </Project>
