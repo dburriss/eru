@@ -1,6 +1,5 @@
 module Eru.Tests.SourceTests
 
-open System.IO
 open Xunit
 open Eru
 
@@ -33,14 +32,17 @@ let private makeDeps
         ResolveLocalGlob    = fun _ -> []
     }
 
-let private simpleCmd url = {
-    Source.AddCommand.Url      = url
-    Source.AddCommand.Name     = None
-    Source.AddCommand.Branch   = None
-    Source.AddCommand.BasePath = None
-    Source.AddCommand.IsGlobal = false
-    Source.AddCommand.DryRun   = false
+let private simpleCmd url : SourceAdd.Command = {
+    Url      = url
+    Name     = None
+    Branch   = None
+    BasePath = None
+    IsGlobal = false
+    DryRun   = false
 }
+
+let private assertOk result = match result with Error e -> Assert.Fail(e) | Ok _ -> ()
+let private assertError result = match result with Ok _ -> Assert.Fail("Expected Error result") | Error _ -> ()
 
 // ── Name derivation ──────────────────────────────────────────────────────────
 
@@ -48,8 +50,7 @@ let private simpleCmd url = {
 let ``derives name from HTTPS URL stripping .git`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None [] written (ref None)
-    let exitCode = Source.add deps (simpleCmd "https://github.com/acme/knowledge-base.git")
-    Assert.Equal(0, exitCode)
+    assertOk (SourceAdd.execute deps (simpleCmd "https://github.com/acme/knowledge-base.git"))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal("knowledge-base", cfg.Sources[0].Name)
@@ -58,8 +59,7 @@ let ``derives name from HTTPS URL stripping .git`` () =
 let ``derives name from SSH URL stripping .git`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None [] written (ref None)
-    let exitCode = Source.add deps (simpleCmd "git@github.com:acme/knowledge-base.git")
-    Assert.Equal(0, exitCode)
+    assertOk (SourceAdd.execute deps (simpleCmd "git@github.com:acme/knowledge-base.git"))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal("knowledge-base", cfg.Sources[0].Name)
@@ -69,7 +69,7 @@ let ``name override is respected`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None [] written (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "my-kb" }
-    Source.add deps cmd |> ignore
+    SourceAdd.execute deps cmd |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal("my-kb", cfg.Sources[0].Name)
@@ -80,15 +80,13 @@ let ``name override is respected`` () =
 let ``writes to local config when .eru/config.json present`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None [] written (ref None)
-    let exitCode = Source.add deps (simpleCmd "https://github.com/acme/kb.git")
-    Assert.Equal(0, exitCode)
+    assertOk (SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git"))
     Assert.True(written.Value.IsSome)
 
 [<Fact>]
 let ``errors when .eru/config.json absent in local mode`` () =
     let deps = makeDeps None None [] (ref None) (ref None)
-    let exitCode = Source.add deps (simpleCmd "https://github.com/acme/kb.git")
-    Assert.Equal(1, exitCode)
+    assertError (SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git"))
 
 // ── Global config writes ─────────────────────────────────────────────────────
 
@@ -97,8 +95,7 @@ let ``writes to global config when --global flag set`` () =
     let writtenGlobal = ref None
     let deps = makeDeps None (Some emptyGlobal) [] (ref None) writtenGlobal
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with IsGlobal = true }
-    let exitCode = Source.add deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (SourceAdd.execute deps cmd)
     Assert.True(writtenGlobal.Value.IsSome)
 
 [<Fact>]
@@ -106,8 +103,7 @@ let ``creates empty global config when none exists`` () =
     let writtenGlobal = ref None
     let deps = makeDeps None None [] (ref None) writtenGlobal
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with IsGlobal = true }
-    let exitCode = Source.add deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (SourceAdd.execute deps cmd)
     match writtenGlobal.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal(1, cfg.DefaultSources.Length)
@@ -118,7 +114,7 @@ let ``creates empty global config when none exists`` () =
 let ``detects KNOWLEDGE basePath from top-level listing`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None ["README.md"; "KNOWLEDGE"; "src"] written (ref None)
-    Source.add deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
+    SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal(Some "KNOWLEDGE", cfg.Sources[0].BasePath)
@@ -127,7 +123,7 @@ let ``detects KNOWLEDGE basePath from top-level listing`` () =
 let ``detects lowercase knowledge basePath`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None ["README.md"; "knowledge"] written (ref None)
-    Source.add deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
+    SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal(Some "knowledge", cfg.Sources[0].BasePath)
@@ -136,7 +132,7 @@ let ``detects lowercase knowledge basePath`` () =
 let ``no basePath when top-level listing returns empty`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None [] written (ref None)
-    Source.add deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
+    SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal(None, cfg.Sources[0].BasePath)
@@ -149,7 +145,7 @@ let ``explicit --basepath overrides auto-detection and skips remote listing`` ()
         { makeDeps (Some emptyLocal) None [] written (ref None) with
             ListRemoteTopLevel = fun _ _ -> listingCalled.Value <- true; Ok ["KNOWLEDGE"] }
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with BasePath = Some "docs" }
-    Source.add deps cmd |> ignore
+    SourceAdd.execute deps cmd |> ignore
     Assert.False(listingCalled.Value, "remote listing should not be called when --basepath is explicit")
     match written.Value with
     | None     -> Assert.Fail "nothing written"
@@ -162,90 +158,90 @@ let ``errors on duplicate source name in local config`` () =
     let existing = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://x.com"; Branch = None; BasePath = None }] }
     let deps = makeDeps (Some existing) None [] (ref None) (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb" }
-    let exitCode = Source.add deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (SourceAdd.execute deps cmd)
 
 [<Fact>]
 let ``errors on duplicate source name in global config`` () =
     let existing = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://x.com"; Branch = None; BasePath = None }] }
     let deps = makeDeps None (Some existing) [] (ref None) (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb"; IsGlobal = true }
-    let exitCode = Source.add deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (SourceAdd.execute deps cmd)
 
-// ── Source.list ──────────────────────────────────────────────────────────────
-
-let private captureStdout (f: unit -> unit) : string =
-    let sw = new StringWriter()
-    let orig = System.Console.Out
-    System.Console.SetOut sw
-    try f ()
-    finally System.Console.SetOut orig
-    sw.ToString()
+// ── SourceList ────────────────────────────────────────────────────────────────
 
 [<Fact>]
-let ``list returns 0 and prints no-sources message when both configs empty`` () =
-    let deps    = makeDeps (Some emptyLocal) (Some emptyGlobal) [] (ref None) (ref None)
-    let mutable exitCode = -1
-    let output  = captureStdout (fun () -> exitCode <- Source.list deps)
-    Assert.Equal(0, exitCode)
-    Assert.Contains("No sources configured.", output)
+let ``list returns empty list when both configs have no sources`` () =
+    let deps = makeDeps (Some emptyLocal) (Some emptyGlobal) [] (ref None) (ref None)
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows -> Assert.Empty(rows)
 
 [<Fact>]
-let ``list returns 1 on global config read error`` () =
+let ``list returns error on global config read error`` () =
     let deps = { makeDeps None None [] (ref None) (ref None) with ReadGlobalConfig = fun () -> Error "boom" }
-    Assert.Equal(1, Source.list deps)
+    assertError (SourceList.execute deps)
 
 [<Fact>]
-let ``list returns 1 on local config read error`` () =
+let ``list returns error on local config read error`` () =
     let deps = { makeDeps None None [] (ref None) (ref None) with ReadLocalConfig = fun () -> Error "boom" }
-    Assert.Equal(1, Source.list deps)
+    assertError (SourceList.execute deps)
 
 [<Fact>]
-let ``list shows local source with [local] label`` () =
+let ``list shows local source with local scope`` () =
     let local = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
     let deps  = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
-    let output = captureStdout (fun () -> Source.list deps |> ignore)
-    Assert.Contains("kb", output)
-    Assert.Contains("https://example.com/kb.git", output)
-    Assert.Contains("[local]", output)
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows ->
+        let row = rows |> List.find (fun r -> r.Name = "kb")
+        Assert.Equal(Some "https://example.com/kb.git", row.Url)
+        Assert.Equal("local", row.Scope)
 
 [<Fact>]
-let ``list shows local alias source with [local → global alias] label`` () =
+let ``list shows local alias source with alias scope`` () =
     let localCfg  = { emptyLocal  with Sources        = [{ Name = "kb"; Url = None; Branch = None; BasePath = None }] }
     let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
     let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
-    let output    = captureStdout (fun () -> Source.list deps |> ignore)
-    Assert.Contains("kb", output)
-    Assert.Contains("[local → global alias]", output)
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows ->
+        let row = rows |> List.find (fun r -> r.Name = "kb")
+        Assert.Equal("local → global alias", row.Scope)
 
 [<Fact>]
-let ``list shows global-only source with [global] label`` () =
+let ``list shows global-only source with global scope`` () =
     let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "shared"; Url = Some "https://example.com/shared.git"; Branch = None; BasePath = None }] }
     let deps      = makeDeps (Some emptyLocal) (Some globalCfg) [] (ref None) (ref None)
-    let output    = captureStdout (fun () -> Source.list deps |> ignore)
-    Assert.Contains("shared", output)
-    Assert.Contains("https://example.com/shared.git", output)
-    Assert.Contains("[global]", output)
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows ->
+        let row = rows |> List.find (fun r -> r.Name = "shared")
+        Assert.Equal(Some "https://example.com/shared.git", row.Url)
+        Assert.Equal("global", row.Scope)
 
 [<Fact>]
 let ``list shows local sources before global-only sources`` () =
     let localCfg  = { emptyLocal  with Sources        = [{ Name = "local-src";  Url = Some "https://example.com/local.git";  Branch = None; BasePath = None }] }
     let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "global-src"; Url = Some "https://example.com/global.git"; Branch = None; BasePath = None }] }
     let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
-    let output    = captureStdout (fun () -> Source.list deps |> ignore)
-    let localIdx  = output.IndexOf("local-src")
-    let globalIdx = output.IndexOf("global-src")
-    Assert.True(localIdx < globalIdx, "local source should appear before global-only source")
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows ->
+        let localIdx  = rows |> List.findIndex (fun r -> r.Name = "local-src")
+        let globalIdx = rows |> List.findIndex (fun r -> r.Name = "global-src")
+        Assert.True(localIdx < globalIdx, "local source should appear before global-only source")
 
 [<Fact>]
 let ``list includes branch and basepath when set`` () =
     let src    = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = Some "main"; BasePath = Some "KNOWLEDGE" }
     let local  = { emptyLocal with Sources = [src] }
     let deps   = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
-    let output = captureStdout (fun () -> Source.list deps |> ignore)
-    Assert.Contains("[branch: main]", output)
-    Assert.Contains("[basepath: KNOWLEDGE]", output)
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows ->
+        let row = rows |> List.find (fun r -> r.Name = "kb")
+        Assert.Equal(Some "main", row.Branch)
+        Assert.Equal(Some "KNOWLEDGE", row.BasePath)
 
 [<Fact>]
 let ``list shows tags from cached manifest`` () =
@@ -255,17 +251,17 @@ let ``list shows tags from cached manifest`` () =
     let manifest = { Version = 1; Files = [f1; f2] }
     let deps     = { makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None) with
                        ReadCachedManifest = fun _ -> Ok (Some manifest) }
-    let output   = captureStdout (fun () -> Source.list deps |> ignore)
-    Assert.Contains("tags:", output)
-    Assert.Contains("adr", output)
-    Assert.Contains("architecture", output)
-    // deduplication: "dotnet" appears exactly once in the tags line
-    let tagsLine = output.Split('\n') |> Array.find (fun l -> l.Contains("tags:"))
-    Assert.Equal(1, tagsLine.Split("dotnet").Length - 1)
+    match SourceList.execute deps with
+    | Error e -> Assert.Fail(e)
+    | Ok rows ->
+        let row = rows |> List.find (fun r -> r.Name = "kb")
+        Assert.Contains("adr", row.Tags)
+        Assert.Contains("architecture", row.Tags)
+        Assert.Equal(1, row.Tags |> List.filter (fun t -> t = "dotnet") |> List.length)
 
-// ── Source.remove ─────────────────────────────────────────────────────────────
+// ── SourceRemove ──────────────────────────────────────────────────────────────
 
-let private removeCmd name isGlobal dryRun : Source.RemoveCommand =
+let private removeCmd name isGlobal dryRun : SourceRemove.Command =
     { Name = name; IsGlobal = isGlobal; DryRun = dryRun }
 
 let private srcEntry name = { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; BasePath = None }
@@ -275,8 +271,7 @@ let ``remove removes source from local config`` () =
     let local   = { emptyLocal with Sources = [srcEntry "kb"; srcEntry "other"] }
     let written = ref None
     let deps    = makeDeps (Some local) None [] written (ref None)
-    let exitCode = Source.remove deps (removeCmd "kb" false false)
-    Assert.Equal(0, exitCode)
+    assertOk (SourceRemove.execute deps (removeCmd "kb" false false))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal<string seq>(["other"], cfg.Sources |> List.map (fun s -> s.Name))
@@ -286,8 +281,7 @@ let ``remove fails when source not found in local config`` () =
     let local = { emptyLocal with Sources = [srcEntry "other"] }
     let written = ref None
     let deps  = makeDeps (Some local) None [] written (ref None)
-    let exitCode = Source.remove deps (removeCmd "missing" false false)
-    Assert.Equal(1, exitCode)
+    assertError (SourceRemove.execute deps (removeCmd "missing" false false))
     Assert.True(written.Value.IsNone)
 
 [<Fact>]
@@ -295,22 +289,20 @@ let ``remove dryrun does not write local config`` () =
     let local   = { emptyLocal with Sources = [srcEntry "kb"] }
     let written = ref None
     let deps    = makeDeps (Some local) None [] written (ref None)
-    let exitCode = Source.remove deps (removeCmd "kb" false true)
-    Assert.Equal(0, exitCode)
+    assertOk (SourceRemove.execute deps (removeCmd "kb" false true))
     Assert.True(written.Value.IsNone)
 
 [<Fact>]
 let ``remove fails when no local config`` () =
     let deps = makeDeps None None [] (ref None) (ref None)
-    Assert.Equal(1, Source.remove deps (removeCmd "kb" false false))
+    assertError (SourceRemove.execute deps (removeCmd "kb" false false))
 
 [<Fact>]
 let ``remove removes source from global config`` () =
     let globalCfg = { emptyGlobal with DefaultSources = [srcEntry "shared"; srcEntry "other"] }
     let written   = ref None
     let deps      = makeDeps None (Some globalCfg) [] (ref None) written
-    let exitCode  = Source.remove deps (removeCmd "shared" true false)
-    Assert.Equal(0, exitCode)
+    assertOk (SourceRemove.execute deps (removeCmd "shared" true false))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal<string seq>(["other"], cfg.DefaultSources |> List.map (fun s -> s.Name))
@@ -320,6 +312,5 @@ let ``remove fails when source not found in global config`` () =
     let globalCfg = { emptyGlobal with DefaultSources = [srcEntry "other"] }
     let written   = ref None
     let deps      = makeDeps None (Some globalCfg) [] (ref None) written
-    let exitCode  = Source.remove deps (removeCmd "missing" true false)
-    Assert.Equal(1, exitCode)
+    assertError (SourceRemove.execute deps (removeCmd "missing" true false))
     Assert.True(written.Value.IsNone)

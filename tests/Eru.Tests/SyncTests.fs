@@ -61,6 +61,9 @@ let private defaultFetch (_url: string) (_branch: string) (path: string) : Resul
 let private newState () : CapturedState =
     { WrittenFiles = []; WrittenLock = []; LockWritten = false }
 
+let private assertOk result = match result with Error e -> Assert.Fail(e) | Ok _ -> ()
+let private assertError result = match result with Ok _ -> Assert.Fail("Expected Error result") | Error _ -> ()
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 [<Fact>]
@@ -68,8 +71,7 @@ let ``empty lock file exits 0 with no writes`` () =
     let state = newState ()
     let local = makeLocal [ makeSource "kb" "https://example.com/kb.git" ]
     let deps = makeDeps None (Some local) [] defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
 
@@ -80,8 +82,7 @@ let ``current entry causes no writes`` () =
     let local = makeLocal [ source ]
     let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:content:docs/file.md"
     let deps = makeDeps None (Some local) [entry] defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
 
@@ -92,8 +93,7 @@ let ``drifted entry overwrites file and updates lock hash`` () =
     let local = makeLocal [ source ]
     let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:old-content"
     let deps = makeDeps None (Some local) [entry] defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.Single(state.WrittenFiles) |> ignore
     let (path, content) = state.WrittenFiles.[0]
     Assert.Equal("docs/file.md", path)
@@ -112,8 +112,7 @@ let ``multiple drifted entries all updated`` () =
         makeLockEntry "b.md" "kb" "b.md" "hash:old-b"
     ]
     let deps = makeDeps None (Some local) entries defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.Equal(2, state.WrittenFiles.Length)
     Assert.Equal(2, state.WrittenLock.Length)
 
@@ -124,8 +123,7 @@ let ``dry-run with drifted entry writes nothing`` () =
     let local = makeLocal [ source ]
     let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:old-content"
     let deps = makeDeps None (Some local) [entry] defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = true }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = true })
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
 
@@ -136,8 +134,7 @@ let ``dry-run with current entry writes nothing`` () =
     let local = makeLocal [ source ]
     let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:content:docs/file.md"
     let deps = makeDeps None (Some local) [entry] defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = true }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = true })
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
 
@@ -149,8 +146,7 @@ let ``missing entry leaves lock unchanged and exits 0`` () =
     let entry = makeLockEntry "docs/gone.md" "kb" "docs/gone.md" "hash:old"
     let failFetch _ _ _ = Error "not found"
     let deps = makeDeps None (Some local) [entry] failFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
 
@@ -164,8 +160,7 @@ let ``skipped when source not in config`` () =
         fetchCalled.Value <- true
         defaultFetch url branch path
     let deps = makeDeps None (Some local) [entry] trackFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.False(fetchCalled.Value)
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
@@ -174,17 +169,15 @@ let ``skipped when source not in config`` () =
 let ``no local config with empty lock exits 0`` () =
     let state = newState ()
     let deps = makeDeps None None [] defaultFetch (fun _ _ -> Ok ()) state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(0, result)
+    assertOk (Sync.execute deps { DryRun = false })
     Assert.Empty(state.WrittenFiles)
 
 [<Fact>]
-let ``lock write failure returns exit 1`` () =
+let ``lock write failure returns error`` () =
     let state = newState ()
     let source = makeSource "kb" "https://example.com/kb.git"
     let local = makeLocal [ source ]
     let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:old-content"
     let failWrite _ _ = Error "disk full"
     let deps = makeDeps None (Some local) [entry] defaultFetch failWrite state
-    let result = Sync.run deps { DryRun = false }
-    Assert.Equal(1, result)
+    assertError (Sync.execute deps { DryRun = false })

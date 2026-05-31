@@ -4,12 +4,29 @@ module Sync =
 
     type Options = { DryRun: bool }
 
+    type SyncStatus =
+        | Current
+        | Drifted   // "would update" on dry-run; "updated" on actual run
+        | Missing
+        | Skipped of string
+        | Blocked
+
+    type SyncEntry = {
+        Status    : SyncStatus
+        LocalPath : string
+    }
+
+    type SyncResult = {
+        Entries : SyncEntry list
+        DryRun  : bool
+    }
+
     type private EntryResult =
-        | Current of LockEntry
-        | Drifted of LockEntry * string   // entry + new content
-        | Missing of LockEntry
-        | Skipped of LockEntry * string   // entry + reason
-        | Blocked of LockEntry            // entry matches a block pattern
+        | ECurrent of LockEntry
+        | EDrifted of LockEntry * string
+        | EMissing of LockEntry
+        | ESkipped of LockEntry * string
+        | EBlocked of LockEntry
 
     let private classifyEntry
         (deps: Deps)
@@ -18,42 +35,44 @@ module Sync =
         (allowPatterns: string list)
         (allowBinaries: bool)
         (entry: LockEntry) : EntryResult =
-        // Fast path: path-only check before fetching
         if Patterns.isPathBlocked blockPatterns allowPatterns entry.RemotePath then
-            Blocked entry
+            EBlocked entry
         else
         match sources |> List.tryFind (fun s -> s.Name = entry.SourceName) with
-        | None -> Skipped (entry, $"source '{entry.SourceName}' not configured")
+        | None -> ESkipped (entry, $"source '{entry.SourceName}' not configured")
         | Some source ->
             match source.Url with
-            | None -> Skipped (entry, $"source '{entry.SourceName}' has no URL")
+            | None -> ESkipped (entry, $"source '{entry.SourceName}' has no URL")
             | Some url ->
                 let branch = source.Branch |> Option.defaultValue "HEAD"
                 match deps.FetchRemoteContent url branch entry.RemotePath with
-                | Error _ -> Missing entry
-                | Ok [] -> Missing entry
+                | Error _ -> EMissing entry
+                | Ok [] -> EMissing entry
                 | Ok ((_, content) :: _) ->
                     if Patterns.isBlocked blockPatterns allowPatterns allowBinaries entry.RemotePath content then
-                        Blocked entry
+                        EBlocked entry
                     else
                         let hash = deps.HashContent content
-                        if hash = entry.ContentHash then Current entry
-                        else Drifted (entry, content)
+                        if hash = entry.ContentHash then ECurrent entry
+                        else EDrifted (entry, content)
 
-    let run (deps: Deps) (opts: Options) : int =
+    let private toSyncEntry (r: EntryResult) : SyncEntry =
+        match r with
+        | ECurrent e       -> { Status = Current;      LocalPath = e.LocalPath }
+        | EDrifted (e, _)  -> { Status = Drifted;      LocalPath = e.LocalPath }
+        | EMissing e       -> { Status = Missing;      LocalPath = e.LocalPath }
+        | ESkipped (e, rs) -> { Status = Skipped rs;   LocalPath = e.LocalPath }
+        | EBlocked e       -> { Status = Blocked;      LocalPath = e.LocalPath }
+
+    let execute (deps: Deps) (opts: Options) : Result<SyncResult, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-        | Error e, _ | _, Error e ->
-            eprintfn "Error: %s" e
-            1
+        | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
         match Config.merge globalCfg localCfg with
-        | Error e ->
-            eprintfn "Error: %s" e
-            1
+        | Error e -> Error e
         | Ok eff ->
 
-        // Refresh manifests for all sources (best-effort, silent on missing)
         for src in eff.Sources do
             match src.Url with
             | None -> ()
@@ -67,48 +86,19 @@ module Sync =
         let eff = Config.withManifests deps.ReadCachedManifest eff
 
         match deps.ReadLockEntries eff.StateFile with
-        | Error e ->
-            eprintfn "Error reading lock file: %s" e
-            1
+        | Error e -> Error $"Error reading lock file: {e}"
         | Ok entries ->
 
-        let results = entries |> List.map (classifyEntry deps eff.Sources eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries)
-
-        let label isDryRun result =
-            match result with
-            | Current _         -> "current"
-            | Drifted _         -> if isDryRun then "drifted" else "updated"
-            | Missing _         -> "missing"
-            | Skipped _         -> "skipped"
-            | Blocked _         -> "blocked"
-
-        let entryPath = function
-            | Current e | Missing e | Blocked e -> e.LocalPath
-            | Drifted (e, _) | Skipped (e, _)   -> e.LocalPath
-
-        for r in results do
-            match r with
-            | Skipped (e, reason) -> printfn "[%s]  %s  (%s)" (label opts.DryRun r) e.LocalPath reason
-            | _                   -> printfn "[%s]  %s" (label opts.DryRun r) (entryPath r)
-
-        let nCurrent = results |> List.sumBy (function Current _ -> 1 | _ -> 0)
-        let nDrifted = results |> List.sumBy (function Drifted _ -> 1 | _ -> 0)
-        let nMissing = results |> List.sumBy (function Missing _ -> 1 | _ -> 0)
-        let nSkipped = results |> List.sumBy (function Skipped _ -> 1 | _ -> 0)
-        let nBlocked = results |> List.sumBy (function Blocked _ -> 1 | _ -> 0)
+        let classified = entries |> List.map (classifyEntry deps eff.Sources eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries)
 
         if opts.DryRun then
-            printfn "Sync dry-run: %d drifted, %d current, %d missing, %d skipped, %d blocked."
-                nDrifted nCurrent nMissing nSkipped nBlocked
-            0
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = true }
         else
 
-        let drifted = results |> List.choose (function Drifted (e, c) -> Some (e, c) | _ -> None)
+        let drifted = classified |> List.choose (function EDrifted (e, c) -> Some (e, c) | _ -> None)
 
         if drifted.IsEmpty then
-            printfn "Sync complete: 0 updated, %d current, %d missing, %d skipped, %d blocked."
-                nCurrent nMissing nSkipped nBlocked
-            0
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }
         else
 
         let writeError =
@@ -118,9 +108,7 @@ module Sync =
                 | Ok ()   -> None)
 
         match writeError with
-        | Some e ->
-            eprintfn "Error writing file: %s" e
-            1
+        | Some e -> Error $"Error writing file: {e}"
         | None ->
 
         let updatedEntries =
@@ -130,10 +118,5 @@ module Sync =
                 | None              -> entry)
 
         match deps.WriteLockEntries eff.StateFile updatedEntries with
-        | Error e ->
-            eprintfn "Error writing lock file: %s" e
-            1
-        | Ok () ->
-            printfn "Sync complete: %d updated, %d current, %d missing, %d skipped, %d blocked."
-                nDrifted nCurrent nMissing nSkipped nBlocked
-            0
+        | Error e -> Error $"Error writing lock file: {e}"
+        | Ok () -> Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }

@@ -3,7 +3,27 @@ module Eru.Cli.Program
 open Argu
 open Eru
 open Eru.Adapters
-open Eru.Cli.CommandMapper
+open Eru.Cli.SearchCli
+open Eru.Cli.SyncCli
+open Eru.Cli.AddCli
+open Eru.Cli.InitCli
+open Eru.Cli.SourceListCli
+open Eru.Cli.SourceViewCli
+open Eru.Cli.SourceFilesCli
+open Eru.Cli.SourceAddCli
+open Eru.Cli.SourceRemoveCli
+open Eru.Cli.CollectionCreateCli
+open Eru.Cli.CollectionAddFileCli
+open Eru.Cli.CollectionRemoveFileCli
+open Eru.Cli.ManifestInitCli
+open Eru.Cli.ManifestAddCli
+open Eru.Cli.ManifestRemoveCli
+open Eru.Cli.ManifestVerifyCli
+
+let private (|McpCmd|_|) (r: ParseResults<EruArgs>) =
+    r.TryGetSubCommand() |> Option.bind (function
+        | EruArgs.Mcp _ -> Some ()
+        | _             -> None)
 
 [<EntryPoint>]
 let main argv =
@@ -14,23 +34,23 @@ let main argv =
         let deps    = AdapterDeps.create isDebug
 
         match parsed with
-        | McpCmd           -> Eru.Mcp.Server.run deps |> Async.AwaitTask |> Async.RunSynchronously; 0
-        | InitCmd cmd      -> Init.run   deps cmd
-        | AddCmd cmd       -> Add.run    deps cmd
-        | SearchCmd query  -> Search.run deps query
-        | SyncCmd opts     -> Sync.run   deps opts
-        | SourceListCmd              -> Source.list   deps
-        | SourceViewCmd (name, full) -> Source.view   deps name full
-        | SourceFilesCmd name        -> Source.files  deps name
-        | SourceAddCmd cmd           -> Source.add    deps cmd
-        | SourceRemoveCmd cmd        -> Source.remove deps cmd
-        | CollectionCreateCmd cmd       -> Collection.create     deps cmd
-        | CollectionAddFileCmd cmd      -> Collection.addFile    deps cmd
-        | CollectionRemoveFileCmd cmd   -> Collection.removeFile deps cmd
-        | ManifestInitCmd cmd        -> Manifest.init       deps cmd
-        | ManifestAddCmd cmd         -> Manifest.addFile    deps cmd
-        | ManifestRemoveCmd cmd      -> Manifest.removeFile deps cmd
-        | ManifestVerifyCmd ()       -> Manifest.verify     deps
+        | McpCmd ()                   -> Eru.Mcp.Server.run deps |> Async.AwaitTask |> Async.RunSynchronously; 0
+        | InitCmd cmd                 -> InitCli.run deps cmd
+        | AddCmd cmd                  -> AddCli.run deps cmd
+        | SearchCmd cmd               -> SearchCli.run deps cmd
+        | SyncCmd cmd                 -> SyncCli.run deps cmd
+        | SourceListCmd cmd           -> SourceListCli.run deps cmd
+        | SourceViewCmd cmd           -> SourceViewCli.run deps cmd
+        | SourceFilesCmd cmd          -> SourceFilesCli.run deps cmd
+        | SourceAddCmd cmd            -> SourceAddCli.run deps cmd
+        | SourceRemoveCmd cmd         -> SourceRemoveCli.run deps cmd
+        | CollectionCreateCmd cmd     -> CollectionCreateCli.run deps cmd
+        | CollectionAddFileCmd cmd    -> CollectionAddFileCli.run deps cmd
+        | CollectionRemoveFileCmd cmd -> CollectionRemoveFileCli.run deps cmd
+        | ManifestInitCmd cmd         -> ManifestInitCli.run deps cmd
+        | ManifestAddCmd cmd          -> ManifestAddCli.run deps cmd
+        | ManifestRemoveCmd cmd       -> ManifestRemoveCli.run deps cmd
+        | ManifestVerifyCmd cmd       -> ManifestVerifyCli.run deps cmd
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0

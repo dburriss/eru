@@ -32,14 +32,16 @@ let private makeDeps
 let private cmd force isGlobal path =
     { Init.Command.Force = force; Init.Command.IsGlobal = isGlobal; Init.Command.Path = path }
 
+let private assertOk result = match result with Error e -> Assert.Fail(e) | Ok _ -> ()
+let private assertError result = match result with Ok _ -> Assert.Fail("Expected Error result") | Error _ -> ()
+
 // ── Local init ───────────────────────────────────────────────────────────────
 
 [<Fact>]
 let ``init writes .eru/config.json in cwd by default`` () =
     let capturedFile = ref None
     let deps = makeDeps None capturedFile (ref None)
-    let exitCode = Init.run deps (cmd false false None)
-    Assert.Equal(0, exitCode)
+    assertOk (Init.execute deps (cmd false false None))
     match capturedFile.Value with
     | None           -> Assert.Fail "nothing written"
     | Some (path, _) -> Assert.Equal(System.IO.Path.Combine("/tmp/cwd", ".eru", "config.json"), path)
@@ -48,8 +50,7 @@ let ``init writes .eru/config.json in cwd by default`` () =
 let ``init writes .eru/config.json in provided path`` () =
     let capturedFile = ref None
     let deps = makeDeps None capturedFile (ref None)
-    let exitCode = Init.run deps (cmd false false (Some "/custom/dir"))
-    Assert.Equal(0, exitCode)
+    assertOk (Init.execute deps (cmd false false (Some "/custom/dir")))
     match capturedFile.Value with
     | None           -> Assert.Fail "nothing written"
     | Some (path, _) -> Assert.Equal(System.IO.Path.Combine("/custom/dir", ".eru", "config.json"), path)
@@ -60,8 +61,7 @@ let ``init writes .eru/config.json in provided path`` () =
 let ``init --global creates empty global config when none exists`` () =
     let capturedGlobal = ref None
     let deps = makeDeps None (ref None) capturedGlobal
-    let exitCode = Init.run deps (cmd false true None)
-    Assert.Equal(0, exitCode)
+    assertOk (Init.execute deps (cmd false true None))
     match capturedGlobal.Value with
     | None     -> Assert.Fail "WriteGlobalConfig not called"
     | Some cfg ->
@@ -79,16 +79,14 @@ let ``init --global creates empty global config when none exists`` () =
 let ``init --global errors when global config already exists without --force`` () =
     let capturedGlobal = ref None
     let deps = makeDeps (Some emptyGlobal) (ref None) capturedGlobal
-    let exitCode = Init.run deps (cmd false true None)
-    Assert.Equal(1, exitCode)
+    assertError (Init.execute deps (cmd false true None))
     Assert.True(capturedGlobal.Value.IsNone)
 
 [<Fact>]
 let ``init --global --force overwrites existing global config`` () =
     let capturedGlobal = ref None
     let deps = makeDeps (Some emptyGlobal) (ref None) capturedGlobal
-    let exitCode = Init.run deps (cmd true true None)
-    Assert.Equal(0, exitCode)
+    assertOk (Init.execute deps (cmd true true None))
     Assert.True(capturedGlobal.Value.IsSome)
 
 // ── Mutual exclusion ─────────────────────────────────────────────────────────
@@ -98,7 +96,6 @@ let ``init --global with path is an error`` () =
     let capturedFile = ref None
     let capturedGlobal = ref None
     let deps = makeDeps None capturedFile capturedGlobal
-    let exitCode = Init.run deps (cmd false true (Some "/some/path"))
-    Assert.Equal(1, exitCode)
+    assertError (Init.execute deps (cmd false true (Some "/some/path")))
     Assert.True(capturedFile.Value.IsNone)
     Assert.True(capturedGlobal.Value.IsNone)

@@ -5,9 +5,14 @@
 ### Added
 
 - `eru add` now supports using hashes instead of the file path to add files to local repository
+- `--output <format>` flag (short: `-o`) on every command and subcommand that produces output — accepted values are `table` (default), `text`, and `json`
+  - `table` renders results as a Spectre.Console table with column headers
+  - `text` preserves the original plain-text style for piping and terminal use
+  - `json` emits machine-readable JSON for scripting and tool integration
 
 ### Changed
 
+- Default output for all list and query commands (`search`, `sync`, `source list`, `source view`, `source files`, `add`) is now a formatted table instead of plain text — pass `--output text` to restore the previous behaviour
 - Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
 - `eru add` searches through all sources for hash or file path
 

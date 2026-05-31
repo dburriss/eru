@@ -32,31 +32,29 @@ module Init =
           }
         }
 
-    let run (deps: Deps) (cmd: Command) : int =
+    let execute (deps: Deps) (cmd: Command) : Result<string, string> =
         if cmd.IsGlobal && cmd.Path.IsSome then
-            eprintfn "Error: --global and a path are mutually exclusive."
-            1
+            Error "--global and a path are mutually exclusive."
         elif cmd.IsGlobal then
             if not cmd.Force then
                 match deps.ReadGlobalConfig() with
-                | Error e           -> eprintfn "Error: %s" e; 1
-                | Ok (Some _)       -> eprintfn "Global config already exists. Use --force to overwrite."; 1
-                | Ok None           ->
+                | Error e     -> Error e
+                | Ok (Some _) -> Error "Global config already exists. Use --force to overwrite."
+                | Ok None     ->
                     match deps.WriteGlobalConfig emptyGlobal with
-                    | Ok ()   -> printfn "Initialized global eru config."; 0
-                    | Error e -> eprintfn "Error: %s" e; 1
+                    | Ok ()   -> Ok "Initialized global eru config."
+                    | Error e -> Error e
             else
                 match deps.WriteGlobalConfig emptyGlobal with
-                | Ok ()   -> printfn "Initialized global eru config."; 0
-                | Error e -> eprintfn "Error: %s" e; 1
+                | Ok ()   -> Ok "Initialized global eru config."
+                | Error e -> Error e
         else
             let dir        = cmd.Path |> Option.defaultValue (deps.GetCwd())
             let configPath = System.IO.Path.Combine(dir, ".eru", "config.json")
 
             if System.IO.File.Exists configPath && not cmd.Force then
-                eprintfn ".eru/config.json already exists. Use --force to overwrite."
-                1
+                Error ".eru/config.json already exists. Use --force to overwrite."
             else
                 match deps.WriteLocalFile configPath scaffold with
-                | Ok ()   -> printfn "Initialized .eru/config.json in %s" dir; 0
-                | Error e -> eprintfn "Error: %s" e; 1
+                | Ok ()   -> Ok $"Initialized .eru/config.json in {dir}"
+                | Error e -> Error e

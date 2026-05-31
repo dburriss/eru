@@ -12,6 +12,10 @@ module Add =
         IsGlobal       : bool
     }
 
+    type PullEntry =
+        | Pulled  of LockEntry
+        | Blocked of string
+
     let private parseDiscriminator (value: string) : string option * string =
         match value.IndexOf(':') with
         | -1 -> None, value
@@ -93,7 +97,7 @@ module Add =
         (allowPatterns: string list)
         (allowBinaries: bool)
         (sourceName: string)
-        (remotePath: string) : Result<LockEntry list, string> =
+        (remotePath: string) : Result<PullEntry list, string> =
         findSource sources sourceName
         |> Result.bind (fun source ->
             (if isShortHash remotePath then resolveShortHash deps source remotePath
@@ -108,20 +112,19 @@ module Add =
                     let allowed, blocked =
                         files |> List.partition (fun (path, content) ->
                             not (Patterns.isBlocked blockPatterns allowPatterns allowBinaries path content))
-                    for (path, _) in blocked do
-                        printfn "[blocked]  %s" path
+                    let blockedEntries = blocked |> List.map (fun (path, _) -> Blocked path)
                     allowed
                     |> List.fold (fun acc (resolvedPath, content) ->
                         acc |> Result.bind (fun entries ->
                             let localPath = deriveLocalPath source.BasePath target resolvedPath
                             let hash = deps.HashContent content
                             if dryRun then
-                                Ok (entries @ [{ LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])
+                                Ok (entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])
                             else
                                 deps.WriteLocalFile localPath content
                                 |> Result.map (fun () ->
-                                    entries @ [{ LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])))
-                        (Ok []))))
+                                    entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])))
+                        (Ok blockedEntries))))
 
     let private pullMany
         (deps: Deps)
@@ -131,7 +134,7 @@ module Add =
         (blockPatterns: string list)
         (allowPatterns: string list)
         (allowBinaries: bool)
-        (pairs: (string * string) list) : Result<LockEntry list, string> =
+        (pairs: (string * string) list) : Result<PullEntry list, string> =
         pairs
         |> List.fold (fun acc (sourceName, remotePath) ->
             acc |> Result.bind (fun entries ->
@@ -185,23 +188,17 @@ module Add =
                     deps.WriteLocalConfig updated
                     |> Result.map (fun () -> effSources @ [newSource])
 
-    let run (deps: Deps) (cmd: Command) : int =
+    let execute (deps: Deps) (cmd: Command) : Result<PullEntry list, string> =
         match cmd.RemotePath, cmd.Tags, cmd.CollectionName with
-        | None, [], None ->
-            eprintfn "Error: specify a remote path, --collection, or at least one --tag."
-            1
+        | None, [], None -> Error "specify a remote path, --collection, or at least one --tag."
         | _ ->
 
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-        | Error e, _ | _, Error e ->
-            eprintfn "Error: %s" e
-            1
+        | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
         match Config.merge globalCfg localCfg with
-        | Error e ->
-            eprintfn "Error: %s" e
-            1
+        | Error e -> Error e
         | Ok eff ->
 
         let pullResult =
@@ -277,30 +274,18 @@ module Add =
                                 pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn expandedPath))
 
         match pullResult with
-        | Error e ->
-            eprintfn "Error: %s" e
-            1
-        | Ok entries ->
+        | Error e -> Error e
+        | Ok pullEntries ->
 
-        if cmd.DryRun then
-            match entries with
-            | [e] -> printfn "Would pull %s → %s" e.RemotePath e.LocalPath
-            | _   -> printfn "Would pull %d file(s)" entries.Length
-            0
+        if cmd.DryRun then Ok pullEntries
         else
 
+        let lockEntries = pullEntries |> List.choose (function Pulled e -> Some e | Blocked _ -> None)
+
         match deps.ReadLockEntries eff.StateFile with
-        | Error e ->
-            eprintfn "Error reading lock file: %s" e
-            1
+        | Error e -> Error $"Error reading lock file: {e}"
         | Ok existing ->
 
-        match deps.WriteLockEntries eff.StateFile (updateLockEntries existing entries) with
-        | Error e ->
-            eprintfn "Error writing lock file: %s" e
-            1
-        | Ok () ->
-            match entries with
-            | [e] -> printfn "Pulled %s → %s" e.RemotePath e.LocalPath
-            | _   -> printfn "Pulled %d file(s)" entries.Length
-            0
+        match deps.WriteLockEntries eff.StateFile (updateLockEntries existing lockEntries) with
+        | Error e -> Error $"Error writing lock file: {e}"
+        | Ok () -> Ok pullEntries

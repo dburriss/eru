@@ -44,27 +44,13 @@ module Search =
         let lockOnly = lockResults |> List.filter (fun r -> not (Set.contains (r.SourceName, r.RemotePath) collSet))
         enriched @ lockOnly
 
-    let private printResult (r: SearchResult) =
-        let localPart = r.LocalPath |> Option.map (fun lp -> $"  [local: {lp}]") |> Option.defaultValue ""
-        let tagPart =
-            if r.Tags.IsEmpty then ""
-            else
-                let tags = r.Tags |> String.concat ", "
-                $"  [tags: {tags}]"
-        printfn "%s:%s%s%s" r.SourceName r.RemotePath tagPart localPart
-        r.Description |> Option.iter (fun d -> printfn "  %s" d)
-
-    let run (deps: Deps) (query: Query) : int =
+    let execute (deps: Deps) (query: Query) : Result<SearchResult list, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-        | Error e, _ | _, Error e ->
-            eprintfn "Error: %s" e
-            1
+        | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
         match Config.merge globalCfg localCfg with
-        | Error e ->
-            eprintfn "Error: %s" e
-            1
+        | Error e -> Error e
         | Ok eff ->
 
         let collectionResults =
@@ -102,9 +88,4 @@ module Search =
             |> List.filter (matchesTags query.Tags)
             |> List.filter (matchesTerm query.Terms)
 
-        if filtered.IsEmpty then
-            printfn "No results found."
-            0
-        else
-            filtered |> List.iter printResult
-            0
+        Ok filtered

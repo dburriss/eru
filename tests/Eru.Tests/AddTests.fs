@@ -63,6 +63,9 @@ let private makeCollection name tags files : CollectionConfig =
 let private makeFileRef source remotePath tags : CollectionFileRef =
     { Source = source; RemotePath = remotePath; Tags = tags; Description = None }
 
+let private assertOk result = match result with Error e -> Assert.Fail(e) | Ok _ -> ()
+let private assertError result = match result with Ok _ -> Assert.Fail("Expected Error result") | Error _ -> ()
+
 // ── Validation ───────────────────────────────────────────────────────────────
 
 [<Fact>]
@@ -70,8 +73,7 @@ let ``errors when no remote-path tag or collection given`` () =
     let state = newState ()
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
-    let exitCode = Add.run deps emptyCmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps emptyCmd)
 
 // ── Direct path pull ─────────────────────────────────────────────────────────
 
@@ -81,8 +83,7 @@ let ``direct pull writes file and lock entry`` () =
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     let (path, _) = state.WrittenFiles[0]
     Assert.Equal("shared/adr.md", path)
@@ -98,7 +99,7 @@ let ``source BasePath prefix is stripped from localPath`` () =
     let src = makeSource "kb" (Some "https://x.com") None (Some "KNOWLEDGE")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "KNOWLEDGE/shared/adr.md" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     let (path, _) = state.WrittenFiles[0]
     Assert.Equal("shared/adr.md", path)
 
@@ -108,7 +109,7 @@ let ``target prefix is prepended to localPath`` () =
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md"; Target = Some "docs" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     let (path, _) = state.WrittenFiles[0]
     Assert.Equal("docs/shared/adr.md", path)
 
@@ -118,7 +119,7 @@ let ``BasePath strip and target prefix are both applied`` () =
     let src = makeSource "kb" (Some "https://x.com") None (Some "KNOWLEDGE")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "KNOWLEDGE/shared/adr.md"; Target = Some "docs" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     let (path, _) = state.WrittenFiles[0]
     Assert.Equal("docs/shared/adr.md", path)
 
@@ -129,8 +130,7 @@ let ``source discriminator prefix in remote-path selects source`` () =
     let src2 = makeSource "kb2" (Some "https://two.com") None None
     let deps = makeDeps (Some (makeGlobal [src1; src2] [])) (Some (makeLocal [src1; src2])) state
     let cmd = { emptyCmd with RemotePath = Some "kb2:shared/adr.md" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal("kb2", state.WrittenLock[0].SourceName)
 
 [<Fact>]
@@ -140,8 +140,7 @@ let ``explicit --source flag selects source`` () =
     let src2 = makeSource "kb2" (Some "https://two.com") None None
     let deps = makeDeps (Some (makeGlobal [src1; src2] [])) (Some (makeLocal [src1; src2])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md"; SourceName = Some "kb2" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal("kb2", state.WrittenLock[0].SourceName)
 
 [<Fact>]
@@ -151,7 +150,7 @@ let ``defaults to first source when no prefix or --source given`` () =
     let src2 = makeSource "kb2" (Some "https://two.com") None None
     let deps = makeDeps (Some (makeGlobal [src1; src2] [])) (Some (makeLocal [src1; src2])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     Assert.Equal("kb1", state.WrittenLock[0].SourceName)
 
 [<Fact>]
@@ -159,8 +158,7 @@ let ``errors when no sources configured`` () =
     let state = newState ()
     let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 [<Fact>]
 let ``errors when named source not found`` () =
@@ -168,8 +166,7 @@ let ``errors when named source not found`` () =
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md"; SourceName = Some "nope" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 [<Fact>]
 let ``errors when source has no URL`` () =
@@ -177,8 +174,7 @@ let ``errors when source has no URL`` () =
     let src = makeSource "kb" None None None
     let deps = makeDeps None (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 [<Fact>]
 let ``existing lock entry for same localPath is replaced`` () =
@@ -188,7 +184,7 @@ let ``existing lock entry for same localPath is replaced`` () =
     state.WrittenLock <- [existing]
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     Assert.Equal(1, state.WrittenLock.Length)
     Assert.NotEqual<string>("sha256:old", state.WrittenLock[0].ContentHash)
 
@@ -200,8 +196,7 @@ let ``bare name with BasePath expands to basePath prefix and md extension`` () =
     let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "github-cli" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     let (path, _) = state.WrittenFiles[0]
     Assert.Equal("github-cli.md", path)
     Assert.Equal("knowledge/github-cli.md", state.WrittenLock[0].RemotePath)
@@ -212,7 +207,7 @@ let ``bare name with extension and BasePath gets prefix but no double extension`
     let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "github-cli.md" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     Assert.Equal("knowledge/github-cli.md", state.WrittenLock[0].RemotePath)
 
 [<Fact>]
@@ -221,7 +216,7 @@ let ``bare name with BasePath already prefixed does not double-prefix`` () =
     let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "knowledge/github-cli" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     Assert.Equal("knowledge/github-cli.md", state.WrittenLock[0].RemotePath)
 
 [<Fact>]
@@ -230,7 +225,7 @@ let ``bare name without BasePath appends md extension only`` () =
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "github-cli" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     Assert.Equal("github-cli.md", state.WrittenLock[0].RemotePath)
 
 [<Fact>]
@@ -239,7 +234,7 @@ let ``explicit sub-path without extension gets md appended`` () =
     let src = makeSource "kb" (Some "https://x.com") None (Some "knowledge")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "tools/adr" }
-    Add.run deps cmd |> ignore
+    Add.execute deps cmd |> ignore
     Assert.Equal("tools/adr.md", state.WrittenLock[0].RemotePath)
 
 // ── Tag-based pull ────────────────────────────────────────────────────────────
@@ -256,8 +251,7 @@ let ``tag pull fetches all files matching tags from collections`` () =
     let gcfg = makeGlobal [src] [col]
     let deps = makeDeps (Some gcfg) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with Tags = ["dotnet"] }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(2, state.WrittenFiles.Length)
 
 [<Fact>]
@@ -266,8 +260,7 @@ let ``tag pull errors when no global config`` () =
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps None (Some (makeLocal [src])) state
     let cmd = { emptyCmd with Tags = ["dotnet"] }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 [<Fact>]
 let ``tag pull errors when no files match tags`` () =
@@ -276,8 +269,7 @@ let ``tag pull errors when no files match tags`` () =
     let gcfg = makeGlobal [src] []
     let deps = makeDeps (Some gcfg) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with Tags = ["dotnet"] }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 // ── Collection pull ───────────────────────────────────────────────────────────
 
@@ -293,8 +285,7 @@ let ``collection pull fetches all files in named collection`` () =
     let gcfg = makeGlobal [src] [col]
     let deps = makeDeps (Some gcfg) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with CollectionName = Some "starter" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(2, state.WrittenFiles.Length)
 
 [<Fact>]
@@ -310,8 +301,7 @@ let ``collection pull with source prefix filters to that source only`` () =
     let gcfg = makeGlobal [src1; src2] [col]
     let deps = makeDeps (Some gcfg) (Some (makeLocal [src1; src2])) state
     let cmd = { emptyCmd with CollectionName = Some "kb1:starter" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     let (path, _) = state.WrittenFiles[0]
     Assert.Equal("a.md", path)
@@ -323,8 +313,7 @@ let ``collection pull errors when collection not found`` () =
     let gcfg = makeGlobal [src] []
     let deps = makeDeps (Some gcfg) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with CollectionName = Some "nonexistent" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 [<Fact>]
 let ``collection pull errors when no global config`` () =
@@ -332,8 +321,7 @@ let ``collection pull errors when no global config`` () =
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps None (Some (makeLocal [src])) state
     let cmd = { emptyCmd with CollectionName = Some "starter" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 [<Fact>]
 let ``collection pull with source filter leaving no files errors`` () =
@@ -343,8 +331,7 @@ let ``collection pull with source filter leaving no files errors`` () =
     let gcfg = makeGlobal [src] [col]
     let deps = makeDeps (Some gcfg) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with CollectionName = Some "other:starter" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
 
 // ── URL shorthand pull ────────────────────────────────────────────────────────
 
@@ -356,8 +343,7 @@ let ``GitHub URL auto-registers source to local config and pulls file`` () =
     let state = newState ()
     let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
     let cmd = { emptyCmd with RemotePath = Some githubUrl }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     Assert.True(state.WrittenLocalConfig.IsSome)
     Assert.Equal(1, state.WrittenLocalConfig.Value.Sources.Length)
@@ -369,8 +355,7 @@ let ``GitHub URL reuses existing source without writing config`` () =
     let src = makeSource "orcai" (Some "https://github.com/dburriss/orcai") (Some "main") None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some githubUrl }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     Assert.True(state.WrittenLocalConfig.IsNone)
 
@@ -380,8 +365,7 @@ let ``GitHub URL errors when source name exists with different URL`` () =
     let src = makeSource "orcai" (Some "https://github.com/other/orcai") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some githubUrl }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(1, exitCode)
+    assertError (Add.execute deps cmd)
     Assert.Empty(state.WrittenFiles)
 
 [<Fact>]
@@ -389,8 +373,7 @@ let ``GitHub URL with --global writes source to global config`` () =
     let state = newState ()
     let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
     let cmd = { emptyCmd with RemotePath = Some githubUrl; IsGlobal = true }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.True(state.WrittenGlobalConfig.IsSome)
     Assert.Equal(1, state.WrittenGlobalConfig.Value.DefaultSources.Length)
     Assert.Equal("orcai", state.WrittenGlobalConfig.Value.DefaultSources[0].Name)
@@ -401,8 +384,7 @@ let ``GitLab URL auto-registers source to local config and pulls file`` () =
     let state = newState ()
     let deps = makeDeps (Some (makeGlobal [] [])) (Some (makeLocal [])) state
     let cmd = { emptyCmd with RemotePath = Some gitlabUrl }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     Assert.True(state.WrittenLocalConfig.IsSome)
     let src = state.WrittenLocalConfig.Value.Sources[0]
@@ -422,8 +404,7 @@ let ``glob pattern does not get md extension appended`` () =
                 fetchCalled.Value <- path
                 Ok [(path + "/a.md", "content-a")] }
     let cmd = { emptyCmd with RemotePath = Some "dotnet/*.md" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal("dotnet/*.md", fetchCalled.Value)
 
 [<Fact>]
@@ -435,8 +416,7 @@ let ``glob pattern producing multiple files writes all files and lock entries`` 
             FetchRemoteContent = fun _ _ _ ->
                 Ok [("docs/a.md", "content-a"); ("docs/b.md", "content-b")] }
     let cmd = { emptyCmd with RemotePath = Some "docs/*.md" }
-    let exitCode = Add.run deps cmd
-    Assert.Equal(0, exitCode)
+    assertOk (Add.execute deps cmd)
     Assert.Equal(2, state.WrittenFiles.Length)
     Assert.Equal(2, state.WrittenLock.Length)
     let paths = state.WrittenLock |> List.map (fun e -> e.RemotePath) |> Set.ofList
