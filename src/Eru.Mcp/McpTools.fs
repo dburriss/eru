@@ -3,8 +3,10 @@ namespace Eru.Mcp
 open System
 open System.ComponentModel
 open System.IO
+open System.Text.Json
 open Eru
 open Eru.Adapters
+open ModelContextProtocol.Protocol
 open ModelContextProtocol.Server
 
 [<McpServerToolType>]
@@ -37,11 +39,11 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         try Frontmatter.parse (File.ReadAllText absPath)
         with _ -> Frontmatter.empty
 
-    [<McpServerTool(Name = "search_knowledge")>]
+    [<McpServerTool(Name = "search_knowledge", UseStructuredContent = true, OutputSchemaType = typeof<SearchHit[]>)>]
     [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and content excerpts.")>]
     member _.Search(
         [<Description("Search terms (space-separated, OR semantics). Matched against file content and path. Leave empty to list all known artifacts.")>] query: string,
-        [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string) : string =
+        [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string) : CallToolResult =
 
         let eff          = syncService.CurrentEff
         let termList     = parseTerms query
@@ -135,8 +137,24 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
                     let excerptBlock = excerpts |> String.concat "\n  > "
                     $"{label}\n  > {excerptBlock}")
 
-        if results.IsEmpty then "No matching artifacts found."
-        else String.concat "\n\n" results
+        let textOutput =
+            if results.IsEmpty then "No matching artifacts found."
+            else String.concat "\n\n" results
+
+        let structuredHits =
+            hits |> List.map (fun (f, excerpts) ->
+                {   Path        = f.RelPath
+                    Source      = match f.Source with Cache -> "cache" | Lock -> "lock" | Local -> "local"
+                    SourceName  = f.SourceName
+                    Tags        = f.Tags
+                    Description = f.Description
+                    Excerpts    = excerpts })
+            |> List.toArray
+
+        CallToolResult(
+            Content           = [| TextContentBlock(Text = textOutput) |],
+            StructuredContent = System.Nullable(JsonSerializer.SerializeToElement(structuredHits))
+        )
 
     [<McpServerTool(Name = "read_artifact")>]
     [<Description("Read the full content of a knowledge artifact by local path, lock-file path, cached collection path, or 'sourceName:remotePath' reference.")>]
