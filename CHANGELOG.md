@@ -6,6 +6,10 @@
 
 - Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
 
+### Fixed
+
+- `eru source files <name>` no longer crashes with `NullReferenceException` when a manifest entry has no `tags` field — `System.Text.Json` was deserializing absent or null list fields as `null` rather than `[]`; manifests are now normalized on load so all consumers see empty lists instead
+
 ## [0.7.1] - 2026-05-29
 
 ### Fixed

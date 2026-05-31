@@ -5,6 +5,18 @@ open System.IO
 
 module ManifestAdapter =
 
+    // System.Text.Json sets F# list fields to null when the JSON field is absent or null.
+    // Normalize after deserialization so consumers never see null Tags/Files.
+    let private normalize (manifest: SourceManifest) : SourceManifest =
+        { manifest with
+            Files =
+                if isNull (box manifest.Files) then []
+                else
+                    manifest.Files |> List.map (fun f ->
+                        { f with Tags =
+                                    if isNull (box f.Tags) then []
+                                    else f.Tags |> List.filter (fun t -> not (isNull t)) }) }
+
     let readLocalManifest (cwd: string) : Result<SourceManifest option, string> =
         let path = Paths.localManifestPath cwd
         if not (File.Exists path) then Ok None
@@ -12,7 +24,7 @@ module ManifestAdapter =
             try
                 File.ReadAllText path
                 |> Serialization.deserialize<SourceManifest>
-                |> Result.map Some
+                |> Result.map (normalize >> Some)
             with ex -> Error ex.Message
 
     let writeLocalManifest (cwd: string) (manifest: SourceManifest) : Result<unit, string> =
@@ -40,7 +52,7 @@ module ManifestAdapter =
             try
                 File.ReadAllText path
                 |> Serialization.deserialize<SourceManifest>
-                |> Result.map Some
+                |> Result.map (normalize >> Some)
             with ex -> Error ex.Message
 
     let cacheSourceManifest (sourceName: string) (rawJson: string) : Result<unit, string> =
