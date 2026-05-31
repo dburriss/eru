@@ -67,7 +67,15 @@ let private renderTable (result: Sync.SyncResult) =
             nDrifted nCurrent nMissing nSkipped nBlocked
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match Sync.execute deps cmd.Options with
+    let syncResult =
+        match cmd.Format with
+        | Table ->
+            let status = AnsiConsole.Status()
+            status.Spinner <- Spinner.Known.Dots
+            status.Start<Result<Sync.SyncResult, string>>("Syncing knowledge...", fun _ ->
+                Sync.execute deps cmd.Options)
+        | _ -> Sync.execute deps cmd.Options
+    match syncResult with
     | Error e -> renderError e; 1
     | Ok result ->
         match cmd.Format with
