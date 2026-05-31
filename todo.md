@@ -6,7 +6,7 @@
 - [x] `eru add --target` to support specifying the filename too (should reflect in the lock file as well); if full path including filename is provided, use that; if just a directory, use that as the target directory and keep the original filename; if not provided, default to the current behavior of using the source path as the filename in the cache
 - [ ] fix: `eru source files` should show description and tags from manifest if available, not just the config description; also show the source name in the listing for easier reference. Should pull them from files too if available, not just the manifest file.
 - [x] Add a spinner for `eru sync` https://spectreconsole.net/console/tutorials/status-spinners-tutorial
-- [ ] Use spinner on `eru add`, `eru source files`, and anything else using sync under the hood
-- [ ] `eru files` command to list all cached files across sources with metadata from the manifest and lock file; supports filtering by source, collection, tags, and search terms; shows source, collection, path, description, and tags in a table; supports --output for text/json/table; supports --untracked to show files in the cache that aren't in the lock file (potentially stale or orphaned)
+- [x] Use spinner on `eru add`, `eru source files`, and anything else using sync under the hood
+- [ ] `eru files` command to list all cached files across sources with metadata from the manifest and lock file
 - [ ] `eru search` command to --remote to search across all sources without needing to sync first
 - [ ] eru.lock move to .eru/lock.json to avoid cluttering the home directory; update all commands to look for the lock file there

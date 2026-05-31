@@ -53,7 +53,15 @@ let private renderTable (results: (string * SourceFiles.SourceFileRow list) list
     AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match SourceFiles.execute deps cmd.SourceName with
+    let result =
+        match cmd.Format with
+        | Table ->
+            let status = AnsiConsole.Status()
+            status.Spinner <- Spinner.Known.Dots
+            status.Start<Result<(string * SourceFiles.SourceFileRow list) list, string>>("Fetching source files...", fun _ ->
+                SourceFiles.execute deps cmd.SourceName)
+        | _ -> SourceFiles.execute deps cmd.SourceName
+    match result with
     | Error e    -> renderError e; 1
     | Ok results ->
         match cmd.Format with

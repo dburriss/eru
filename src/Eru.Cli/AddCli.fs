@@ -56,7 +56,15 @@ let private renderTable (entries: Add.PullEntry list) (isDryRun: bool) =
     AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match Add.execute deps cmd.Command with
+    let result =
+        match cmd.Format with
+        | Table ->
+            let status = AnsiConsole.Status()
+            status.Spinner <- Spinner.Known.Dots
+            status.Start<Result<Add.PullEntry list, string>>("Pulling files...", fun _ ->
+                Add.execute deps cmd.Command)
+        | _ -> Add.execute deps cmd.Command
+    match result with
     | Error e -> renderError e; 1
     | Ok entries ->
         match cmd.Format with
