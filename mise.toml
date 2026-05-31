@@ -6,3 +6,10 @@ dotnet = "latest"
 description = "Run the eru cli"
 run = "dotnet run --project src/Eru.Cli/Eru.Cli.fsproj -- "
 
+[tasks.mcp]
+description = "Start the MCP server for AI agent use"
+run = "dotnet run --project src/Eru.Cli/Eru.Cli.fsproj -- mcp"
+
+[tasks.install-alpha]
+description = "Pack and install the current build as Eru.Tool with a patch-bumped alpha version"
+run = "./install-alpha.sh"
