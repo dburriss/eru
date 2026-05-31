@@ -33,6 +33,7 @@ module AdapterDeps =
             ListRemoteTopLevel = GitAdapter.listRemoteTopLevel debug
             ListRemoteFiles    = GitAdapter.listRemoteFiles debug
             WriteLocalFile      = writeFile
+            DeleteLocalFile     = fun path -> try File.Delete path; Ok () with ex -> Error ex.Message
             HashContent         = hashContent
             GetCwd              = fun () -> cwd
             ReadCachedManifest  = ManifestAdapter.readCachedManifest

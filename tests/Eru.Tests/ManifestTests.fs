@@ -23,6 +23,7 @@ let private makeDeps
         ListRemoteTopLevel  = fun _ _ -> Ok []
         ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun _ _ -> Ok ()
+        DeleteLocalFile     = fun _ -> Ok ()
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/tmp"
         ReadCachedManifest  = fun _ -> Ok None

@@ -20,6 +20,7 @@ let private makeDeps
         ListRemoteTopLevel  = fun _ _ -> Ok []
         ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun path content -> capturedFile.Value <- Some (path, content); Ok ()
+        DeleteLocalFile     = fun _ -> Ok ()
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/tmp/cwd"
         ReadCachedManifest  = fun _ -> Ok None

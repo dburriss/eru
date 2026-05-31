@@ -9,6 +9,7 @@
   - `table` renders results as a Spectre.Console table with column headers
   - `text` preserves the original plain-text style for piping and terminal use
   - `json` emits machine-readable JSON for scripting and tool integration
+  - Adds  `eru remove` command to delete a local artifact file and its lock entry by path; supports `--dryrun` and `--output` flags
 
 ### Changed
 

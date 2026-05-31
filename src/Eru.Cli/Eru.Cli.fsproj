@@ -55,6 +55,7 @@
     <Compile Include="ManifestAddCli.fs" />
     <Compile Include="ManifestRemoveCli.fs" />
     <Compile Include="ManifestVerifyCli.fs" />
+    <Compile Include="RemoveCli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

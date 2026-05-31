@@ -7,9 +7,9 @@
   <ItemGroup>
     <Compile Include="Domain.fs" />
     <Compile Include="Config.fs" />
+    <Compile Include="Patterns.fs" />
     <Compile Include="LockFile.fs" />
     <Compile Include="Deps.fs" />
-    <Compile Include="Patterns.fs" />
     <Compile Include="UrlParser.fs" />
     <Compile Include="Frontmatter.fs" />
     <Compile Include="Init.fs" />
@@ -24,6 +24,7 @@
     <Compile Include="ManifestInit.fs" />
     <Compile Include="ManifestAdd.fs" />
     <Compile Include="ManifestRemove.fs" />
+    <Compile Include="Remove.fs" />
     <Compile Include="ManifestVerify.fs" />
     <Compile Include="Add.fs" />
     <Compile Include="Search.fs" />

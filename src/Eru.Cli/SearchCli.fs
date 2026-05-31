@@ -25,13 +25,14 @@ let private renderText (results: Search.SearchResult list) =
         printfn "No results found."
     else
         for r in results do
+            let hash      = Patterns.pathShortHash r.RemotePath
             let localPart = r.LocalPath |> Option.map (fun lp -> $"  [local: {lp}]") |> Option.defaultValue ""
             let tagPart =
                 if r.Tags.IsEmpty then ""
                 else
                     let tags = r.Tags |> String.concat ", "
                     $"  [tags: {tags}]"
-            printfn "%s:%s%s%s" r.SourceName r.RemotePath tagPart localPart
+            printfn "%s:%s  [hash: %s]%s%s" r.SourceName r.RemotePath hash tagPart localPart
             r.Description |> Option.iter (fun d -> printfn "  %s" d)
 
 let private renderJson (results: Search.SearchResult list) =
@@ -42,12 +43,13 @@ let private renderTable (results: Search.SearchResult list) =
     if results.IsEmpty then
         printfn "No results found."
     else
-        let t = makeTable ["Source"; "Path"; "Tags"; "Local Path"; "Description"]
+        let t = makeTable ["Source"; "Path"; "Hash"; "Tags"; "Local Path"; "Description"]
         for r in results do
+            let hash  = Patterns.pathShortHash r.RemotePath
             let tags  = r.Tags |> String.concat ", "
             let local = r.LocalPath   |> Option.defaultValue ""
             let desc  = r.Description |> Option.defaultValue ""
-            t.AddRow(r.SourceName, r.RemotePath, tags, local, desc) |> ignore
+            t.AddRow(r.SourceName, r.RemotePath, hash, tags, local, desc) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

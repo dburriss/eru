@@ -43,6 +43,13 @@ module LockFile =
     let findByLocalPath (path: string) (entries: LockEntry list) : LockEntry option =
         entries |> List.tryFind (fun e -> e.LocalPath = path)
 
+    let findByPathHash (prefix: string) (entries: LockEntry list) : Result<LockEntry, string> =
+        let matches = entries |> List.filter (fun e -> (Patterns.pathShortHash e.RemotePath).StartsWith prefix)
+        match matches with
+        | []  -> Error $"no tracked file has path hash starting with '{prefix}'"
+        | [e] -> Ok e
+        | _   -> Error $"ambiguous hash '{prefix}' — {matches.Length} files match, be more specific"
+
     let write (entries: LockEntry list) : string =
         let sorted = entries |> List.sortBy (fun e -> e.LocalPath)
         let lines =

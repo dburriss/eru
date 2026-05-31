@@ -38,9 +38,10 @@ let private renderText (detail: SourceView.SourceDetail) =
         let capNote = if capped then $", showing {entries.Length}" else ""
         printfn $"\nFiles ({total} total{capNote}):"
         for f in entries do
+            let hash = Patterns.pathShortHash f.Path
             let tags = if f.Tags.IsEmpty then "" else $"""  [{f.Tags |> String.concat ", "}]"""
             let desc = f.Description |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
-            printfn $"  {f.Path}{tags}{desc}"
+            printfn $"  [{hash}]  {f.Path}{tags}{desc}"
         if capped then
             printfn $"  ... and {total - entries.Length} more (pass --full to see all)"
 
@@ -64,11 +65,12 @@ let private renderTable (detail: SourceView.SourceDetail) =
     | SourceView.Files (entries, total, capped) ->
         let capNote = if capped then $", showing {entries.Length}" else ""
         printfn $"\nFiles ({total} total{capNote}):"
-        let ft = makeTable ["Path"; "Tags"; "Description"]
+        let ft = makeTable ["Hash"; "Path"; "Tags"; "Description"]
         for f in entries do
+            let hash = Patterns.pathShortHash f.Path
             let tags = f.Tags |> String.concat ", "
             let desc = f.Description |> Option.defaultValue ""
-            ft.AddRow(f.Path, tags, desc) |> ignore
+            ft.AddRow(hash, f.Path, tags, desc) |> ignore
         AnsiConsole.Write(ft)
         if capped then
             printfn $"  ... and {total - entries.Length} more (pass --full to see all)"

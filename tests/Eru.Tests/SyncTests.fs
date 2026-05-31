@@ -46,6 +46,7 @@ let private makeDeps
         WriteLocalFile      = fun path content ->
             state.WrittenFiles <- state.WrittenFiles @ [(path, content)]
             Ok ()
+        DeleteLocalFile     = fun _ -> Ok ()
         HashContent         = fun s -> $"hash:{s}"
         GetCwd              = fun () -> "/tmp"
         ReadCachedManifest  = fun _ -> Ok None
