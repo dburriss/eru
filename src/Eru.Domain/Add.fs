@@ -30,10 +30,10 @@ module Add =
                 if remotePath.StartsWith(prefix) then remotePath.[prefix.Length..]
                 else remotePath
         match target with
-        | None    -> stripped
-        | Some t  ->
-            let t' = if t.EndsWith('/') || t.EndsWith('\\') then t else t + "/"
-            t' + stripped
+        | None   -> stripped
+        | Some t ->
+            if t.EndsWith('/') || t.EndsWith('\\') then t + System.IO.Path.GetFileName stripped
+            else t
 
     let private resolveRemotePath (source: SourceConfig) (remotePath: string) : string =
         let isGlob = remotePath.Contains('*') || remotePath.Contains('?')

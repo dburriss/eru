@@ -14,6 +14,7 @@
 
 ### Changed
 
+- `eru add --target` (short: `-d`) now supports two modes: a path ending with `/` is treated as a target directory and keeps only the source filename (e.g. `--target docs/` + `shared/adr.md` → `docs/adr.md`); a path without a trailing slash is used directly as the local file path (e.g. `--target docs/custom.md` or `--target bin/mybinary`). **Breaking:** `--target docs` (no slash) previously wrote to `docs/<filename>` — add a trailing slash to preserve that behaviour.
 - Default output for all list and query commands (`search`, `sync`, `source list`, `source view`, `source files`, `add`) is now a formatted table instead of plain text — pass `--output text` to restore the previous behaviour
 - Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
 - `eru add` searches through all sources for hash or file path

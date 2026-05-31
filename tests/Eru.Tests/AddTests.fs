@@ -105,24 +105,57 @@ let ``source BasePath prefix is stripped from localPath`` () =
     Assert.Equal("shared/adr.md", path)
 
 [<Fact>]
-let ``target prefix is prepended to localPath`` () =
+let ``target directory keeps only filename not full relative path`` () =
     let state = newState ()
     let src = makeSource "kb" (Some "https://x.com") None None
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
-    let cmd = { emptyCmd with RemotePath = Some "shared/adr.md"; Target = Some "docs" }
+    let cmd = { emptyCmd with RemotePath = Some "shared/adr.md"; Target = Some "docs/" }
     Add.execute deps cmd |> ignore
     let (path, _) = state.WrittenFiles[0]
-    Assert.Equal("docs/shared/adr.md", path)
+    Assert.Equal("docs/adr.md", path)
 
 [<Fact>]
 let ``BasePath strip and target prefix are both applied`` () =
     let state = newState ()
     let src = makeSource "kb" (Some "https://x.com") None (Some "KNOWLEDGE")
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
-    let cmd = { emptyCmd with RemotePath = Some "KNOWLEDGE/shared/adr.md"; Target = Some "docs" }
+    let cmd = { emptyCmd with RemotePath = Some "KNOWLEDGE/shared/adr.md"; Target = Some "docs/" }
     Add.execute deps cmd |> ignore
     let (path, _) = state.WrittenFiles[0]
-    Assert.Equal("docs/shared/adr.md", path)
+    Assert.Equal("docs/adr.md", path)
+
+[<Fact>]
+let ``target full file path is used as localPath directly`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None None
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "shared/adr.md"; Target = Some "docs/custom.md" }
+    Add.execute deps cmd |> ignore
+    let (path, _) = state.WrittenFiles[0]
+    Assert.Equal("docs/custom.md", path)
+    Assert.Equal("docs/custom.md", state.WrittenLock[0].LocalPath)
+
+[<Fact>]
+let ``target bare filename remaps localPath to that filename`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None None
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "other/adr.md"; Target = Some "test.md" }
+    Add.execute deps cmd |> ignore
+    let (path, _) = state.WrittenFiles[0]
+    Assert.Equal("test.md", path)
+    Assert.Equal("test.md", state.WrittenLock[0].LocalPath)
+
+[<Fact>]
+let ``target file path without extension is used as localPath directly`` () =
+    let state = newState ()
+    let src = makeSource "kb" (Some "https://x.com") None None
+    let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
+    let cmd = { emptyCmd with RemotePath = Some "tools/mybinary"; Target = Some "bin/mybinary" }
+    Add.execute deps cmd |> ignore
+    let (path, _) = state.WrittenFiles[0]
+    Assert.Equal("bin/mybinary", path)
+    Assert.Equal("bin/mybinary", state.WrittenLock[0].LocalPath)
 
 [<Fact>]
 let ``source discriminator prefix in remote-path selects source`` () =

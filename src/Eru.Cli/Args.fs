@@ -31,7 +31,7 @@ type AddArgs =
             | Tag _         -> "Filter by tag; repeat for multiple tags (AND semantics)."
             | Source _      -> "Source name fallback when no source: prefix is used."
             | Collection _  -> "Pull all files in a named collection (e.g. name or source:name)."
-            | Target _      -> "Local directory to write files into."
+            | Target _      -> "Local path for the pulled file; append a trailing / to treat as a directory (keeps original filename)."
             | Dryrun        -> "Show what would be pulled without writing anything."
             | Global        -> "Write auto-created source to global config (~/.config/eru/config.json)."
             | Output _      -> "Output format: table (default), text, json."
