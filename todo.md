@@ -10,3 +10,6 @@
 - [ ] `eru files` command to list all cached files across sources with metadata from the manifest and lock file
 - [ ] `eru search` command to --remote to search across all sources without needing to sync first
 - [ ] eru.lock move to .eru/lock.json to avoid cluttering the home directory; update all commands to look for the lock file there
+- [ ] fix: `eru source files` json and text output should be consistent and include all available metadata (path hash, source, tags, description) in both modes; currently the text and output is missing some of that info which is only in the table output.
+- [ ] plans/sync-batch-fetch.md to fetch per source instead of per file
+- [ ] 
