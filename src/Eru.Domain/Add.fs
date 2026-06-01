@@ -107,7 +107,7 @@ module Add =
             | None -> Error $"source '{sourceName}' has no URL"
             | Some url ->
                 let branch = source.Branch |> Option.defaultValue "HEAD"
-                deps.FetchRemoteContent url branch actualPath
+                deps.FetchRemoteContent url branch [actualPath]
                 |> Result.bind (fun files ->
                     let allowed, blocked =
                         files |> List.partition (fun (path, content) ->

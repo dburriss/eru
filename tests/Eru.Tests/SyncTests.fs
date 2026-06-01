@@ -27,7 +27,7 @@ let private makeDeps
     (globalCfg: GlobalConfig option)
     (localCfg: LocalConfig option)
     (initialLock: LockEntry list)
-    (fetch: string -> string -> string -> Result<(string * string) list, string>)
+    (fetch: string -> string -> string list -> Result<(string * string) list, string>)
     (writeLock: string -> LockEntry list -> Result<unit, string>)
     (state: CapturedState) : Deps =
     {
@@ -56,8 +56,8 @@ let private makeDeps
         ResolveLocalGlob    = fun _ -> []
     }
 
-let private defaultFetch (_url: string) (_branch: string) (path: string) : Result<(string * string) list, string> =
-    Ok [(path, $"content:{path}")]
+let private defaultFetch (_url: string) (_branch: string) (paths: string list) : Result<(string * string) list, string> =
+    Ok (paths |> List.map (fun p -> (p, $"content:{p}")))
 
 let private newState () : CapturedState =
     { WrittenFiles = []; WrittenLock = []; LockWritten = false }
@@ -157,9 +157,9 @@ let ``skipped when source not in config`` () =
     let local = makeLocal []
     let entry = makeLockEntry "docs/file.md" "unknown" "docs/file.md" "hash:old"
     let fetchCalled = ref false
-    let trackFetch url branch path =
+    let trackFetch url branch paths =
         fetchCalled.Value <- true
-        defaultFetch url branch path
+        defaultFetch url branch paths
     let deps = makeDeps None (Some local) [entry] trackFetch (fun _ _ -> Ok ()) state
     assertOk (Sync.execute deps { DryRun = false })
     Assert.False(fetchCalled.Value)

@@ -36,7 +36,7 @@ let private makeDeps
         WriteGlobalConfig  = fun cfg -> state.WrittenGlobalConfig <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok state.WrittenLock
         WriteLockEntries   = fun _ entries -> state.WrittenLock <- entries; Ok ()
-        FetchRemoteContent  = fun _ _ path -> Ok [(path, $"content:{path}")]
+        FetchRemoteContent  = fun _ _ paths -> Ok (paths |> List.map (fun p -> (p, $"content:{p}")))
         ListRemoteTopLevel  = fun _ _ -> Ok []
         ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun path content -> state.WrittenFiles <- state.WrittenFiles @ [(path, content)]; Ok ()
@@ -434,9 +434,9 @@ let ``glob pattern does not get md extension appended`` () =
     let fetchCalled = ref ""
     let deps =
         { makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state with
-            FetchRemoteContent = fun _ _ path ->
-                fetchCalled.Value <- path
-                Ok [(path + "/a.md", "content-a")] }
+            FetchRemoteContent = fun _ _ paths ->
+                fetchCalled.Value <- List.head paths
+                Ok [(List.head paths + "/a.md", "content-a")] }
     let cmd = { emptyCmd with RemotePath = Some "dotnet/*.md" }
     assertOk (Add.execute deps cmd)
     Assert.Equal("dotnet/*.md", fetchCalled.Value)

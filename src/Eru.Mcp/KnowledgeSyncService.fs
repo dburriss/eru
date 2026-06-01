@@ -28,7 +28,7 @@ type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig, logger: ILogg
             | None -> ()
             | Some url ->
                 let branch = src.Branch |> Option.defaultValue "HEAD"
-                match deps.FetchRemoteContent url branch ".eru/manifest.json" with
+                match deps.FetchRemoteContent url branch [".eru/manifest.json"] with
                 | Ok ((_, raw) :: _) -> deps.CacheSourceManifest src.Name raw |> ignore
                 | _ -> ()
         Config.withManifests deps.ReadCachedManifest baseEff
@@ -40,22 +40,28 @@ type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig, logger: ILogg
         let mutable filesCached = 0
         let freshEff = buildEff ()
         freshEff.Collections
-        |> List.iter (fun f ->
-            match freshEff.Sources |> List.tryFind (fun s -> s.Name = f.Source) with
+        |> List.groupBy (fun f -> f.Source)
+        |> List.iter (fun (sourceName, sourceFiles) ->
+            match freshEff.Sources |> List.tryFind (fun s -> s.Name = sourceName) with
             | None ->
-                errors <- errors @ [$"unknown source '{f.Source}'"]
+                sourceFiles |> List.iter (fun _ ->
+                    errors <- errors @ [$"unknown source '{sourceName}'"])
             | Some src ->
                 let branch = src.Branch |> Option.defaultValue "HEAD"
                 match src.Url with
                 | None ->
-                    errors <- errors @ [$"source '{f.Source}' has no URL configured"]
+                    sourceFiles |> List.iter (fun _ ->
+                        errors <- errors @ [$"source '{sourceName}' has no URL configured"])
                 | Some url ->
-                    match deps.FetchRemoteContent url branch f.RemotePath with
-                    | Error e  -> errors <- errors @ [$"fetch failed for {f.Source}/{f.RemotePath}: {e}"]
-                    | Ok []    -> errors <- errors @ [$"no files returned for {f.Source}/{f.RemotePath}"]
+                    let remotePaths = sourceFiles |> List.map (fun f -> f.RemotePath)
+                    match deps.FetchRemoteContent url branch remotePaths with
+                    | Error e ->
+                        errors <- errors @ [$"fetch failed for source '{sourceName}': {e}"]
+                    | Ok [] ->
+                        errors <- errors @ [$"no files returned for source '{sourceName}'"]
                     | Ok files ->
                         files |> List.iter (fun (resolvedPath, content) ->
-                            let dest = System.IO.Path.Combine(cacheRoot, f.Source, resolvedPath.Replace('/', System.IO.Path.DirectorySeparatorChar))
+                            let dest = System.IO.Path.Combine(cacheRoot, sourceName, resolvedPath.Replace('/', System.IO.Path.DirectorySeparatorChar))
                             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName dest) |> ignore
                             System.IO.File.WriteAllText(dest, content)
                             filesCached <- filesCached + 1))

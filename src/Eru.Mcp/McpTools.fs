@@ -196,7 +196,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
                 | None     -> $"Error: source '{sourceName}' has no URL configured"
                 | Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
-                    match deps.FetchRemoteContent url branch remotePath with
+                    match deps.FetchRemoteContent url branch [remotePath] with
                     | Ok ((_, content) :: _) ->
                         if Patterns.isBlocked eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries remotePath content then
                             $"Error: '{remotePath}' is blocked by the current block patterns"

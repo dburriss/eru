@@ -40,7 +40,7 @@ let private makeDeps
         WriteGlobalConfig  = fun _ -> Ok ()
         ReadLockEntries    = fun _ -> Ok lockEntries
         WriteLockEntries   = fun _ _ -> Ok ()
-        FetchRemoteContent  = fun _ _ path -> Ok [(path, $"content:{path}")]
+        FetchRemoteContent  = fun _ _ paths -> Ok (paths |> List.map (fun p -> (p, $"content:{p}")))
         ListRemoteTopLevel  = fun _ _ -> Ok []
         ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun _ _ -> Ok ()

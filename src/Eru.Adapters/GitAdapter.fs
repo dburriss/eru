@@ -34,11 +34,12 @@ module GitAdapter =
             | Some wd -> Command.ReadAsync("git", args, wd, noPromptEnv).Result |> ignore
             | None    -> Command.ReadAsync("git", args, configureEnvironment = noPromptEnv).Result |> ignore
 
-    let fetchRemoteContent (verbose: bool) (url: string) (branch: string) (remotePath: string) : Result<(string * string) list, string> =
+    let fetchRemoteContent (verbose: bool) (url: string) (branch: string) (remotePaths: string list) : Result<(string * string) list, string> =
         withTempDir (fun tmpDir ->
             try
                 runGit verbose $"clone --filter=blob:none --sparse --depth=1 {branchFlag branch}-- {url} {tmpDir}" None
-                runGit verbose $"sparse-checkout set --no-cone {remotePath}" (Some tmpDir)
+                let pathsArg = remotePaths |> String.concat " "
+                runGit verbose $"sparse-checkout set --no-cone {pathsArg}" (Some tmpDir)
                 let files =
                     Directory.EnumerateFiles(tmpDir, "*", SearchOption.AllDirectories)
                     |> Seq.filter (fun f ->
@@ -48,10 +49,7 @@ module GitAdapter =
                         let rel = Path.GetRelativePath(tmpDir, f).Replace(Path.DirectorySeparatorChar, '/')
                         rel, File.ReadAllText f)
                     |> Seq.toList
-                if files.IsEmpty then
-                    Error $"'{remotePath}' not found in '{url}' on branch '{branch}'"
-                else
-                    Ok files
+                Ok files
             with ex ->
                 Error ex.Message)
 

@@ -41,7 +41,7 @@ module SourceAdd =
 
         let cacheManifest () =
             let branch = cmd.Branch |> Option.defaultValue "HEAD"
-            match deps.FetchRemoteContent cmd.Url branch ".eru/manifest.json" with
+            match deps.FetchRemoteContent cmd.Url branch [".eru/manifest.json"] with
             | Ok ((_, raw) :: _) -> deps.CacheSourceManifest name raw |> ignore
             | _ -> ()
 
