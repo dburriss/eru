@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Add --output format modes to all commands
 
 ## Context

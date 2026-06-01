@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: `eru disconnect` command
 
 ## Context

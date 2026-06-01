@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Batch file fetches per source during sync (one clone per repo, not per file)
 
 ## Context

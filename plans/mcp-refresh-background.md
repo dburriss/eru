@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Fire-and-Forget `refresh_knowledge` with Serilog File Logging
 
 ## Context

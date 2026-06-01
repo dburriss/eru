@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: `refresh_knowledge` MCP tool
 
 ## Context

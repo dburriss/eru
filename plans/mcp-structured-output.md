@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Structured return data from `search_knowledge`
 
 ## Context

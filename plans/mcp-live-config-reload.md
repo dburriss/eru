@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Live config reload for MCP search and collection cache
 
 ## Context

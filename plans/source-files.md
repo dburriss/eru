@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: `eru source files <name>`
 
 ## Context

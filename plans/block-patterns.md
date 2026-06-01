@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: File Block Patterns
 
 ## Context

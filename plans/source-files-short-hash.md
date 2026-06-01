@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Short hash addressing for `eru source files` and `eru add`
 
 ## Context

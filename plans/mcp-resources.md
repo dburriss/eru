@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: MCP Resources for Sources and Installed Artifacts
 
 ## Context

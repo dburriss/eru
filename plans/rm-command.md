@@ -1,4 +1,7 @@
-# Plan: `eru rm` command
+---
+status: done
+---
+# Plan: `eru remove` command
 
 ## Context
 

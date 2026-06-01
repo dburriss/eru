@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Add `source remove` and `collection remove` subcommands
 
 ## Context

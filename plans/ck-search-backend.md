@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: `ck` Search Backend for `search_knowledge`
 
 ## Context

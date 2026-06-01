@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Add Spinner for `eru sync`
 
 ## Context

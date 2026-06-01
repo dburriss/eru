@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: Indexed Word Search for MCP `search_knowledge`
 
 ## Context

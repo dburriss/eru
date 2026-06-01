@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: `eru add --target` support for full file paths
 
 ## Context

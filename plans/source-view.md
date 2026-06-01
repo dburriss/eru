@@ -1,3 +1,6 @@
+---
+status: done
+---
 # Plan: `eru source view <source>`
 
 ## Context
