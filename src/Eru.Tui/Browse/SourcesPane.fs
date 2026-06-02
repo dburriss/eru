@@ -47,8 +47,10 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
                 (fun node -> node :? SourceNode))
         new TreeView<SourceTreeNode>(builder)
 
-    let detailView = new FrameView()
+    let detailView  = new FrameView()
     let detailLabel = new Label()
+    let previewView = new FrameView()
+    let previewText = new TextView()
 
     let formatSourceDetail (src: SourceList.SourceRow) =
         let url  = src.Url    |> Option.defaultValue "(none)"
@@ -66,6 +68,42 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
             | Some e -> e.LocalPath
             | None -> ""
         $"File:   {fn.Row.Path}\nSource: {fn.SourceName}\nHash:   {fn.Row.Hash}\nTags:   {tags}\nDesc:   {desc}\nStatus: {status}\nLocal:  {localPt}"
+
+    let updatePreview (fn: FileNode) =
+        let path = fn.Row.Path
+        if path.Contains('*') || path.Contains('?') then
+            previewView.Title <- "Matching Files"
+            match deps.ReadSourceIndex fn.SourceName with
+            | Ok (Some idx) ->
+                let matches =
+                    idx
+                    |> Map.toSeq
+                    |> Seq.map fst
+                    |> Seq.filter (Patterns.matchesGlob path)
+                    |> Seq.sort
+                    |> Seq.toArray
+                previewText.Text <-
+                    if matches.Length = 0 then "(no matching files in index)"
+                    else matches |> String.concat "\n"
+            | Ok None  -> previewText.Text <- "(source index not found)"
+            | Error e  -> previewText.Text <- $"(error: {e})"
+        elif path.EndsWith(".md", System.StringComparison.OrdinalIgnoreCase) then
+            previewView.Title <- "Preview"
+            match deps.ReadSourceIndex fn.SourceName with
+            | Ok (Some idx) ->
+                match Map.tryFind path idx with
+                | Some entry when entry.CacheRelPath.IsSome ->
+                    match deps.ReadCachedSourceContent fn.SourceName entry.CacheRelPath.Value with
+                    | Ok (Some content) -> previewText.Text <- content
+                    | Ok None           -> previewText.Text <- "(cached content not found)"
+                    | Error e           -> previewText.Text <- $"(error: {e})"
+                | Some _ -> previewText.Text <- "(file not cached – run 'eru sync')"
+                | None   -> previewText.Text <- "(file not in index)"
+            | Ok None  -> previewText.Text <- "(source index not found)"
+            | Error e  -> previewText.Text <- $"(error: {e})"
+        else
+            previewView.Title <- "Preview"
+            previewText.Text  <- ""
 
     let populateSources (filter: string) =
         treeView.ClearObjects()
@@ -91,25 +129,44 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         populateSources ""
         this.Add(treeView) |> ignore
 
-        detailView.Title <- "Details"
-        detailView.X <- Pos.Right treeView
-        detailView.Y <- Pos.Absolute 0
-        detailView.Width <- Dim.Fill()
-        detailView.Height <- Dim.Fill()
+        detailView.Title  <- "Details"
+        detailView.X      <- Pos.Right treeView
+        detailView.Y      <- Pos.Absolute 0
+        detailView.Width  <- Dim.Fill()
+        detailView.Height <- Dim.Absolute 11
 
-        detailLabel.X <- Pos.Absolute 0
-        detailLabel.Y <- Pos.Absolute 0
-        detailLabel.Width <- Dim.Fill()
+        detailLabel.X      <- Pos.Absolute 0
+        detailLabel.Y      <- Pos.Absolute 0
+        detailLabel.Width  <- Dim.Fill()
         detailLabel.Height <- Dim.Fill()
-        detailLabel.Text <- "Select a source or file to see details."
+        detailLabel.Text   <- "Select a source or file to see details."
         detailView.Add(detailLabel) |> ignore
         this.Add(detailView) |> ignore
 
+        previewView.Title  <- "Preview"
+        previewView.X      <- Pos.Right treeView
+        previewView.Y      <- Pos.Bottom detailView
+        previewView.Width  <- Dim.Fill()
+        previewView.Height <- Dim.Fill()
+
+        previewText.X        <- Pos.Absolute 0
+        previewText.Y        <- Pos.Absolute 0
+        previewText.Width    <- Dim.Fill()
+        previewText.Height   <- Dim.Fill()
+        previewText.ReadOnly <- true
+        previewText.WordWrap <- true
+        previewView.Add(previewText) |> ignore
+        this.Add(previewView) |> ignore
+
         treeView.SelectionChanged.Add(fun e ->
             match e.NewValue with
-            | :? FileNode as fn -> detailLabel.Text <- formatFileDetail fn
+            | :? FileNode as fn ->
+                detailLabel.Text <- formatFileDetail fn
+                updatePreview fn
             | :? SourceNode as sn ->
-                detailLabel.Text <- formatSourceDetail sn.Source
+                detailLabel.Text  <- formatSourceDetail sn.Source
+                previewView.Title <- "Preview"
+                previewText.Text  <- ""
             | _ -> ())
 
     member _.ActionRequested = actionEvent.Publish
