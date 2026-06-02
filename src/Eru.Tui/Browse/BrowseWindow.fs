@@ -219,6 +219,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         topBar.Y <- Pos.Absolute 0
         topBar.Width <- Dim.Fill()
         topBar.Height <- Dim.Absolute 1
+        topBar.CanFocus <- true
         BrowseTheme.apply BrowseTheme.Bar topBar
 
         tabSrc.Text  <- "[ Sources ]"
@@ -248,6 +249,8 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         filterField.Width <- Dim.Fill(Dim.Absolute 1)
         filterField.CanFocus <- false
         BrowseTheme.apply BrowseTheme.Bar filterField
+        filterField.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then focusFilter())
 
         filterField.ValueChanged.Add(fun e ->
             let text = if isNull (box e.NewValue) then "" else e.NewValue
