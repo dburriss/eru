@@ -2,6 +2,13 @@
 
 Full argument details for all `eru` commands.
 
+## Global flags
+
+| Flag | Description |
+|---|---|
+| `--debug` | Enable verbose output (shows git progress, etc.) |
+| `-o <format>` / `--output <format>` | Output format: `table` (default), `text`, or `json` — available on all commands that produce output |
+
 ---
 
 ## `eru init`
@@ -26,13 +33,15 @@ eru add [<remote-path>] [-s <source>] [-c <collection>] [-t <tag>] [-d <target>]
 
 | Argument / Flag | Description |
 |---|---|
-| `<remote-path>` | File to pull — bare filename, `source:path`, or a full GitHub/GitLab URL |
+| `<remote-path>` | File to pull — bare filename, `source:path`, full GitHub/GitLab URL, or 8-character hash from `eru search`/`eru source view` |
 | `-s <source>` | Source name fallback when no `source:` prefix is given |
-| `-c <collection>` | Pull all files in a named collection |
+| `-c <collection>` | Pull all files in a named collection (e.g. `name` or `source:name`) |
 | `-t <tag>` | Filter by tag; repeat for multiple tags (AND semantics) |
-| `-d <target>` | Local directory to write files into |
+| `-d <target>` | Local target path — trailing `/` keeps filename and sets directory; no trailing slash uses path verbatim |
 | `--dryrun` | Show what would be pulled without writing anything |
 | `--global` | Write any auto-created source entry to the global config |
+
+`eru add` searches through all configured sources when resolving a bare filename or hash.
 
 ---
 
@@ -44,8 +53,8 @@ eru search [<terms>...] [-t <tag>]
 
 | Argument / Flag | Description |
 |---|---|
-| `<terms>` | Search terms (space-separated) |
-| `-t <tag>` | Filter results by tag; repeat for multiple tags |
+| `<terms>` | Search terms (space-separated, OR semantics, case-insensitive substring match) |
+| `-t <tag>` | Filter results by tag; repeat for multiple tags (AND semantics) |
 
 ---
 
@@ -58,6 +67,38 @@ eru sync [--dryrun]
 | Flag | Description |
 |---|---|
 | `--dryrun` | Preview what would change without writing anything |
+
+Performs one git clone per source (not per file), refreshes all manifest caches, rebuilds source indexes, and caches collection and lock file content.
+
+---
+
+## `eru remove`
+
+```
+eru remove <path> [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | Local path of the artifact to delete (required) |
+| `--dryrun` | Show what would be removed without deleting anything |
+
+Deletes the local file and removes its entry from `.eru/eru.lock`.
+
+---
+
+## `eru disconnect`
+
+```
+eru disconnect <path> [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | Local path of the artifact to disconnect (required) |
+| `--dryrun` | Show what would be removed without modifying anything |
+
+Removes the lock file entry without touching the local file.
 
 ---
 
@@ -90,7 +131,7 @@ eru source remove <name> [-g] [--dryrun]
 
 ## `eru source list`
 
-No arguments.
+No arguments. Lists all configured sources (local + global), with tags from the manifest cache.
 
 ## `eru source view`
 
@@ -102,6 +143,21 @@ eru source view <name> [--full]
 |---|---|
 | `<name>` | Name of the source to inspect (required) |
 | `--full` | Show all files without the default 20-entry cap |
+
+Files table columns: **Hash** (8-char SHA-256 of the path, usable with `eru add`), **Path**, **Tags**, **Description**.
+
+## `eru source files`
+
+```
+eru source files [<name>] [--refresh]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the source. Omit to list files for all configured sources. |
+| `--refresh` | Fetch fresh metadata from the source before displaying |
+
+Reads from the source index cache (`~/.cache/eru/sources/<name>/index.json`). No network call unless `--refresh` is passed. Run `eru sync` first if no index has been built.
 
 ---
 
@@ -192,3 +248,17 @@ eru manifest verify
 ```
 
 No arguments. Exits 0 if all entries resolve to at least one local file, 1 otherwise.
+
+---
+
+## `eru cache prune`
+
+```
+eru cache prune [--yes]
+```
+
+| Flag | Description |
+|---|---|
+| `--yes` | Skip the confirmation prompt and delete immediately |
+
+Removes orphaned content files from the cache — files on disk no longer referenced by any source index entry. Safe to run at any time.

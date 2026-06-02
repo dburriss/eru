@@ -4,7 +4,8 @@ open Xunit
 open Eru
 
 let private entry localPath sourceName remotePath hash : LockEntry =
-    { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash }
+    { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash
+      Tags = []; Description = None }
 
 let private makeDeps
     (lockEntries: LockEntry list)
@@ -24,11 +25,16 @@ let private makeDeps
         DeleteLocalFile     = fun _ -> Assert.Fail("disconnect must not delete files"); Error "unexpected"
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/repo"
-        ReadCachedManifest  = fun _ -> Ok None
-        CacheSourceManifest = fun _ _ -> Ok ()
-        ReadLocalManifest   = fun () -> Ok None
-        WriteLocalManifest  = fun _ -> Ok ()
-        ResolveLocalGlob    = fun _ -> []
+        ReadCachedManifest      = fun _ -> Ok None
+        CacheSourceManifest     = fun _ _ -> Ok ()
+        ReadLocalManifest       = fun () -> Ok None
+        WriteLocalManifest      = fun _ -> Ok ()
+        ResolveLocalGlob        = fun _ -> []
+        ReadSourceIndex         = fun _ -> Ok None
+        WriteSourceIndex        = fun _ _ -> Ok ()
+        CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
+        ReadCachedSourceContent = fun _ _ -> Ok None
+        BuildSearchIndex        = fun _ _ -> ()
     }
 
 let private cmd target dryrun : Disconnect.Command = { Target = target; DryRun = dryrun }

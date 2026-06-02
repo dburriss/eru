@@ -20,25 +20,49 @@ module AdapterDeps =
             Ok ()
         with ex -> Error ex.Message
 
+    let private cacheSourceContent (sourceName: string) (contentHash: string) (content: string) : Result<string, string> =
+        try
+            let hex = if contentHash.StartsWith "sha256:" then contentHash.[7..] else contentHash
+            let dir = Paths.sourceFilesDir sourceName
+            Directory.CreateDirectory dir |> ignore
+            let filePath = Path.Combine(dir, hex)
+            File.WriteAllText(filePath, content)
+            Ok $"files/{hex}"
+        with ex -> Error ex.Message
+
+    let private readCachedSourceContent (sourceName: string) (cacheRelPath: string) : Result<string option, string> =
+        try
+            let absPath = Path.Combine(Paths.sourceCacheDir sourceName, cacheRelPath)
+            if not (File.Exists absPath) then Ok None
+            else Ok (Some (File.ReadAllText absPath))
+        with ex -> Error ex.Message
+
     let create (debug: bool) : Deps =
         let cwd = Directory.GetCurrentDirectory()
         {
-            ReadGlobalConfig   = ConfigAdapter.readGlobalConfig
-            ReadLocalConfig    = fun () -> ConfigAdapter.readLocalConfig cwd
-            WriteLocalConfig   = ConfigAdapter.writeLocalConfig cwd
-            WriteGlobalConfig  = ConfigAdapter.writeGlobalConfig
-            ReadLockEntries    = LockFileAdapter.read
-            WriteLockEntries   = LockFileAdapter.write
-            FetchRemoteContent = GitAdapter.fetchRemoteContent debug
-            ListRemoteTopLevel = GitAdapter.listRemoteTopLevel debug
-            ListRemoteFiles    = GitAdapter.listRemoteFiles debug
-            WriteLocalFile      = writeFile
-            DeleteLocalFile     = fun path -> try File.Delete path; Ok () with ex -> Error ex.Message
-            HashContent         = hashContent
-            GetCwd              = fun () -> cwd
-            ReadCachedManifest  = ManifestAdapter.readCachedManifest
-            CacheSourceManifest = ManifestAdapter.cacheSourceManifest
-            ReadLocalManifest   = fun () -> ManifestAdapter.readLocalManifest cwd
-            WriteLocalManifest  = ManifestAdapter.writeLocalManifest cwd
-            ResolveLocalGlob    = ManifestAdapter.resolveLocalGlob cwd
+            ReadGlobalConfig         = ConfigAdapter.readGlobalConfig
+            ReadLocalConfig          = fun () -> ConfigAdapter.readLocalConfig cwd
+            WriteLocalConfig         = ConfigAdapter.writeLocalConfig cwd
+            WriteGlobalConfig        = ConfigAdapter.writeGlobalConfig
+            ReadLockEntries          = LockFileAdapter.read
+            WriteLockEntries         = LockFileAdapter.write
+            FetchRemoteContent       = GitAdapter.fetchRemoteContent debug
+            ListRemoteTopLevel       = GitAdapter.listRemoteTopLevel debug
+            ListRemoteFiles          = GitAdapter.listRemoteFiles debug
+            WriteLocalFile           = writeFile
+            DeleteLocalFile          = fun path -> try File.Delete path; Ok () with ex -> Error ex.Message
+            HashContent              = hashContent
+            GetCwd                   = fun () -> cwd
+            ReadCachedManifest       = ManifestAdapter.readCachedManifest
+            CacheSourceManifest      = ManifestAdapter.cacheSourceManifest
+            ReadLocalManifest        = fun () -> ManifestAdapter.readLocalManifest cwd
+            WriteLocalManifest       = ManifestAdapter.writeLocalManifest cwd
+            ResolveLocalGlob         = ManifestAdapter.resolveLocalGlob cwd
+            ReadSourceIndex          = SourceIndexAdapter.readIndex
+            WriteSourceIndex         = SourceIndexAdapter.writeIndex
+            CacheSourceContent       = cacheSourceContent
+            ReadCachedSourceContent  = readCachedSourceContent
+            BuildSearchIndex         = fun sourceName cacheRelPath ->
+                let absPath = Path.Combine(Paths.sourceCacheDir sourceName, cacheRelPath)
+                SearchIndexAdapter.getOrBuild absPath |> ignore
         }

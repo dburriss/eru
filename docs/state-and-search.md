@@ -6,8 +6,9 @@ Four commands let you read what eru knows without pulling any files: `source lis
 |---|---|---|
 | `eru source list` | No | Local + global config, manifest cache |
 | `eru source view <name>` | No | Local + global config, manifest cache |
-| `eru source files [name]` | **Yes** | Manifest cache (patterns) + live `git ls-tree` |
-| `eru search` | No | Global config collections, lock file |
+| `eru source files [name]` | No | Source index cache (`index.json`) |
+| `eru source files [name] --refresh` | **Yes** | Re-fetches from network, then reads index |
+| `eru search` | No | Source index cache, config collections, lock file |
 
 ---
 
@@ -82,11 +83,12 @@ If no manifest is cached, eru prints `"No manifest cached. Run 'eru sync' to fet
 
 ## `eru source files [name]`
 
-Resolves the concrete, expanded file list for a source by combining the cached manifest patterns with a live listing of the remote repository. This is the only read command that makes a network call.
+Lists all files advertised by a source, reading from the local source index. No network call is made by default.
 
 ```bash
-eru source files              # all configured sources
-eru source files <name>       # a specific source
+eru source files                     # all configured sources
+eru source files <name>              # a specific source
+eru source files <name> --refresh    # re-fetch from network first, then display
 ```
 
 **What is shown:**
@@ -95,26 +97,22 @@ eru source files <name>       # a specific source
 |---|---|
 | Source | Source name |
 | Hash | 8-character SHA-256 of the file path |
-| Path | Concrete file path from the remote repository |
-| Tags | Tags merged from all matching manifest entries |
-| Description | Description from the first matching manifest entry |
-
-Only files whose paths match at least one pattern in the manifest are included. Files in the remote repo that the manifest does not cover are silently excluded.
+| Path | File path as recorded in the source index |
+| Tags | Tags from the source index (merged from manifest + file frontmatter) |
+| Description | Description from the source index |
 
 **Where the data comes from:**
 
-- Manifest patterns — manifest cache (`~/.cache/eru/sources/<name>/manifest.json`). Refreshed by `eru sync`; can be stale between syncs.
-- Actual file paths — live `git clone --depth=1` of the remote, followed by `git ls-tree -r`. Always current. Requires network access.
+- Default: source index cache at `~/.cache/eru/sources/<name>/index.json`. Rebuilt by `eru sync` and by `--refresh`.
+- `--refresh`: triggers a full re-fetch from the network (same as running `eru sync` for that source), then reads the freshly updated index.
 
-Because the manifest patterns are cached but the file tree is live, the two can temporarily drift if the remote repo gains or loses files between syncs. The matching step always uses the live file tree against the cached patterns.
-
-A spinner is shown while the remote fetch is in progress.
+If no index has been built for a source, `eru source files` returns an error asking you to run `eru sync`.
 
 ---
 
 ## `eru search`
 
-Searches the files you have declared in collections and the files already pulled into the local repo.
+Searches all files eru knows about: manifest-advertised files, collection entries, and locally pulled files.
 
 ```bash
 eru search adr                          # substring search across paths and descriptions
@@ -129,23 +127,22 @@ eru search adr --tags template          # combined: term match AND tag filter
 | Source | Source name |
 | Path | Remote path of the file |
 | Hash | 8-character SHA-256 of the remote path |
-| Tags | Tags from the collection entry |
+| Tags | Merged tags from the source index and collection config |
 | Local Path | Where the file lives locally, if it has been pulled (blank otherwise) |
-| Description | Description from the collection entry |
+| Description | Description from the source index or collection config |
 
-**Where the data comes from:**
+**Where the data comes from (priority order):**
 
-1. **Global config collections** (`~/.config/eru/config.json`) — each file declared in a `CollectionConfig` becomes a search result with its source, path, tags, and description.
-2. **Lock file** (`eru.lock`) — every locally pulled file is included. If it also appears in a collection, the lock entry enriches the collection result with a `Local Path`. Lock entries with no matching collection entry appear at the end with no tags or description.
-
-**What is not searched:** The manifest cache is not consulted. `eru search` only knows about files you have explicitly added to a collection or already pulled.
+1. **Source index** (`~/.cache/eru/sources/<name>/index.json`) — all files advertised by each source, with tags merged from manifest entries and file frontmatter. This is the primary data source after `eru sync` has run.
+2. **Config collections** — files declared in collection configs but not yet in the index (e.g. before the first sync). Collection-level tags are always joined in at search time.
+3. **Lock file** (`eru.lock`) — used to populate `Local Path` for pulled files, and to surface any lock-only entries not covered by the index or collections.
 
 **Filtering:**
 
 - Terms (positional args): OR semantics, case-insensitive substring match against remote path, local path, and description. Omit to match everything.
 - `--tags`: AND semantics, case-insensitive exact match. All specified tags must be present.
 
-Results are returned in config order (collections) followed by lock-only entries. There is no relevance ranking.
+Run `eru sync` to refresh the source index so that newly manifest-advertised files appear in search results.
 
 ---
 
@@ -155,5 +152,5 @@ Results are returned in config order (collections) followed by lock-only entries
 |---|---|---|
 | Source config (URL, branch, etc.) | `eru source add` / manual edit | No — always read live from disk |
 | Manifest cache (tags, patterns, descriptions) | `eru sync`, `eru source add` | Yes — until next sync |
+| Source index (`index.json`) | `eru sync`, `eru source files --refresh` | Yes — until next sync |
 | Lock file (pulled files + hashes) | `eru add`, `eru sync` | No — always read live from disk |
-| Remote file tree | `eru source files` only | Never cached — always live |

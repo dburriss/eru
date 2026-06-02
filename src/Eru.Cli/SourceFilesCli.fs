@@ -6,7 +6,7 @@ open System.Text.Json
 open Eru
 open Eru.Cli.OutputFormat
 
-type Cmd = { SourceName: string option; Format: OutputFormat }
+type Cmd = { SourceName: string option; Refresh: bool; Format: OutputFormat }
 
 let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -15,6 +15,7 @@ let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
                 | SourceArgs.Files filesArgs ->
                     Some {
                         SourceName = filesArgs.TryGetResult SourceFilesArgs.Name
+                        Refresh    = filesArgs.Contains SourceFilesArgs.Refresh
                         Format     = parseFormat (filesArgs.TryGetResult SourceFilesArgs.Output)
                     }
                 | _ -> None)
@@ -23,7 +24,7 @@ let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
 let private renderSourceText (sourceName: string) (rows: SourceFiles.SourceFileRow list) =
     printfn $"Files for source: {sourceName}\n"
     if rows.IsEmpty then
-        printfn "  (no files matched manifest patterns)"
+        printfn "  (no files found in index)"
     else
         for row in rows do
             let tagStr  = if row.Tags.IsEmpty then "" else $"""  [{row.Tags |> String.concat ", "}]"""
@@ -44,7 +45,7 @@ let private renderTable (results: (string * SourceFiles.SourceFileRow list) list
     let t = makeTable ["Source"; "Hash"; "Path"; "Tags"; "Description"]
     for (sourceName, rows) in results do
         if rows.IsEmpty then
-            t.AddRow(sourceName, "", "(no files matched manifest patterns)", "", "") |> ignore
+            t.AddRow(sourceName, "", "(no files found in index)", "", "") |> ignore
         else
             for row in rows do
                 let tags = row.Tags |> String.concat ", "
@@ -58,9 +59,13 @@ let run (deps: Eru.Deps) (cmd: Cmd) : int =
         | Table ->
             let status = AnsiConsole.Status()
             status.Spinner <- Spinner.Known.Dots
-            status.Start<Result<(string * SourceFiles.SourceFileRow list) list, string>>("Fetching source files...", fun _ ->
+            let label = if cmd.Refresh then "Refreshing source files..." else "Loading source files..."
+            status.Start<Result<(string * SourceFiles.SourceFileRow list) list, string>>(label, fun _ ->
+                if cmd.Refresh then Sync.populateIndex deps |> ignore
                 SourceFiles.execute deps cmd.SourceName)
-        | _ -> SourceFiles.execute deps cmd.SourceName
+        | _ ->
+            if cmd.Refresh then Sync.populateIndex deps |> ignore
+            SourceFiles.execute deps cmd.SourceName
     match result with
     | Error e    -> renderError e; 1
     | Ok results ->

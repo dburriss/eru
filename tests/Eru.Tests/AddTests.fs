@@ -43,11 +43,16 @@ let private makeDeps
         DeleteLocalFile     = fun _ -> Ok ()
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/tmp"
-        ReadCachedManifest  = fun _ -> Ok None
-        CacheSourceManifest = fun _ _ -> Ok ()
-        ReadLocalManifest   = fun () -> Ok None
-        WriteLocalManifest  = fun _ -> Ok ()
-        ResolveLocalGlob    = fun _ -> []
+        ReadCachedManifest      = fun _ -> Ok None
+        CacheSourceManifest     = fun _ _ -> Ok ()
+        ReadLocalManifest       = fun () -> Ok None
+        WriteLocalManifest      = fun _ -> Ok ()
+        ResolveLocalGlob        = fun _ -> []
+        ReadSourceIndex         = fun _ -> Ok None
+        WriteSourceIndex        = fun _ _ -> Ok ()
+        CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
+        ReadCachedSourceContent = fun _ _ -> Ok None
+        BuildSearchIndex        = fun _ _ -> ()
     }
 
 let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }
@@ -214,7 +219,7 @@ let ``errors when source has no URL`` () =
 let ``existing lock entry for same localPath is replaced`` () =
     let state = newState ()
     let src = makeSource "kb" (Some "https://x.com") None None
-    let existing : LockEntry = { LocalPath = "shared/adr.md"; SourceName = "kb"; RemotePath = "shared/adr.md"; ContentHash = "sha256:old" }
+    let existing : LockEntry = { LocalPath = "shared/adr.md"; SourceName = "kb"; RemotePath = "shared/adr.md"; ContentHash = "sha256:old"; Tags = []; Description = None }
     state.WrittenLock <- [existing]
     let deps = makeDeps (Some (makeGlobal [src] [])) (Some (makeLocal [src])) state
     let cmd = { emptyCmd with RemotePath = Some "shared/adr.md" }

@@ -27,31 +27,37 @@ let private makeFileRefWithDesc source remotePath tags desc : CollectionFileRef 
     { Source = source; RemotePath = remotePath; Tags = tags; Description = Some desc }
 
 let private makeLockEntry localPath sourceName remotePath : LockEntry =
-    { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = "sha256:abc" }
+    { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = "sha256:abc"
+      Tags = []; Description = None }
 
 let private makeDeps
     (globalCfg: GlobalConfig option)
     (localCfg: LocalConfig option)
     (lockEntries: LockEntry list) : Deps =
     {
-        ReadGlobalConfig   = fun () -> Ok globalCfg
-        ReadLocalConfig    = fun () -> Ok localCfg
-        WriteLocalConfig   = fun _ -> Ok ()
-        WriteGlobalConfig  = fun _ -> Ok ()
-        ReadLockEntries    = fun _ -> Ok lockEntries
-        WriteLockEntries   = fun _ _ -> Ok ()
-        FetchRemoteContent  = fun _ _ paths -> Ok (paths |> List.map (fun p -> (p, $"content:{p}")))
-        ListRemoteTopLevel  = fun _ _ -> Ok []
-        ListRemoteFiles     = fun _ _ _ -> Ok []
-        WriteLocalFile      = fun _ _ -> Ok ()
-        DeleteLocalFile     = fun _ -> Ok ()
-        HashContent         = fun s -> $"sha256:{s}"
-        GetCwd              = fun () -> "/tmp"
-        ReadCachedManifest  = fun _ -> Ok None
-        CacheSourceManifest = fun _ _ -> Ok ()
-        ReadLocalManifest   = fun () -> Ok None
-        WriteLocalManifest  = fun _ -> Ok ()
-        ResolveLocalGlob    = fun _ -> []
+        ReadGlobalConfig        = fun () -> Ok globalCfg
+        ReadLocalConfig         = fun () -> Ok localCfg
+        WriteLocalConfig        = fun _ -> Ok ()
+        WriteGlobalConfig       = fun _ -> Ok ()
+        ReadLockEntries         = fun _ -> Ok lockEntries
+        WriteLockEntries        = fun _ _ -> Ok ()
+        FetchRemoteContent      = fun _ _ paths -> Ok (paths |> List.map (fun p -> (p, $"content:{p}")))
+        ListRemoteTopLevel      = fun _ _ -> Ok []
+        ListRemoteFiles         = fun _ _ _ -> Ok []
+        WriteLocalFile          = fun _ _ -> Ok ()
+        DeleteLocalFile         = fun _ -> Ok ()
+        HashContent             = fun s -> $"sha256:{s}"
+        GetCwd                  = fun () -> "/tmp"
+        ReadCachedManifest      = fun _ -> Ok None
+        CacheSourceManifest     = fun _ _ -> Ok ()
+        ReadLocalManifest       = fun () -> Ok None
+        WriteLocalManifest      = fun _ -> Ok ()
+        ResolveLocalGlob        = fun _ -> []
+        ReadSourceIndex         = fun _ -> Ok None
+        WriteSourceIndex        = fun _ _ -> Ok ()
+        CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
+        ReadCachedSourceContent = fun _ _ -> Ok None
+        BuildSearchIndex        = fun _ _ -> ()
     }
 
 let private emptyQuery : Search.Query = { Terms = []; Tags = [] }

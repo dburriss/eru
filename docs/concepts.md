@@ -110,7 +110,9 @@ Cached manifests are stored at:
 - macOS/Linux: `~/.cache/eru/sources/<source-name>/manifest.json`
 - Windows: `%LOCALAPPDATA%\eru\sources\<source-name>\manifest.json`
 
-Once cached, manifest-advertised files become available for tag-based pulls (`eru add --tags`) and `eru source files`.
+After fetching a manifest, `eru sync` also builds a search index at `~/.cache/eru/sources/<source-name>/index.json`. The index stores per-file tags (merged from manifest entries and file frontmatter) and is the primary data source for `eru search` and `eru source files`.
+
+Once cached, manifest-advertised files become available for tag-based pulls (`eru add --tags`), `eru source files`, and `eru search`.
 
 ---
 
@@ -147,7 +149,7 @@ All paths are relative to the directory where `eru` is invoked (the repo root).
 | `eru add --collection <name>` | All files in the named collection, immediately |
 | `eru add --tags <t>` | All files in any collection matching those tags, immediately |
 | `eru source add <url>` | Only the source's `.eru/manifest.json` (no content files) |
-| `eru sync` | Re-fetches every file tracked in `eru.lock`; also refreshes all manifest caches |
+| `eru sync` | Re-fetches every file tracked in `eru.lock`; refreshes all manifest caches; rebuilds source index (`index.json`); caches collection and lock file content |
 
 ---
 
@@ -155,14 +157,22 @@ All paths are relative to the directory where `eru` is invoked (the repo root).
 
 `eru.lock` is committed in the consuming repo. It is the source of truth for what knowledge lives locally and where it came from.
 
-Format — one entry per line, tab-separated:
+Format — one entry per line, tab-separated. The tags and description fields are optional:
 
 ```
 # eru.lock v1
-<local-path>\t<source-name>:<remote-path>\t<content-hash>
+<local-path>\t<source-name>:<remote-path>\t<content-hash>[\t<tags>[\t<description>]]
 ```
 
-Example:
+| Field | Required | Description |
+|---|---|---|
+| `<local-path>` | Yes | Path on disk relative to the repo root |
+| `<source-name>:<remote-path>` | Yes | Source name and path in the remote repo |
+| `<content-hash>` | Yes | `sha256:<hex>` of the file content at pull time |
+| `<tags>` | No | Comma-separated tags stored with the entry |
+| `<description>` | No | Free-text description stored with the entry |
+
+Example (basic):
 
 ```
 docs/adr-template.md    my-source:KNOWLEDGE/adr-template.md    sha256:a1b2c3...

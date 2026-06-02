@@ -119,11 +119,11 @@ module Add =
                             let localPath = deriveLocalPath source.BasePath target resolvedPath
                             let hash = deps.HashContent content
                             if dryRun then
-                                Ok (entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])
+                                Ok (entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash; Tags = []; Description = None }])
                             else
                                 deps.WriteLocalFile localPath content
                                 |> Result.map (fun () ->
-                                    entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash }])))
+                                    entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash; Tags = []; Description = None }])))
                         (Ok blockedEntries))))
 
     let private pullMany

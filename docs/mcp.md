@@ -22,9 +22,9 @@ The MCP server merges the same global (`~/.config/eru/config.json`) and local (`
 
 The default is 60 minutes. The server fetches all configured collection files into a local cache on startup and re-fetches on the configured interval.
 
-## Collection caching
+## Knowledge caching
 
-On startup, `eru mcp` pre-fetches every file referenced in your collections from their upstream sources and stores them in a local cache. This makes `search_knowledge` and `read_artifact` fast — no live git fetch is needed for cached files. The cache refreshes automatically at the interval set by `mcpRefreshIntervalMinutes`.
+On startup, `eru mcp` runs a full index population: it fetches manifests for all configured sources, rebuilds `~/.cache/eru/sources/<name>/index.json` with tags and descriptions from the manifest and file frontmatter, and caches the content of collection and lock file entries under `~/.cache/eru/sources/<name>/files/`. This makes `search_knowledge` and `read_artifact` fast — no live git fetch is needed for cached files. The cache refreshes automatically at the interval set by `mcpRefreshIntervalMinutes`.
 
 ## Available resources
 
@@ -68,16 +68,16 @@ All locally pulled artifacts from the lock file (`.eru/eru.lock`), grouped by so
 
 Full-text search across:
 
-1. **Cached collection files** — files pre-fetched from configured collections
-2. **Lock file entries** (`.eru/eru.lock`) — files pulled into the current repo
-3. **Local knowledge directories** — `knowledge/` and `KNOWLEDGE/` in the current working directory
+1. **Source index entries** — all files advertised by configured sources, with tags and descriptions from the index (populated by the background sync). Files with no locally cached content are still returned for metadata matches (path, tags, description).
+2. **Lock file entries** (`.eru/eru.lock`) — files pulled into the current repo but not covered by any source index.
+3. **Local knowledge directories** — `knowledge/` and `KNOWLEDGE/` in the current working directory.
 
 | Parameter | Description |
 |---|---|
 | `query` | Space-separated search terms (OR semantics). Leave empty to list all artifacts. |
 | `tags` | Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering. |
 
-Results include the source type (`[collection]`, `[lock]`, `[local]`), path, tags, and a content excerpt from the first matching line.
+Results include the source type (`[collection]`, `[lock]`, `[local]`), path, tags, and a content excerpt from the first matching line. Tags are read from the source index (merged from manifest + frontmatter) — no live file reads during search.
 
 ### `read_artifact`
 
@@ -85,7 +85,7 @@ Read the full content of a knowledge artifact. Resolution order:
 
 1. Local file path (relative to CWD or absolute)
 2. Lock file `LocalPath` match
-3. Collection cache hit
+3. Source index cache hit (`~/.cache/eru/sources/<name>/files/`)
 4. Live fetch via `sourceName:remotePath` reference
 
 | Parameter | Description |

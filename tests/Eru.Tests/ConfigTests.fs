@@ -193,8 +193,8 @@ let ``resolveByTags deduplicates files appearing in multiple collections`` () =
 [<Fact>]
 let ``LockFile parse roundtrips entries`` () =
     let entries = [
-        { LocalPath = "docs/adr.md"; SourceName = "main"; RemotePath = "templates/adr.md"; ContentHash = "sha256:abc123" }
-        { LocalPath = "src/Utils.fs"; SourceName = "platform"; RemotePath = "dotnet/Utils.fs"; ContentHash = "sha256:def456" }
+        { LocalPath = "docs/adr.md"; SourceName = "main"; RemotePath = "templates/adr.md"; ContentHash = "sha256:abc123"; Tags = []; Description = None }
+        { LocalPath = "src/Utils.fs"; SourceName = "platform"; RemotePath = "dotnet/Utils.fs"; ContentHash = "sha256:def456"; Tags = []; Description = None }
     ]
     let written = LockFile.write entries
     match LockFile.parse written with
@@ -209,8 +209,8 @@ let ``LockFile parse roundtrips entries`` () =
 [<Fact>]
 let ``LockFile write sorts entries by LocalPath`` () =
     let entries = [
-        { LocalPath = "z-last.md";  SourceName = "s"; RemotePath = "z.md"; ContentHash = "sha256:aaa" }
-        { LocalPath = "a-first.md"; SourceName = "s"; RemotePath = "a.md"; ContentHash = "sha256:bbb" }
+        { LocalPath = "z-last.md";  SourceName = "s"; RemotePath = "z.md"; ContentHash = "sha256:aaa"; Tags = []; Description = None }
+        { LocalPath = "a-first.md"; SourceName = "s"; RemotePath = "a.md"; ContentHash = "sha256:bbb"; Tags = []; Description = None }
     ]
     let written = LockFile.write entries
     match LockFile.parse written with
@@ -222,8 +222,8 @@ let ``LockFile write sorts entries by LocalPath`` () =
 [<Fact>]
 let ``LockFile findByLocalPath returns entry when found`` () =
     let entries = [
-        { LocalPath = "docs/adr.md"; SourceName = "src"; RemotePath = "adr.md"; ContentHash = "sha256:aaa" }
-        { LocalPath = "src/Utils.fs"; SourceName = "src"; RemotePath = "Utils.fs"; ContentHash = "sha256:bbb" }
+        { LocalPath = "docs/adr.md"; SourceName = "src"; RemotePath = "adr.md"; ContentHash = "sha256:aaa"; Tags = []; Description = None }
+        { LocalPath = "src/Utils.fs"; SourceName = "src"; RemotePath = "Utils.fs"; ContentHash = "sha256:bbb"; Tags = []; Description = None }
     ]
     match LockFile.findByLocalPath "docs/adr.md" entries with
     | None   -> Assert.Fail "Expected Some but got None"
@@ -232,7 +232,7 @@ let ``LockFile findByLocalPath returns entry when found`` () =
 [<Fact>]
 let ``LockFile findByLocalPath returns None when not found`` () =
     let entries = [
-        { LocalPath = "docs/adr.md"; SourceName = "src"; RemotePath = "adr.md"; ContentHash = "sha256:aaa" }
+        { LocalPath = "docs/adr.md"; SourceName = "src"; RemotePath = "adr.md"; ContentHash = "sha256:aaa"; Tags = []; Description = None }
     ]
     Assert.Equal(None, LockFile.findByLocalPath "does-not-exist.md" entries)
 

@@ -1,6 +1,6 @@
 ---
 name: eru
-description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", or any question about using the eru CLI tool.
+description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru remove", "eru disconnect", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "list source files", or any question about using the eru CLI tool.
 ---
 
 # eru
@@ -13,6 +13,7 @@ description: Use this skill when the user wants to pull, sync, or manage shared 
 |---|---|
 | **Source** | A git repo (or local path) that serves as the canonical origin for shared files |
 | **Lock file** | `.eru/eru.lock` — records every pulled file: source, path, and content hash |
+| **Source index** | `~/.cache/eru/sources/<name>/index.json` — per-file tags and descriptions merged from manifest + frontmatter; rebuilt by `eru sync` |
 | **Collection** | A named group of file references that can be pulled as a unit |
 | **Manifest** | `.eru/manifest.json` — published by a knowledge-source repo to declare available files |
 | **Tags** | Metadata on files/collections for filtered pulls |
@@ -39,21 +40,26 @@ eru init --force           # overwrite existing config
 
 ### `eru add`
 
-Pull a file or collection from a knowledge source into the current repo.
+Pull a file or collection from a knowledge source into the current repo. Accepts a bare filename, `source:path` shorthand, a full GitHub/GitLab URL, or an 8-character content hash from `eru source view` or `eru search`.
 
 ```bash
 eru add https://github.com/my-org/knowledge/blob/main/docs/adr-template.md
 eru add knowledge:docs/adr-template.md
+eru add a1b2c3d4                           # add by hash
 eru add --collection onboarding-docs
 eru add --tag devops
 eru add knowledge:docs/style-guide.md --dryrun
+eru add knowledge:docs/adr.md --target docs/          # write to docs/adr.md
+eru add knowledge:docs/adr.md --target docs/custom.md # write to docs/custom.md
 ```
+
+`--target` semantics: a path ending with `/` is treated as a directory (filename is kept); a path without a trailing slash is used verbatim as the local file path.
 
 ---
 
 ### `eru search`
 
-Search across configured knowledge sources and the lock file.
+Search across all files eru knows about: source index entries, collection entries, and locally pulled files.
 
 ```bash
 eru search adr template
@@ -65,7 +71,7 @@ eru search pipeline --tag ci --tag devops
 
 ### `eru sync`
 
-Re-fetch every file tracked in `.eru/eru.lock` and overwrite anything that has drifted.
+Re-fetch every file tracked in `.eru/eru.lock`, refresh all source manifests, and rebuild the source index and collection cache. Batches git fetches — one clone per source regardless of how many files are tracked.
 
 ```bash
 eru sync
@@ -73,6 +79,28 @@ eru sync --dryrun
 ```
 
 Each file is reported as: **current**, **drifted** (overwritten), **missing** (remote gone), or **skipped** (source not configured).
+
+---
+
+### `eru remove`
+
+Delete a local artifact file and its lock entry by path.
+
+```bash
+eru remove docs/adr-template.md
+eru remove docs/adr-template.md --dryrun
+```
+
+---
+
+### `eru disconnect`
+
+Remove a tracked artifact from the lock file without deleting the local file.
+
+```bash
+eru disconnect docs/adr-template.md
+eru disconnect docs/adr-template.md --dryrun
+```
 
 ---
 
@@ -86,10 +114,15 @@ eru source add https://github.com/my-org/knowledge --name org-knowledge --branch
 eru source list
 eru source view knowledge
 eru source view knowledge --full
+eru source files                          # all sources, from local index
+eru source files knowledge               # one source, from local index
+eru source files knowledge --refresh     # re-fetch from network, then display
 eru source remove knowledge
 eru source remove org-knowledge --global
 eru source remove knowledge --dryrun
 ```
+
+`eru source files` reads from the source index cache — no network call unless `--refresh` is passed. Run `eru sync` first if no index has been built.
 
 ---
 
@@ -128,15 +161,40 @@ Paths support gitignore-style globs. `verify` expands each entry against local f
 
 ---
 
+### `eru cache`
+
+Manage the local knowledge cache.
+
+```bash
+eru cache prune        # list orphaned cache files and prompt before deleting
+eru cache prune --yes  # delete without prompting
+```
+
+Orphans accumulate when files are removed from a manifest or when sources are deleted. Safe to run at any time.
+
+---
+
 ### `eru mcp`
 
-Start an MCP stdio server exposing `search_knowledge` and `read_artifact` to AI agents.
+Start an MCP stdio server exposing `search_knowledge`, `read_artifact`, and `refresh_knowledge` tools plus MCP resources to AI agents.
 
 ```bash
 eru mcp
 ```
 
 For client configuration (Claude Code, Claude Desktop, VS Code) see `references/mcp.md`.
+
+---
+
+## Output format
+
+All commands that produce output accept `--output` (short: `-o`):
+
+| Value | Description |
+|---|---|
+| `table` | Formatted Spectre.Console table with column headers (default) |
+| `text` | Plain-text style for piping and terminal use |
+| `json` | Machine-readable JSON for scripting |
 
 ---
 
@@ -166,6 +224,13 @@ eru add https://github.com/my-org/knowledge/blob/main/docs/guide.md
 # eru auto-registers the source and records the file in .eru/eru.lock
 ```
 
+### Pull by hash
+
+```bash
+eru search adr            # find the hash in results
+eru add a1b2c3d4          # pull by 8-char hash
+```
+
 ### Pull an entire collection
 
 ```bash
@@ -183,4 +248,25 @@ eru sync
 ```bash
 eru add knowledge:docs/style-guide.md --dryrun
 eru sync --dryrun
+```
+
+### Inspect what's available without pulling
+
+```bash
+eru source list
+eru source files knowledge
+eru search adr --tag template
+```
+
+### Remove a file from tracking
+
+```bash
+eru remove docs/old-guide.md          # delete file and lock entry
+eru disconnect docs/old-guide.md      # remove from lock only, keep file
+```
+
+### Clean up stale cache entries
+
+```bash
+eru cache prune
 ```

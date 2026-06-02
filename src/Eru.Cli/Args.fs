@@ -94,13 +94,15 @@ type SourceViewArgs =
             | Output _ -> "Output format: table (default), text, json."
 
 type SourceFilesArgs =
-    | [<MainCommand>]              Name   of sourceName: string
+    | [<MainCommand>]              Name    of sourceName: string
+    | [<Unique>]                   Refresh
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Name _   -> "Name of the source. Omit to list files for all configured sources."
-            | Output _ -> "Output format: table (default), text, json."
+            | Name _    -> "Name of the source. Omit to list files for all configured sources."
+            | Refresh   -> "Fetch fresh metadata from the source before displaying."
+            | Output _  -> "Output format: table (default), text, json."
 
 type SourceRemoveArgs =
     | [<MainCommand; ExactlyOnce>] Name   of name: string
@@ -272,6 +274,19 @@ type DisconnectArgs =
             | Dryrun   -> "Show what would be disconnected without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
+type CachePruneArgs =
+    | [<Unique>] Yes
+    interface IArgParserTemplate with
+        member a.Usage = match a with Yes -> "Skip confirmation prompt and delete immediately."
+
+[<CliPrefix(CliPrefix.None)>]
+type CacheArgs =
+    | [<SubCommand>] Prune of ParseResults<CachePruneArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Prune _ -> "Remove orphaned content files not referenced by any source index."
+
 type McpArgs =
     | [<Hidden>] Placeholder
     interface IArgParserTemplate with
@@ -289,6 +304,7 @@ type EruArgs =
     | [<SubCommand>] Manifest   of ParseResults<ManifestArgs>
     | [<SubCommand>] Remove     of ParseResults<RemoveArgs>
     | [<SubCommand>] Disconnect of ParseResults<DisconnectArgs>
+    | [<SubCommand>] Cache      of ParseResults<CacheArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     interface IArgParserTemplate with
         member a.Usage =
@@ -303,4 +319,5 @@ type EruArgs =
             | Manifest _   -> "Manage the .eru/manifest.json for this knowledge source."
             | Remove _     -> "Remove a tracked artifact from disk and the lock file."
             | Disconnect _ -> "Remove a tracked artifact from the lock file without deleting the local file."
+            | Cache _      -> "Manage the local knowledge cache."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."

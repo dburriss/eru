@@ -12,8 +12,6 @@ open ModelContextProtocol.Server
 [<McpServerToolType>]
 type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
 
-    let cacheRoot = Paths.collectionCachePath ()
-
     let backend : SearchFn =
         match Environment.GetEnvironmentVariable "ERU_SEARCH_BACKEND" with
         | "indexed" -> IndexedSearch.search
@@ -35,9 +33,17 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         required |> List.forall (fun t ->
             itemTags |> List.exists (fun it -> it.ToLowerInvariant() = t))
 
-    let readFrontmatter absPath =
-        try Frontmatter.parse (File.ReadAllText absPath)
-        with _ -> Frontmatter.empty
+    let resolveAbsPath (sourceName: string) (entry: IndexEntry) (localEntry: LockEntry option) : string option =
+        // Prefer local file if available
+        let localPath = entry.LocalPath |> Option.orElse (localEntry |> Option.map (fun e -> e.LocalPath))
+        match localPath with
+        | Some p when File.Exists p -> Some p
+        | _ ->
+            match entry.CacheRelPath with
+            | Some rel ->
+                let abs = Path.Combine(Paths.sourceCacheDir sourceName, rel)
+                if File.Exists abs then Some abs else None
+            | None -> None
 
     [<McpServerTool(Name = "search_knowledge", UseStructuredContent = true, OutputSchemaType = typeof<SearchHit[]>)>]
     [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and content excerpts.")>]
@@ -53,49 +59,72 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
             not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
 
         let candidates = System.Collections.Generic.List<CandidateFile>()
+        let metadataOnlyCandidates = System.Collections.Generic.List<CandidateFile>()
 
-        // 1. Cached collection files
-        if Directory.Exists(cacheRoot) then
-            for file in Directory.EnumerateFiles(cacheRoot, "*", SearchOption.AllDirectories) do
-                let relPath    = Path.GetRelativePath(cacheRoot, file).Replace(Path.DirectorySeparatorChar, '/')
-                let parts      = relPath.Split('/', 2)
-                let sourceName = if parts.Length > 0 then parts.[0] else ""
-                let remotePath = if parts.Length > 1 then parts.[1] else relPath
-                let meta       = eff.Collections |> List.tryFind (fun c -> c.Source = sourceName && c.RemotePath = remotePath)
-                let configTags = meta |> Option.map (fun m -> m.Tags) |> Option.defaultValue []
-                let configDesc = meta |> Option.bind (fun m -> m.Description)
-                let fm         = readFrontmatter file
-                let fileTags   = (configTags @ fm.Tags) |> List.distinct
-                let desc       = configDesc |> Option.orElse fm.Description
-                if hasTags requiredTags fileTags && isPathAllowed remotePath then
-                    candidates.Add({
-                        AbsPath     = file
-                        RelPath     = relPath
-                        Source      = Cache
-                        SourceName  = Some sourceName
-                        Tags        = fileTags
-                        Description = desc
-                    })
-
-        // 2. Lock file entries
+        // Build lock entry map for LocalPath resolution
         let lockPath = Paths.lockFilePath (deps.GetCwd()) (Some eff.StateFile)
-        match deps.ReadLockEntries lockPath with
-        | Ok entries ->
-            for entry in entries do
-                if isPathAllowed entry.RemotePath && File.Exists(entry.LocalPath) then
-                    let fm = readFrontmatter entry.LocalPath
-                    if hasTags requiredTags fm.Tags then
-                        candidates.Add({
-                            AbsPath     = entry.LocalPath
-                            RelPath     = entry.LocalPath
-                            Source      = Lock
-                            SourceName  = Some entry.SourceName
-                            Tags        = fm.Tags
-                            Description = fm.Description
-                        })
-        | Error _ -> ()
+        let lockEntryMap =
+            match deps.ReadLockEntries lockPath with
+            | Ok entries -> entries |> List.map (fun e -> (e.SourceName, e.RemotePath), e) |> Map.ofList
+            | Error _    -> Map.empty
 
-        // 3. Local knowledge directories
+        // 1. Index-based candidates from all sources
+        for src in eff.Sources do
+            match SourceIndexAdapter.readIndex src.Name with
+            | Ok (Some idx) ->
+                for KeyValue(remotePath, entry) in idx do
+                    if isPathAllowed remotePath then
+                        let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
+                        // Collection-side tags (not stored in index)
+                        let colTags =
+                            eff.Collections
+                            |> List.tryFind (fun c -> c.Source = src.Name && c.RemotePath = remotePath)
+                            |> Option.map (fun c -> c.Tags)
+                            |> Option.defaultValue []
+                        let allTags = (entry.Tags @ colTags) |> List.distinct
+                        if hasTags requiredTags allTags then
+                            match resolveAbsPath src.Name entry lockEntry with
+                            | Some absPath ->
+                                let relPath =
+                                    lockEntry
+                                    |> Option.map (fun e -> e.LocalPath)
+                                    |> Option.defaultValue ($"{src.Name}/{remotePath}")
+                                candidates.Add({
+                                    AbsPath     = absPath
+                                    RelPath     = relPath
+                                    Source      = Cache
+                                    SourceName  = Some src.Name
+                                    Tags        = allTags
+                                    Description = entry.Description
+                                })
+                            | None ->
+                                // Metadata-only: no cached content yet
+                                metadataOnlyCandidates.Add({
+                                    AbsPath     = ""
+                                    RelPath     = $"{src.Name}/{remotePath}"
+                                    Source      = Cache
+                                    SourceName  = Some src.Name
+                                    Tags        = allTags
+                                    Description = entry.Description
+                                })
+            | _ -> ()
+
+        // 2. Lock file entries not covered by any index
+        let indexedPaths =
+            candidates |> Seq.map (fun c -> c.RelPath) |> Set.ofSeq
+        for KeyValue((sn, rp), lockEntry) in lockEntryMap do
+            let relPath = lockEntry.LocalPath
+            if not (Set.contains relPath indexedPaths) && isPathAllowed rp && File.Exists lockEntry.LocalPath then
+                candidates.Add({
+                    AbsPath     = lockEntry.LocalPath
+                    RelPath     = lockEntry.LocalPath
+                    Source      = Lock
+                    SourceName  = Some sn
+                    Tags        = lockEntry.Tags
+                    Description = lockEntry.Description
+                })
+
+        // 3. Local knowledge directories (unchanged)
         let cwd = deps.GetCwd()
         for knowledgeDir in [ "knowledge"; "KNOWLEDGE" ] do
             let dirPath = Path.Combine(cwd, knowledgeDir)
@@ -103,7 +132,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
                 for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
                     let relPath = Path.GetRelativePath(cwd, file)
                     if isPathAllowed relPath then
-                        let fm = readFrontmatter file
+                        let fm = Frontmatter.parse (File.ReadAllText file)
                         if hasTags requiredTags fm.Tags then
                             candidates.Add({
                                 AbsPath     = file
@@ -116,8 +145,21 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
 
         let hits = backend termList (candidates |> Seq.toList)
 
+        // Metadata-only hits: term match against path and description (no content)
+        let metaHits =
+            metadataOnlyCandidates
+            |> Seq.filter (fun c ->
+                termList = [] ||
+                termList |> List.exists (fun t ->
+                    c.RelPath.ToLowerInvariant().Contains(t) ||
+                    (c.Description |> Option.exists (fun d -> d.ToLowerInvariant().Contains(t)))))
+            |> Seq.map (fun c -> (c, []))
+            |> Seq.toList
+
+        let allHits = hits @ metaHits
+
         let results =
-            hits |> List.map (fun (f, excerpts) ->
+            allHits |> List.map (fun (f, excerpts) ->
                 let label =
                     match f.Source with
                     | Lock ->
@@ -142,7 +184,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
             else String.concat "\n\n" results
 
         let structuredHits =
-            hits |> List.map (fun (f, excerpts) ->
+            allHits |> List.map (fun (f, excerpts) ->
                 {   Path        = f.RelPath
                     Source      = match f.Source with Cache -> "cache" | Lock -> "lock" | Local -> "local"
                     SourceName  = f.SourceName
@@ -179,10 +221,30 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         | Some entry when File.Exists(entry.LocalPath) -> File.ReadAllText(entry.LocalPath)
         | _ ->
 
-        // 3. Cache hit at collectionCacheRoot/<path>
-        let cachePath = Path.Combine(cacheRoot, path.Replace('/', Path.DirectorySeparatorChar))
-        if File.Exists(cachePath) then File.ReadAllText(cachePath)
-        else
+        // 3. Source index cache lookup (new cache structure)
+        let indexCacheHit =
+            eff.Sources |> List.tryPick (fun src ->
+                match SourceIndexAdapter.readIndex src.Name with
+                | Ok (Some idx) ->
+                    // Try "sourceName/remotePath" format
+                    let prefix = $"{src.Name}/"
+                    let remotePath =
+                        if path.StartsWith prefix then Some (path.[prefix.Length..])
+                        else
+                            // Try direct remotePath match
+                            if Map.containsKey path idx then Some path else None
+                    remotePath |> Option.bind (fun rp ->
+                        match Map.tryFind rp idx with
+                        | Some entry when entry.CacheRelPath.IsSome ->
+                            let absPath = Path.Combine(Paths.sourceCacheDir src.Name, entry.CacheRelPath.Value)
+                            if File.Exists absPath then Some (File.ReadAllText absPath)
+                            else None
+                        | _ -> None)
+                | _ -> None)
+
+        match indexCacheHit with
+        | Some content -> content
+        | None ->
 
         // 4. sourceName:remotePath — live fetch
         let colonIdx = path.IndexOf(':')

@@ -15,7 +15,8 @@ let private makeGlobal sources : GlobalConfig =
     { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
 
 let private makeLockEntry localPath sourceName remotePath hash : LockEntry =
-    { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash }
+    { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash
+      Tags = []; Description = None }
 
 type CapturedState = {
     mutable WrittenFiles : (string * string) list
@@ -49,11 +50,16 @@ let private makeDeps
         DeleteLocalFile     = fun _ -> Ok ()
         HashContent         = fun s -> $"hash:{s}"
         GetCwd              = fun () -> "/tmp"
-        ReadCachedManifest  = fun _ -> Ok None
-        CacheSourceManifest = fun _ _ -> Ok ()
-        ReadLocalManifest   = fun () -> Ok None
-        WriteLocalManifest  = fun _ -> Ok ()
-        ResolveLocalGlob    = fun _ -> []
+        ReadCachedManifest      = fun _ -> Ok None
+        CacheSourceManifest     = fun _ _ -> Ok ()
+        ReadLocalManifest       = fun () -> Ok None
+        WriteLocalManifest      = fun _ -> Ok ()
+        ResolveLocalGlob        = fun _ -> []
+        ReadSourceIndex         = fun _ -> Ok None
+        WriteSourceIndex        = fun _ _ -> Ok ()
+        CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
+        ReadCachedSourceContent = fun _ _ -> Ok None
+        BuildSearchIndex        = fun _ _ -> ()
     }
 
 let private defaultFetch (_url: string) (_branch: string) (paths: string list) : Result<(string * string) list, string> =

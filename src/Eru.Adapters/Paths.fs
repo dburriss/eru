@@ -47,6 +47,15 @@ module Paths =
                 else IO.Path.Combine(Environment.GetFolderPath Environment.SpecialFolder.UserProfile, ".cache")
             IO.Path.Combine(cacheHome, "eru", "sources", sourceName, "manifest.json")
 
+    let sourceCacheDir (sourceName: string) =
+        IO.Path.GetDirectoryName(sourceCacheManifestPath sourceName)
+
+    let sourceIndexPath (sourceName: string) =
+        IO.Path.Combine(sourceCacheDir sourceName, "index.json")
+
+    let sourceFilesDir (sourceName: string) =
+        IO.Path.Combine(sourceCacheDir sourceName, "files")
+
     let searchIndexDir () =
         if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
             let localAppData = Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData

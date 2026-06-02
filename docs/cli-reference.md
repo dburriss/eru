@@ -74,7 +74,7 @@ eru add knowledge:docs/adr-template.md --dryrun
 
 ## `eru search`
 
-Search across configured knowledge sources and the lock file.
+Search across all files eru knows about: manifest-advertised files (from the source index), collection entries, and locally pulled files.
 
 ```
 eru search [<terms>...] [-t <tag>]
@@ -97,7 +97,7 @@ eru search pipeline --tag ci --tag devops
 
 ## `eru sync`
 
-Re-fetch every file tracked in `.eru/eru.lock` and overwrite anything that has drifted from its upstream source.
+Refresh all source metadata, rebuild the local search index, cache collection content, and update any locally pulled files that have drifted from their upstream source.
 
 ```
 eru sync [--dryrun]
@@ -114,7 +114,9 @@ eru sync
 eru sync --dryrun
 ```
 
-Each file is reported as one of: **current**, **drifted** (overwritten), **missing** (remote gone), or **skipped** (source not configured).
+Each lock file entry is reported as one of: **current**, **drifted** (overwritten), **missing** (remote gone), or **skipped** (source not configured).
+
+`eru sync` also rebuilds `~/.cache/eru/sources/<name>/index.json` for every configured source and pre-caches collection and lock file content for fast offline search.
 
 ---
 
@@ -173,6 +175,29 @@ eru source view <name> [--full]
 eru source view knowledge
 eru source view knowledge --full
 ```
+
+### `eru source files`
+
+List all files advertised by a source, reading from the local source index. No network call by default.
+
+```
+eru source files [<name>] [--refresh]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the source. Omit to list files for all configured sources. |
+| `--refresh` | Fetch fresh metadata from the source before displaying |
+
+**Examples**
+
+```bash
+eru source files                     # all sources, from local index
+eru source files knowledge           # one source, from local index
+eru source files knowledge --refresh # re-fetch from network, then display
+```
+
+If no index has been built yet, run `eru sync` first.
 
 ---
 
@@ -309,6 +334,33 @@ eru manifest verify   # exits 0 if all entries resolve, 1 otherwise
 ```
 
 Glob patterns are expanded against the current directory tree. An entry like `docs/*.md` must match at least one local file to pass.
+
+---
+
+## `eru cache`
+
+Manage the local knowledge cache.
+
+### `eru cache prune`
+
+Remove orphaned content files from the cache — files that exist on disk but are no longer referenced by any source index entry.
+
+```
+eru cache prune [--yes]
+```
+
+| Flag | Description |
+|---|---|
+| `--yes` | Skip the confirmation prompt and delete immediately |
+
+**Examples**
+
+```bash
+eru cache prune        # list orphans and prompt before deleting
+eru cache prune --yes  # delete without prompting
+```
+
+Orphans accumulate when files are removed from a manifest or when sources are deleted. `eru cache prune` is safe to run at any time; it only removes files not referenced by the current index.
 
 ---
 

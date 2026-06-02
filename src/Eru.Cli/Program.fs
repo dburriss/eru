@@ -21,6 +21,7 @@ open Eru.Cli.ManifestRemoveCli
 open Eru.Cli.ManifestVerifyCli
 open Eru.Cli.RemoveCli
 open Eru.Cli.DisconnectCli
+open Eru.Cli.CachePruneCli
 
 let private (|McpCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -55,6 +56,7 @@ let main argv =
         | ManifestVerifyCmd cmd       -> ManifestVerifyCli.run deps cmd
         | RemoveCmd cmd               -> RemoveCli.run deps cmd
         | DisconnectCmd cmd           -> DisconnectCli.run deps cmd
+        | CachePruneCmd pruneArgs     -> CachePruneCli.runPrune pruneArgs
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0

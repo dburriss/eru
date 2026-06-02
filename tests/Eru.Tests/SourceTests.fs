@@ -26,11 +26,16 @@ let private makeDeps
         DeleteLocalFile     = fun _ -> Ok ()
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/tmp"
-        ReadCachedManifest  = fun _ -> Ok None
-        CacheSourceManifest = fun _ _ -> Ok ()
-        ReadLocalManifest   = fun () -> Ok None
-        WriteLocalManifest  = fun _ -> Ok ()
-        ResolveLocalGlob    = fun _ -> []
+        ReadCachedManifest      = fun _ -> Ok None
+        CacheSourceManifest     = fun _ _ -> Ok ()
+        ReadLocalManifest       = fun () -> Ok None
+        WriteLocalManifest      = fun _ -> Ok ()
+        ResolveLocalGlob        = fun _ -> []
+        ReadSourceIndex         = fun _ -> Ok None
+        WriteSourceIndex        = fun _ _ -> Ok ()
+        CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
+        ReadCachedSourceContent = fun _ _ -> Ok None
+        BuildSearchIndex        = fun _ _ -> ()
     }
 
 let private simpleCmd url : SourceAdd.Command = {

@@ -79,6 +79,15 @@ type EffectiveConfig = {
     AllowBinaries             : bool
 }
 
+// Per-file metadata stored in sources/<name>/index.json, keyed by remotePath
+type IndexEntry = {
+    Tags         : string list
+    Description  : string option
+    LocalPath    : string option    // set if the file is in eru.lock
+    CacheRelPath : string option    // relative path under sources/<name>/files/
+    ContentHash  : string option    // sha256:<hash> of cached content
+}
+
 module Config =
     let defaultBlockPatterns = ["*.exe"; "*.dll"; "*.so"; "*.dylib"; "*.bin"; "*.out"; "*.app"]
     let defaultAllowPatterns : string list = []
