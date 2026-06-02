@@ -17,7 +17,7 @@ Do not write or scaffold any code unless the user explicitly uses the word **imp
 - **CLI parsing**: [Argu](https://fsprojects.github.io/Argu/)
 - **Test framework**: xUnit v3
 - **Shell commands**: [SimpleExec](https://github.com/adamralph/simple-exec)
-
+- **Console UI**: [Spectre.Console](https://spectreconsole.net/) for tables, spinners, and prompts; [Terminal.Gui](https://gui-cs.github.io/Terminal.Gui/) for more complex interactive browsing (planned)
 ## Commands
 
 ```bash
