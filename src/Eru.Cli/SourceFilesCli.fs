@@ -22,7 +22,7 @@ let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
         | _ -> None)
 
 let private renderSourceText (sourceName: string) (rows: SourceFiles.SourceFileRow list) =
-    printfn $"Files for source: {sourceName}\n"
+    printfn $"Items for source: {sourceName}\n"
     if rows.IsEmpty then
         printfn "  (no files found in index)"
     else

@@ -36,7 +36,7 @@ let private renderText (detail: SourceView.SourceDetail) =
         eprintfn "Warning: could not read manifest: %s" e
     | SourceView.Files (entries, total, capped) ->
         let capNote = if capped then $", showing {entries.Length}" else ""
-        printfn $"\nFiles ({total} total{capNote}):"
+        printfn $"\nItems ({total} total{capNote}):"
         for f in entries do
             let hash = Patterns.pathShortHash f.Path
             let tags = if f.Tags.IsEmpty then "" else $"""  [{f.Tags |> String.concat ", "}]"""
@@ -64,7 +64,7 @@ let private renderTable (detail: SourceView.SourceDetail) =
         eprintfn "\nWarning: could not read manifest: %s" e
     | SourceView.Files (entries, total, capped) ->
         let capNote = if capped then $", showing {entries.Length}" else ""
-        printfn $"\nFiles ({total} total{capNote}):"
+        printfn $"\nItems ({total} total{capNote}):"
         let ft = makeTable ["Hash"; "Path"; "Tags"; "Description"]
         for f in entries do
             let hash = Patterns.pathShortHash f.Path
