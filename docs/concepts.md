@@ -13,7 +13,7 @@ Consumer config  (.eru/config.json  +  ~/.config/eru/config.json)
     │  collections live here
     │
     ▼
-Lock file  (eru.lock)
+Lock file  (.eru/eru.lock)
     │  one entry per pulled file
     │
     ▼
@@ -33,7 +33,7 @@ eru add docs/adr-template.md --target docs/    # write to docs/adr-template.md l
 eru add docs/adr-template.md --target adr.md   # write to adr.md locally
 ```
 
-After a pull, one entry is appended to `eru.lock`:
+After a pull, one entry is appended to `.eru/eru.lock`:
 
 ```
 docs/adr-template.md    my-source:docs/adr-template.md    sha256:<hash>
@@ -65,7 +65,7 @@ eru add --collection my-source:my-collection   # restrict to a specific source
 eru add --tags adr template                    # pull by tag across all collections
 ```
 
-Each file in the collection is fetched and recorded as its own `LockEntry` in `eru.lock`.
+Each file in the collection is fetched and recorded as its own `LockEntry` in `.eru/eru.lock`.
 
 ---
 
@@ -149,13 +149,13 @@ All paths are relative to the directory where `eru` is invoked (the repo root).
 | `eru add --collection <name>` | All files in the named collection, immediately |
 | `eru add --tags <t>` | All files in any collection matching those tags, immediately |
 | `eru source add <url>` | Only the source's `.eru/manifest.json` (no content files) |
-| `eru sync` | Re-fetches every file tracked in `eru.lock`; refreshes all manifest caches; rebuilds source index (`index.json`); caches collection and lock file content |
+| `eru sync` | Re-fetches every file tracked in `.eru/eru.lock`; refreshes all manifest caches; rebuilds source index (`index.json`); caches collection and lock file content |
 
 ---
 
 ## The lock file
 
-`eru.lock` is committed in the consuming repo. It is the source of truth for what knowledge lives locally and where it came from.
+`.eru/eru.lock` is committed in the consuming repo. It is the source of truth for what knowledge lives locally and where it came from.
 
 Format — one entry per line, tab-separated. The tags and description fields are optional:
 

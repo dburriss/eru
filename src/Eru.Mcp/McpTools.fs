@@ -62,9 +62,8 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         let metadataOnlyCandidates = System.Collections.Generic.List<CandidateFile>()
 
         // Build lock entry map for LocalPath resolution
-        let lockPath = Paths.lockFilePath (deps.GetCwd()) (Some eff.StateFile)
         let lockEntryMap =
-            match deps.ReadLockEntries lockPath with
+            match deps.ReadLockEntries eff.StateFile with
             | Ok entries -> entries |> List.map (fun e -> (e.SourceName, e.RemotePath), e) |> Map.ofList
             | Error _    -> Map.empty
 
@@ -215,9 +214,8 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         else
 
         // 2. Lock file LocalPath match
-        let lockPath = Paths.lockFilePath cwd (Some eff.StateFile)
         let lockMatch =
-            match deps.ReadLockEntries lockPath with
+            match deps.ReadLockEntries eff.StateFile with
             | Ok entries -> entries |> List.tryFind (fun e -> e.LocalPath = path)
             | Error _    -> None
         match lockMatch with

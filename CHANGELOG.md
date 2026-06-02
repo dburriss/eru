@@ -22,6 +22,7 @@
 - Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
 - `eru add` searches through all sources for hash or file path
 - `eru source files` table output now shows **Hash** as the first column
+- `eru.lock` now lives at `.eru/eru.lock` instead of the repository root, keeping all eru state inside the `.eru/` directory alongside `config.json` and `manifest.json`; existing `eru.lock` files at the repo root are migrated automatically on the first command that reads the lock file
 
 ### Fixed
 

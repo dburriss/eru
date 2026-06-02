@@ -44,8 +44,15 @@ module AdapterDeps =
             ReadLocalConfig          = fun () -> ConfigAdapter.readLocalConfig cwd
             WriteLocalConfig         = ConfigAdapter.writeLocalConfig cwd
             WriteGlobalConfig        = ConfigAdapter.writeGlobalConfig
-            ReadLockEntries          = LockFileAdapter.read
-            WriteLockEntries         = LockFileAdapter.write
+            ReadLockEntries          = fun stateFile ->
+                let newPath = Paths.lockFilePath cwd (Some stateFile)
+                let oldPath = IO.Path.Combine(cwd, stateFile)
+                if not (IO.File.Exists newPath) && IO.File.Exists oldPath then
+                    IO.Directory.CreateDirectory(IO.Path.GetDirectoryName newPath) |> ignore
+                    IO.File.Move(oldPath, newPath)
+                LockFileAdapter.read newPath
+            WriteLockEntries         = fun stateFile entries ->
+                LockFileAdapter.write (Paths.lockFilePath cwd (Some stateFile)) entries
             FetchRemoteContent       = GitAdapter.fetchRemoteContent debug
             ListRemoteTopLevel       = GitAdapter.listRemoteTopLevel debug
             ListRemoteFiles          = GitAdapter.listRemoteFiles debug

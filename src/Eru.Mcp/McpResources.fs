@@ -50,8 +50,7 @@ type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
     [<Description("All locally pulled artifacts from the lock file, grouped by source.")>]
     member _.ListInstalled() : string =
         let eff = syncService.CurrentEff
-        let lockPath = Paths.lockFilePath (deps.GetCwd()) (Some eff.StateFile)
-        match deps.ReadLockEntries lockPath with
+        match deps.ReadLockEntries eff.StateFile with
         | Error e -> $"Error reading lock file: {e}"
         | Ok []   -> "No locally installed artifacts."
         | Ok entries ->

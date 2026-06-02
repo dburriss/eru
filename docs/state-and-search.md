@@ -135,7 +135,7 @@ eru search adr --tags template          # combined: term match AND tag filter
 
 1. **Source index** (`~/.cache/eru/sources/<name>/index.json`) — all files advertised by each source, with tags merged from manifest entries and file frontmatter. This is the primary data source after `eru sync` has run.
 2. **Config collections** — files declared in collection configs but not yet in the index (e.g. before the first sync). Collection-level tags are always joined in at search time.
-3. **Lock file** (`eru.lock`) — used to populate `Local Path` for pulled files, and to surface any lock-only entries not covered by the index or collections.
+3. **Lock file** (`.eru/eru.lock`) — used to populate `Local Path` for pulled files, and to surface any lock-only entries not covered by the index or collections.
 
 **Filtering:**
 

@@ -83,7 +83,7 @@ type EffectiveConfig = {
 type IndexEntry = {
     Tags         : string list
     Description  : string option
-    LocalPath    : string option    // set if the file is in eru.lock
+    LocalPath    : string option    // set if the file is in .eru/eru.lock
     CacheRelPath : string option    // relative path under sources/<name>/files/
     ContentHash  : string option    // sha256:<hash> of cached content
 }
