@@ -15,6 +15,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     let mutable currentTab = initialTab
     let mutable currentLockEntries = lockEntries
+    let mutable focusInitialized = false
 
     let tabSrc      = new Label()
     let tabLock     = new Label()
@@ -58,12 +59,14 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             sourcesPane.Visible <- true
             lockPane.Visible    <- false
             hintBar.Text <- sourcesHint
+            sourcesPane.FocusContent()
         | LockTab ->
             tabSrc.Text  <- " Sources "
             tabLock.Text <- "[Lock]   "
             sourcesPane.Visible <- false
             lockPane.Visible    <- true
             hintBar.Text <- lockHint
+            lockPane.FocusContent()
 
     let applyFilter (text: string) =
         sourcesPane.ApplyFilter text
@@ -137,6 +140,10 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             | Error e -> showError e
             | Ok _    -> reloadLockEntries ()
 
+    let focusFilter () =
+        filterField.CanFocus <- true
+        filterField.SetFocus() |> ignore
+
     let handleAction (action: BrowseAction) =
         match action with
         | AddFile(sn, rp)    -> handleAddFile sn rp
@@ -144,6 +151,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         | RefreshSource name -> handleRefreshSource name
         | Disconnect path    -> handleDisconnect path
         | RemoveEntry path   -> handleRemoveEntry path
+        | FocusFilter        -> focusFilter ()
 
     do
         this.Title <- "eru browse"
@@ -170,6 +178,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         filterField.X <- Pos.Right filterLbl
         filterField.Y <- Pos.Absolute 0
         filterField.Width <- Dim.Fill(Dim.Absolute 1)
+        filterField.CanFocus <- false
 
         filterField.ValueChanged.Add(fun e ->
             let text = if isNull (box e.NewValue) then "" else e.NewValue
@@ -198,6 +207,14 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
         showTab initialTab
 
+    override _.OnHasFocusChanged(hasFocus: bool, previousFocused: View, newFocused: View) =
+        if hasFocus && not focusInitialized then
+            focusInitialized <- true
+            match currentTab with
+            | SourcesTab -> sourcesPane.FocusContent()
+            | LockTab    -> lockPane.FocusContent()
+        base.OnHasFocusChanged(hasFocus, previousFocused, newFocused)
+
     override _.OnKeyDown(key: Key) =
         if key.KeyCode = KeyCode.Tab then
             key.Handled <- true
@@ -208,15 +225,18 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         elif key.KeyCode = KeyCode.Esc && not filterField.HasFocus then
             key.Handled <- true
             this.RequestStop()
+        elif key.KeyCode = KeyCode.Enter && filterField.HasFocus then
+            key.Handled <- true
+            filterField.CanFocus <- false
+            match currentTab with
+            | SourcesTab -> sourcesPane.FocusContent()
+            | LockTab    -> lockPane.FocusContent()
         elif key.KeyCode = KeyCode.Esc && filterField.HasFocus then
             key.Handled <- true
             filterField.Text <- ""
+            filterField.CanFocus <- false
             applyFilter ""
             match currentTab with
-            | SourcesTab -> sourcesPane.SetFocus() |> ignore
-            | LockTab    -> lockPane.SetFocus() |> ignore
-        elif not filterField.HasFocus && not key.IsShift && not key.IsCtrl && not key.IsAlt
-             && key.AsRune.Value = int '/' then
-            key.Handled <- true
-            filterField.SetFocus() |> ignore
+            | SourcesTab -> sourcesPane.FocusContent()
+            | LockTab    -> lockPane.FocusContent()
         base.OnKeyDown(key)

@@ -59,6 +59,8 @@ type LockPane(initialEntries: LockEntry list) as this =
 
     member _.ActionRequested = actionEvent.Publish
 
+    member _.FocusContent() = tableView.SetFocus() |> ignore
+
     member _.ApplyFilter(filter: string) = applyFilter filter
 
     member _.Reload(entries: LockEntry list) =
@@ -66,21 +68,22 @@ type LockPane(initialEntries: LockEntry list) as this =
         applyFilter currentFilter
 
     override _.OnKeyDown(key: Terminal.Gui.Input.Key) =
-        match key.KeyCode with
-        | kc when kc = KeyCode.D && not key.IsShift ->
+        if not key.IsShift && not key.IsCtrl && not key.IsAlt && key.AsRune.Value = int '/' then
+            key.Handled <- true
+            actionEvent.Trigger(FocusFilter)
+        elif key.KeyCode = KeyCode.D && not key.IsShift then
             match selectedEntry () with
             | Some e ->
                 key.Handled <- true
                 actionEvent.Trigger(Disconnect e.LocalPath)
             | None -> ()
-        | kc when kc = (KeyCode.ShiftMask ||| KeyCode.A) ->
+        elif key.KeyCode = (KeyCode.ShiftMask ||| KeyCode.A) then
             key.Handled <- true
             actionEvent.Trigger(AddSource)
-        | kc when kc = KeyCode.Delete ->
+        elif key.KeyCode = KeyCode.Delete then
             match selectedEntry () with
             | Some e ->
                 key.Handled <- true
                 actionEvent.Trigger(RemoveEntry e.LocalPath)
             | None -> ()
-        | _ -> ()
         base.OnKeyDown(key)

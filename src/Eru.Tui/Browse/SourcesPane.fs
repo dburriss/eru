@@ -82,6 +82,7 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         treeView.Y <- Pos.Absolute 0
         treeView.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
         treeView.Height <- Dim.Fill()
+        treeView.AllowLetterBasedNavigation <- false
         treeView.AspectGetter <- fun node ->
             match node with
             | :? FileNode as fn ->
@@ -113,6 +114,8 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
 
     member _.ActionRequested = actionEvent.Publish
 
+    member _.FocusContent() = treeView.SetFocus() |> ignore
+
     member _.ApplyFilter(filter: string) =
         currentFilter <- filter
         populateSources filter
@@ -134,7 +137,10 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         treeView.RebuildTree()
 
     override _.OnKeyDown(key: Terminal.Gui.Input.Key) =
-        if key.KeyCode = KeyCode.A && not key.IsShift then
+        if not key.IsShift && not key.IsCtrl && not key.IsAlt && key.AsRune.Value = int '/' then
+            key.Handled <- true
+            actionEvent.Trigger(FocusFilter)
+        elif key.KeyCode = KeyCode.A && not key.IsShift then
             match treeView.SelectedObject with
             | :? FileNode as fn ->
                 key.Handled <- true

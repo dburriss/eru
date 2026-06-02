@@ -7,10 +7,6 @@ open Eru
 open Eru.Tui.Browse.BrowseState
 
 let run (deps: Deps) : int =
-    let eruDir    = Path.Combine(deps.GetCwd(), ".eru")
-    let initialTab =
-        if Directory.Exists eruDir then LockTab else SourcesTab
-
     let sources =
         match SourceList.execute deps with
         | Ok rows -> rows
@@ -26,6 +22,10 @@ let run (deps: Deps) : int =
                 | Error _    -> []
             | Error _ -> []
         | _ -> []
+
+    // Lock view only makes sense when there is something in it
+    let initialTab =
+        if lockEntries.IsEmpty then SourcesTab else LockTab
 
     Application.Init(Unchecked.defaultof<string>)
     try
