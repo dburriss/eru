@@ -72,6 +72,9 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         sourcesPane.ApplyFilter text
         lockPane.ApplyFilter text
 
+    let restoreHint () =
+        hintBar.Text <- match currentTab with SourcesTab -> sourcesHint | LockTab -> lockHint
+
     let handleAddFile (sourceName: string) (remotePath: string) =
         let cmd: Add.Command = {
             RemotePath     = Some $"{sourceName}:{remotePath}"
@@ -82,13 +85,24 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             DryRun         = false
             IsGlobal       = false
         }
-        match Add.execute deps cmd with
-        | Error e -> showError e
-        | Ok entries ->
-            let added = entries |> List.choose (function Add.Pulled e -> Some e | _ -> None)
-            reloadLockEntries ()
-            let paths = added |> List.map (fun e -> e.LocalPath) |> String.concat "\n"
-            if paths <> "" then showInfo $"Added:\n{paths}"
+        hintBar.Text <- $" Adding {remotePath}..."
+        let _ = Threading.Tasks.Task.Run(fun () ->
+            try
+                let result = Add.execute deps cmd
+                Application.Invoke(fun () ->
+                    restoreHint ()
+                    match result with
+                    | Error e -> showError e
+                    | Ok entries ->
+                        let added = entries |> List.choose (function Add.Pulled e -> Some e | _ -> None)
+                        reloadLockEntries ()
+                        let paths = added |> List.map (fun e -> e.LocalPath) |> String.concat "\n"
+                        if paths <> "" then showInfo $"Added:\n{paths}")
+            with ex ->
+                Application.Invoke(fun () ->
+                    restoreHint ()
+                    showError ex.Message))
+        ()
 
     let handleAddSource () =
         match AddSourceDialog.show () with
@@ -112,13 +126,16 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
                 | Error e -> showError e
 
     let handleRefreshSource (name: string) =
+        hintBar.Text <- $" Refreshing {name}..."
         let _ = Threading.Tasks.Task.Run(fun () ->
             try
                 Sync.populateIndex deps |> ignore
                 Application.Invoke(fun () ->
+                    restoreHint ()
                     sourcesPane.RefreshSource name)
             with ex ->
                 Application.Invoke(fun () ->
+                    restoreHint ()
                     showError ex.Message))
         ()
 
