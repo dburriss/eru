@@ -8,7 +8,7 @@
 - [x] Use spinner on `eru add`, `eru source files`, and anything else using sync under the hood
 - [x] harmonize cache, manifest, collections, and lock file so searchable and single sync between mcp and cli; plan is unified-cache-index.md
 - [x] plans/sync-batch-fetch.md to fetch per source instead of per file
-- [ ] `eru cache clear` command to clear all cache indexes and files; supports `--dryrun` and `--output` flags
+- [x] `eru cache clear` command to clear all cache indexes and files; supports `--dryrun` and `--output` flags
 - [ ] eru source files Files heading should be named Items since it includes globs and directories, not just files
 - [ ] `eru source files` should have hash as first column
 - [ ] Move eru.lock to .eru/ to avoid cluttering repos with a new top-level file; update all relevant paths in code and docs

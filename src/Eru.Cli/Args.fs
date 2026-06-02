@@ -279,13 +279,26 @@ type CachePruneArgs =
     interface IArgParserTemplate with
         member a.Usage = match a with Yes -> "Skip confirmation prompt and delete immediately."
 
+type CacheClearArgs =
+    | [<Unique>]                         Dryrun
+    | [<Unique>]                         Yes
+    | [<Unique; AltCommandLine("-o")>]   Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Dryrun   -> "List what would be deleted without deleting anything."
+            | Yes      -> "Skip confirmation prompt and delete immediately."
+            | Output _ -> "Output format: table (default), text, json."
+
 [<CliPrefix(CliPrefix.None)>]
 type CacheArgs =
     | [<SubCommand>] Prune of ParseResults<CachePruneArgs>
+    | [<SubCommand>] Clear of ParseResults<CacheClearArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Prune _ -> "Remove orphaned content files not referenced by any source index."
+            | Clear _ -> "Delete all cached indexes and files."
 
 type McpArgs =
     | [<Hidden>] Placeholder

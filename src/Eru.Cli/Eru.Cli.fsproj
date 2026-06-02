@@ -58,6 +58,7 @@
     <Compile Include="RemoveCli.fs" />
     <Compile Include="DisconnectCli.fs" />
     <Compile Include="CachePruneCli.fs" />
+    <Compile Include="CacheClearCli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
