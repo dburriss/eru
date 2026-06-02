@@ -43,13 +43,13 @@ let private renderTable (results: Search.SearchResult list) =
     if results.IsEmpty then
         printfn "No results found."
     else
-        let t = makeTable ["Source"; "Path"; "Hash"; "Tags"; "Local Path"; "Description"]
+        let t = makeTable ["Hash"; "Source"; "Path"; "Tags"; "Local Path"; "Description"]
         for r in results do
             let hash  = Patterns.pathShortHash r.RemotePath
             let tags  = r.Tags |> String.concat ", "
             let local = r.LocalPath   |> Option.defaultValue ""
             let desc  = r.Description |> Option.defaultValue ""
-            t.AddRow(r.SourceName, r.RemotePath, hash, tags, local, desc) |> ignore
+            t.AddRow(hash, r.SourceName, r.RemotePath, tags, local, desc) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
