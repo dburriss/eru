@@ -340,4 +340,4 @@ type EruArgs =
             | Disconnect _ -> "Remove a tracked artifact from the lock file without deleting the local file."
             | Cache _      -> "Manage the local knowledge cache."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
-            | Browse _     -> "Interactively browse sources and installed files."
+            | Browse _     -> "Interactively browse sources and tracked files."

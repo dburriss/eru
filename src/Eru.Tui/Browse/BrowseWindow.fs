@@ -1,8 +1,10 @@
 #nowarn "0044"
+#nowarn "3391"
 module Eru.Tui.Browse.BrowseWindow
 
 open System
 open Terminal.Gui.App
+open Terminal.Gui.Drawing
 open Terminal.Gui.ViewBase
 open Terminal.Gui.Views
 open Terminal.Gui.Drivers
@@ -15,8 +17,10 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     let mutable currentTab = initialTab
     let mutable currentLockEntries = lockEntries
-    let mutable focusInitialized = false
 
+    let _ = BrowseTheme.register ()
+
+    let topBar      = new View()
     let tabSrc      = new Label()
     let tabLock     = new Label()
     let filterLbl   = new Label()
@@ -27,8 +31,8 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     let hintBar = new Label()
 
-    let sourcesHint = " a:Add  A:Add source  r:Refresh  Tab:Switch  /:Filter  q:Quit"
-    let lockHint    = " d:Disconnect  Del:Remove  A:Add source  Tab:Switch  /:Filter  q:Quit"
+    let sourcesHint = " [a] add  [r] refresh  [A] source  [/] filter  [tab] local files  [q] quit"
+    let lockHint    = " [d] disconnect  [del] remove  [A] source  [/] filter  [tab] sources  [q] quit"
 
     let showError (msg: string) =
         MessageBox.Query(Application.Instance, "Error", msg, [| "OK" |]) |> ignore
@@ -54,15 +58,15 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         currentTab <- tab
         match tab with
         | SourcesTab ->
-            tabSrc.Text  <- "[Sources]"
-            tabLock.Text <- " Lock    "
+            tabSrc.Text  <- "[ Sources ]"
+            tabLock.Text <- "  Local Files"
             sourcesPane.Visible <- true
             lockPane.Visible    <- false
             hintBar.Text <- sourcesHint
             sourcesPane.FocusContent()
         | LockTab ->
-            tabSrc.Text  <- " Sources "
-            tabLock.Text <- "[Lock]   "
+            tabSrc.Text  <- "  Sources  "
+            tabLock.Text <- "[ Local Files ]"
             sourcesPane.Visible <- false
             lockPane.Visible    <- true
             hintBar.Text <- lockHint
@@ -172,30 +176,46 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     do
         this.Title <- "eru browse"
+        this.BorderStyle <- LineStyle.None
+        BrowseTheme.apply BrowseTheme.Main this
         this.X <- Pos.Absolute 0
         this.Y <- Pos.Absolute 0
         this.Width  <- Dim.Fill()
         this.Height <- Dim.Fill()
 
-        tabSrc.Text  <- "[Sources]"
+        topBar.X <- Pos.Absolute 0
+        topBar.Y <- Pos.Absolute 0
+        topBar.Width <- Dim.Fill()
+        topBar.Height <- Dim.Absolute 1
+        BrowseTheme.apply BrowseTheme.Bar topBar
+
+        tabSrc.Text  <- "[ Sources ]"
         tabSrc.X  <- Pos.Absolute 1
         tabSrc.Y  <- Pos.Absolute 0
-        tabSrc.Width <- Dim.Absolute 9
+        tabSrc.Width <- Dim.Absolute 12
+        BrowseTheme.apply BrowseTheme.Accent tabSrc
+        tabSrc.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab SourcesTab)
 
-        tabLock.Text <- " Lock    "
-        tabLock.X <- Pos.Right tabSrc + Pos.Absolute 1
+        tabLock.Text <- "  Local Files"
+        tabLock.X <- Pos.Right tabSrc + Pos.Absolute 2
         tabLock.Y <- Pos.Absolute 0
-        tabLock.Width <- Dim.Absolute 9
+        tabLock.Width <- Dim.Absolute 17
+        BrowseTheme.apply BrowseTheme.Accent tabLock
+        tabLock.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab LockTab)
 
-        filterLbl.Text <- " /Filter:"
-        filterLbl.X <- Pos.Right tabLock + Pos.Absolute 2
+        filterLbl.Text <- "filter"
+        filterLbl.X <- Pos.Right tabLock + Pos.Absolute 4
         filterLbl.Y <- Pos.Absolute 0
-        filterLbl.Width <- Dim.Absolute 9
+        filterLbl.Width <- Dim.Absolute 7
+        BrowseTheme.apply BrowseTheme.Muted filterLbl
 
-        filterField.X <- Pos.Right filterLbl
+        filterField.X <- Pos.Right filterLbl + Pos.Absolute 1
         filterField.Y <- Pos.Absolute 0
         filterField.Width <- Dim.Fill(Dim.Absolute 1)
         filterField.CanFocus <- false
+        BrowseTheme.apply BrowseTheme.Bar filterField
 
         filterField.ValueChanged.Add(fun e ->
             let text = if isNull (box e.NewValue) then "" else e.NewValue
@@ -215,22 +235,24 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         hintBar.Y <- Pos.AnchorEnd()
         hintBar.Width  <- Dim.Fill()
         hintBar.Height <- Dim.Absolute 1
+        BrowseTheme.apply BrowseTheme.Bar hintBar
 
-        this.Add(tabSrc, tabLock, filterLbl, filterField)
-        this.Add(sourcesPane, lockPane, hintBar)
+        topBar.Add(tabSrc, tabLock, filterLbl, filterField) |> ignore
+        this.Add(topBar) |> ignore
+        this.Add(sourcesPane, lockPane, hintBar) |> ignore
 
         sourcesPane.ActionRequested.Add(handleAction)
         lockPane.ActionRequested.Add(handleAction)
 
         showTab initialTab
-
-    override _.OnHasFocusChanged(hasFocus: bool, previousFocused: View, newFocused: View) =
-        if hasFocus && not focusInitialized then
-            focusInitialized <- true
-            match currentTab with
-            | SourcesTab -> sourcesPane.FocusContent()
-            | LockTab    -> lockPane.FocusContent()
-        base.OnHasFocusChanged(hasFocus, previousFocused, newFocused)
+        Application.AddTimeout(
+            TimeSpan.Zero,
+            fun () ->
+                (match currentTab with
+                 | SourcesTab -> sourcesPane.FocusContent()
+                 | LockTab    -> lockPane.FocusContent())
+                false)
+        |> ignore
 
     override _.OnKeyDown(key: Key) =
         if key.KeyCode = KeyCode.Tab then

@@ -1,6 +1,8 @@
+#nowarn "0044"
 module Eru.Tui.Browse.SourcesPane
 
 open System.Collections.Generic
+open Terminal.Gui.Drawing
 open Terminal.Gui.App
 open Terminal.Gui.ViewBase
 open Terminal.Gui.Views
@@ -9,7 +11,7 @@ open Eru
 open BrowseState
 
 type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLockEntries: LockEntry list) as this =
-    inherit FrameView()
+    inherit View()
 
     let actionEvent = Event<BrowseAction>()
     let fileCache = Dictionary<string, SourceFiles.SourceFileRow list>()
@@ -70,32 +72,58 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
                 (fun node -> node :? SourceNode))
         new TreeView<SourceTreeNode>(builder)
 
-    let detailView  = new FrameView()
-    let detailLabel = new Label()
-    let previewView = new FrameView()
+    let navLabel       = new Label()
+    let detailView     = new View()
+    let detailTitle    = new Label()
+    let detailTags     = new Label()
+    let detailMeta     = new Label()
+    let previewRule    = new Label()
+    let previewLabel   = new Label()
     let previewText = new TextView()
 
-    let formatSourceDetail (src: SourceList.SourceRow) =
+    let shortHash (hash: string) =
+        if System.String.IsNullOrWhiteSpace hash then ""
+        elif hash.Length <= 8 then hash
+        else hash.Substring(0, 8)
+
+    let tagsText (tags: string list) =
+        tags |> String.concat " · "
+
+    let setDetail title tags meta =
+        detailTitle.Text <- title
+        detailTags.Text <- tags
+        detailMeta.Text <- meta
+
+    let showSourceDetail (src: SourceList.SourceRow) =
         let url  = src.Url    |> Option.defaultValue "(none)"
         let br   = src.Branch |> Option.defaultValue "HEAD"
         let bp   = src.BasePath |> Option.defaultValue ""
-        let tags = src.Tags |> String.concat ", "
-        $"Source:  {src.Name}\nURL:     {url}\nBranch:  {br}\nBasePath:{bp}\nScope:   {src.Scope}\nTags:    {tags}"
+        let tags = tagsText src.Tags
+        setDetail
+            src.Name
+            tags
+            $"URL {url}\nBranch {br}\nBase path {bp}\nScope {src.Scope}"
 
-    let formatFileDetail (fn: FileNode) =
-        let tags    = fn.Row.Tags |> String.concat ", "
+    let showFileDetail (fn: FileNode) =
+        let tags    = tagsText fn.Row.Tags
         let desc    = fn.Row.Description |> Option.defaultValue ""
-        let status  = if fn.IsInstalled then "✓ installed" else "not installed"
+        let status  = if fn.IsTracked then "tracked" else "not tracked"
         let localPt =
             match fn.LockEntry with
             | Some e -> e.LocalPath
-            | None -> ""
-        $"File:   {fn.Row.Path}\nSource: {fn.SourceName}\nHash:   {fn.Row.Hash}\nTags:   {tags}\nDesc:   {desc}\nStatus: {status}\nLocal:  {localPt}"
+            | None -> "(not in lock file)"
+        let descLine =
+            if desc = "" then ""
+            else $"\nDescription {desc}"
+        setDetail
+            fn.Row.Path
+            tags
+            $"Status {status}\nHash {shortHash fn.Row.Hash}\nSource {fn.SourceName}\nSource path {fn.Row.Path}\nLocal file {localPt}{descLine}"
 
     let updatePreview (fn: FileNode) =
         let path = fn.Row.Path
         if path.Contains('*') || path.Contains('?') then
-            previewView.Title <- "Matching Files"
+            previewLabel.Text <- "Matching Files"
             match deps.ReadSourceIndex fn.SourceName with
             | Ok (Some idx) ->
                 let matches =
@@ -111,7 +139,7 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
             | Ok None  -> previewText.Text <- "(source index not found)"
             | Error e  -> previewText.Text <- $"(error: {e})"
         elif path.EndsWith(".md", System.StringComparison.OrdinalIgnoreCase) then
-            previewView.Title <- "Preview"
+            previewLabel.Text <- "Preview"
             match deps.ReadSourceIndex fn.SourceName with
             | Ok (Some idx) ->
                 match Map.tryFind path idx with
@@ -120,12 +148,12 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
                     | Ok (Some content) -> previewText.Text <- content
                     | Ok None           -> previewText.Text <- "(cached content not found)"
                     | Error e           -> previewText.Text <- $"(error: {e})"
-                | Some _ -> previewText.Text <- "(file not cached – run 'eru sync')"
+                | Some _ -> previewText.Text <- "(content not in local cache)"
                 | None   -> previewText.Text <- "(file not in index)"
             | Ok None  -> previewText.Text <- "(source index not found)"
             | Error e  -> previewText.Text <- $"(error: {e})"
         else
-            previewView.Title <- "Preview"
+            previewLabel.Text <- "Preview"
             previewText.Text  <- ""
 
     let populateSources (filter: string) =
@@ -143,59 +171,129 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
             if searchHits.IsSome then treeView.Expand(node)
 
     do
-        this.Title <- "Sources"
-        treeView.X <- Pos.Absolute 0
-        treeView.Y <- Pos.Absolute 0
+        this.CanFocus <- true
+        BrowseTheme.apply BrowseTheme.Main this
+
+        navLabel.Text <- "Sources"
+        navLabel.X <- Pos.Absolute 1
+        navLabel.Y <- Pos.Absolute 1
+        navLabel.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
+        navLabel.Height <- Dim.Absolute 1
+        BrowseTheme.apply BrowseTheme.Muted navLabel
+        this.Add(navLabel) |> ignore
+
+        treeView.X <- Pos.Absolute 1
+        treeView.Y <- Pos.Absolute 3
         treeView.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
-        treeView.Height <- Dim.Fill()
+        treeView.Height <- Dim.Fill(Dim.Absolute 1)
         treeView.AllowLetterBasedNavigation <- false
+        treeView.Style.ShowBranchLines <- false
+        treeView.Style.HighlightModelTextOnly <- true
+        BrowseTheme.apply BrowseTheme.Main treeView
         treeView.AspectGetter <- fun node ->
+            let prefix =
+                if System.Object.ReferenceEquals(node, treeView.SelectedObject) then "▌ "
+                else "  "
             match node with
             | :? FileNode as fn ->
-                if fn.IsInstalled then $"[✓] {fn.Row.Path}" else $"[ ] {fn.Row.Path}"
-            | _ -> node.Label
+                let suffix = if fn.IsTracked then "  tracked" else ""
+                $"{prefix}{fn.Row.Path}{suffix}"
+            | _ -> $"{prefix}{node.Label}"
         populateSources ""
         this.Add(treeView) |> ignore
 
-        detailView.Title  <- "Details"
-        detailView.X      <- Pos.Right treeView
-        detailView.Y      <- Pos.Absolute 0
+        detailView.X      <- Pos.Right treeView + Pos.Absolute 3
+        detailView.Y      <- Pos.Absolute 1
         detailView.Width  <- Dim.Fill()
-        detailView.Height <- Dim.Absolute 11
+        detailView.Height <- Dim.Absolute 10
+        BrowseTheme.apply BrowseTheme.Main detailView
 
-        detailLabel.X      <- Pos.Absolute 0
-        detailLabel.Y      <- Pos.Absolute 0
-        detailLabel.Width  <- Dim.Fill()
-        detailLabel.Height <- Dim.Fill()
-        detailLabel.Text   <- "Select a source or file to see details."
-        detailView.Add(detailLabel) |> ignore
+        detailTitle.X      <- Pos.Absolute 0
+        detailTitle.Y      <- Pos.Absolute 0
+        detailTitle.Width  <- Dim.Fill()
+        detailTitle.Height <- Dim.Absolute 1
+        detailTitle.Text   <- "Select a source or file"
+        BrowseTheme.apply BrowseTheme.Accent detailTitle
+        detailView.Add(detailTitle) |> ignore
+
+        detailTags.X      <- Pos.Absolute 0
+        detailTags.Y      <- Pos.Absolute 2
+        detailTags.Width  <- Dim.Fill()
+        detailTags.Height <- Dim.Absolute 1
+        BrowseTheme.apply BrowseTheme.Tracked detailTags
+        detailView.Add(detailTags) |> ignore
+
+        detailMeta.X      <- Pos.Absolute 0
+        detailMeta.Y      <- Pos.Absolute 4
+        detailMeta.Width  <- Dim.Fill()
+        detailMeta.Height <- Dim.Fill()
+        detailMeta.Text   <- "Metadata from the selected item appears here."
+        BrowseTheme.apply BrowseTheme.Muted detailMeta
+        detailView.Add(detailMeta) |> ignore
         this.Add(detailView) |> ignore
 
-        previewView.Title  <- "Preview"
-        previewView.X      <- Pos.Right treeView
-        previewView.Y      <- Pos.Bottom detailView
-        previewView.Width  <- Dim.Fill()
-        previewView.Height <- Dim.Fill()
+        previewRule.Text <- "────────────────────────────────────────────────────────────────────────────────────────────────────"
+        previewRule.X <- Pos.Right treeView + Pos.Absolute 3
+        previewRule.Y <- Pos.Bottom detailView
+        previewRule.Width <- Dim.Fill()
+        previewRule.Height <- Dim.Absolute 1
+        BrowseTheme.apply BrowseTheme.Dim previewRule
+        this.Add(previewRule) |> ignore
 
-        previewText.X        <- Pos.Absolute 0
-        previewText.Y        <- Pos.Absolute 0
+        previewLabel.Text <- "Preview"
+        previewLabel.X <- Pos.Right treeView + Pos.Absolute 3
+        previewLabel.Y <- Pos.Bottom previewRule + Pos.Absolute 1
+        previewLabel.Width <- Dim.Fill()
+        previewLabel.Height <- Dim.Absolute 1
+        BrowseTheme.apply BrowseTheme.Muted previewLabel
+        this.Add(previewLabel) |> ignore
+
+        previewText.X        <- Pos.Right treeView + Pos.Absolute 3
+        previewText.Y        <- Pos.Bottom previewLabel + Pos.Absolute 1
         previewText.Width    <- Dim.Fill()
         previewText.Height   <- Dim.Fill()
         previewText.ReadOnly <- true
         previewText.WordWrap <- true
-        previewView.Add(previewText) |> ignore
-        this.Add(previewView) |> ignore
+        previewText.CanFocus <- false
+        BrowseTheme.apply BrowseTheme.Main previewText
+        this.Add(previewText) |> ignore
 
         treeView.SelectionChanged.Add(fun e ->
             match e.NewValue with
             | :? FileNode as fn ->
-                detailLabel.Text <- formatFileDetail fn
+                showFileDetail fn
                 updatePreview fn
             | :? SourceNode as sn ->
-                detailLabel.Text  <- formatSourceDetail sn.Source
-                previewView.Title <- "Preview"
+                showSourceDetail sn.Source
+                previewLabel.Text <- "Preview"
                 previewText.Text  <- ""
             | _ -> ())
+
+        treeView.KeyDown.Add(fun key ->
+            if not key.Handled then
+                if not key.IsShift && not key.IsCtrl && not key.IsAlt && key.AsRune.Value = int '/' then
+                    key.Handled <- true
+                    actionEvent.Trigger(FocusFilter)
+                elif key.KeyCode = KeyCode.A && not key.IsShift then
+                    match treeView.SelectedObject with
+                    | :? FileNode as fn ->
+                        key.Handled <- true
+                        actionEvent.Trigger(AddFile(fn.SourceName, fn.Row.Path))
+                    | _ -> ()
+                elif key.KeyCode = (KeyCode.ShiftMask ||| KeyCode.A) then
+                    key.Handled <- true
+                    actionEvent.Trigger(AddSource)
+                elif key.KeyCode = KeyCode.R && not key.IsShift then
+                    let srcName =
+                        match treeView.SelectedObject with
+                        | :? FileNode as fn -> Some fn.SourceName
+                        | :? SourceNode as sn -> Some sn.Source.Name
+                        | _ -> None
+                    match srcName with
+                    | Some name ->
+                        key.Handled <- true
+                        actionEvent.Trigger(RefreshSource name)
+                    | None -> ())
 
     member _.ActionRequested = actionEvent.Publish
 
@@ -220,29 +318,3 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         if fileCache.ContainsKey(sourceName) then
             fileCache.Remove(sourceName) |> ignore
         treeView.RebuildTree()
-
-    override _.OnKeyDown(key: Terminal.Gui.Input.Key) =
-        if not key.IsShift && not key.IsCtrl && not key.IsAlt && key.AsRune.Value = int '/' then
-            key.Handled <- true
-            actionEvent.Trigger(FocusFilter)
-        elif key.KeyCode = KeyCode.A && not key.IsShift then
-            match treeView.SelectedObject with
-            | :? FileNode as fn ->
-                key.Handled <- true
-                actionEvent.Trigger(AddFile(fn.SourceName, fn.Row.Path))
-            | _ -> ()
-        elif key.KeyCode = (KeyCode.ShiftMask ||| KeyCode.A) then
-            key.Handled <- true
-            actionEvent.Trigger(AddSource)
-        elif key.KeyCode = KeyCode.R && not key.IsShift then
-            let srcName =
-                match treeView.SelectedObject with
-                | :? FileNode as fn -> Some fn.SourceName
-                | :? SourceNode as sn -> Some sn.Source.Name
-                | _ -> None
-            match srcName with
-            | Some name ->
-                key.Handled <- true
-                actionEvent.Trigger(RefreshSource name)
-            | None -> ()
-        base.OnKeyDown(key)

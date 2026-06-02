@@ -18,7 +18,7 @@ type FileNode(row: SourceFiles.SourceFileRow, sourceName: string, lockEntry: Loc
     member _.Row = row
     member _.SourceName = sourceName
     member val LockEntry: LockEntry option = lockEntry with get, set
-    member this.IsInstalled = this.LockEntry.IsSome
+    member this.IsTracked = this.LockEntry.IsSome
 
 type BrowseAction =
     | AddFile       of sourceName: string * remotePath: string
