@@ -34,11 +34,40 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
     let sourcesHint = " [a] add  [r] refresh  [A] source  [/] filter  [tab] local files  [q] quit"
     let lockHint    = " [d] disconnect  [del] remove  [A] source  [/] filter  [tab] sources  [q] quit"
 
+    let styledDialog (title: string) (msg: string) (msgScheme: string) (buttons: string[]) =
+        let mutable result = -1
+        let lineCount = msg.Split('\n').Length
+        let dlg = new Dialog()
+        dlg.Title <- title
+        dlg.Width <- Dim.Absolute 60
+        dlg.Height <- Dim.Absolute (max 9 (lineCount + 7))
+        BrowseTheme.apply BrowseTheme.Main dlg
+        let tv = new TextView()
+        tv.Text <- msg
+        tv.ReadOnly <- true
+        tv.CanFocus <- false
+        tv.X <- Pos.Absolute 1
+        tv.Y <- Pos.Absolute 1
+        tv.Width <- Dim.Absolute 56
+        tv.Height <- Dim.Absolute lineCount
+        BrowseTheme.apply msgScheme tv
+        dlg.Add(tv) |> ignore
+        for i in 0 .. buttons.Length - 1 do
+            let btn = new Button()
+            btn.Text <- buttons.[i]
+            if i = 0 then btn.IsDefault <- true
+            let idx = i
+            btn.Accepting.Add(fun _ -> result <- idx; dlg.RequestStop())
+            BrowseTheme.apply BrowseTheme.Accent btn
+            dlg.AddButton(btn)
+        Application.Run(dlg, Unchecked.defaultof<_>)
+        result
+
     let showError (msg: string) =
-        MessageBox.Query(Application.Instance, "Error", msg, [| "OK" |]) |> ignore
+        styledDialog "Error" msg BrowseTheme.Danger [| "OK" |] |> ignore
 
     let showInfo (msg: string) =
-        MessageBox.Query(Application.Instance, "Info", msg, [| "OK" |]) |> ignore
+        styledDialog "Info" msg BrowseTheme.Muted [| "OK" |] |> ignore
 
     let reloadLockEntries () =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
@@ -100,8 +129,9 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
                     | Ok entries ->
                         let added = entries |> List.choose (function Add.Pulled e -> Some e | _ -> None)
                         reloadLockEntries ()
-                        let paths = added |> List.map (fun e -> e.LocalPath) |> String.concat "\n"
-                        if paths <> "" then showInfo $"Added:\n{paths}")
+                        if added.Length > 0 then
+                            let noun = if added.Length = 1 then "file" else "files"
+                            showInfo $"Added {added.Length} {noun}.")
             with ex ->
                 Application.Invoke(fun () ->
                     restoreHint ()
@@ -144,8 +174,9 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         ()
 
     let handleDisconnect (localPath: string) =
-        let r = MessageBox.Query(Application.Instance, "Disconnect",
-                    $"Disconnect '{localPath}'?\n(Keeps the local file.)", [| "Yes"; "No" |])
+        let r = styledDialog "Disconnect"
+                    $"Disconnect '{localPath}'?\n(Keeps the local file.)"
+                    BrowseTheme.Muted [| "Yes"; "No" |]
         if r = 0 then
             let cmd: Disconnect.Command = { Target = localPath; DryRun = false }
             match Disconnect.execute deps cmd with
@@ -153,8 +184,9 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             | Ok _    -> reloadLockEntries ()
 
     let handleRemoveEntry (localPath: string) =
-        let r = MessageBox.Query(Application.Instance, "Remove",
-                    $"Delete '{localPath}' from disk and lock file?", [| "Yes"; "No" |])
+        let r = styledDialog "Remove"
+                    $"Delete '{localPath}' from disk and lock file?"
+                    BrowseTheme.Danger [| "Yes"; "No" |]
         if r = 0 then
             let cmd: Remove.Command = { Target = localPath; DryRun = false }
             match Remove.execute deps cmd with

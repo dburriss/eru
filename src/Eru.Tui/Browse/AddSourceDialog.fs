@@ -84,6 +84,12 @@ let show () : SourceInput option =
     cancelBtn.Text <- "Cancel"
     cancelBtn.Accepting.Add(fun _ -> dlg.RequestStop())
 
+    BrowseTheme.apply BrowseTheme.Main dlg
+    for lbl in [urlLabel; nameLabel; branchLabel; bpLabel] do
+        BrowseTheme.apply BrowseTheme.Muted lbl
+    BrowseTheme.apply BrowseTheme.Accent okBtn
+    BrowseTheme.apply BrowseTheme.Muted cancelBtn
+
     dlg.Add(urlLabel, urlField, nameLabel, nameField, branchLabel, branchField, bpLabel, bpField)
     dlg.AddButton(okBtn)
     dlg.AddButton(cancelBtn)
