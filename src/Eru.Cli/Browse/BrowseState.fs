@@ -1,0 +1,28 @@
+module Eru.Cli.Browse.BrowseState
+
+open Eru
+
+type ActiveTab = SourcesTab | LockTab
+
+[<AbstractClass>]
+type SourceTreeNode(label: string) =
+    member _.Label = label
+    override _.ToString() = label
+
+type SourceNode(src: SourceList.SourceRow) =
+    inherit SourceTreeNode(src.Name)
+    member _.Source = src
+
+type FileNode(row: SourceFiles.SourceFileRow, sourceName: string, lockEntry: LockEntry option) =
+    inherit SourceTreeNode(row.Path)
+    member _.Row = row
+    member _.SourceName = sourceName
+    member val LockEntry: LockEntry option = lockEntry with get, set
+    member this.IsInstalled = this.LockEntry.IsSome
+
+type BrowseAction =
+    | AddFile       of sourceName: string * remotePath: string
+    | AddSource
+    | RefreshSource of sourceName: string
+    | Disconnect    of localPath: string
+    | RemoveEntry   of localPath: string

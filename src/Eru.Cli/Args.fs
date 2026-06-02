@@ -300,6 +300,11 @@ type CacheArgs =
             | Prune _ -> "Remove orphaned content files not referenced by any source index."
             | Clear _ -> "Delete all cached indexes and files."
 
+type BrowseArgs =
+    | [<Hidden>] Placeholder
+    interface IArgParserTemplate with
+        member a.Usage = match a with Placeholder -> ""
+
 type McpArgs =
     | [<Hidden>] Placeholder
     interface IArgParserTemplate with
@@ -319,6 +324,7 @@ type EruArgs =
     | [<SubCommand>] Disconnect of ParseResults<DisconnectArgs>
     | [<SubCommand>] Cache      of ParseResults<CacheArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
+    | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -334,3 +340,4 @@ type EruArgs =
             | Disconnect _ -> "Remove a tracked artifact from the lock file without deleting the local file."
             | Cache _      -> "Manage the local knowledge cache."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
+            | Browse _     -> "Interactively browse sources and installed files."
