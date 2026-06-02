@@ -26,4 +26,3 @@ type BrowseAction =
     | RefreshSource of sourceName: string
     | Disconnect    of localPath: string
     | RemoveEntry   of localPath: string
-    | FocusFilter

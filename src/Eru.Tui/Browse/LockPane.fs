@@ -25,6 +25,9 @@ type LockPane(initialEntries: LockEntry list) as this =
     let mutable filteredNodes: TrackedFileNode list = []
 
     let navLabel     = new Label()
+    let searchRow    = new View()
+    let searchPrompt = new Label()
+    let searchField  = new TextField()
     let treeView     =
         let builder = DelegateTreeBuilder<TrackedFileNode>(
             (fun _ -> Seq.empty),
@@ -125,7 +128,7 @@ type LockPane(initialEntries: LockEntry list) as this =
         treeView.X <- Pos.Absolute 1
         treeView.Y <- Pos.Absolute 3
         treeView.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
-        treeView.Height <- Dim.Fill(Dim.Absolute 1)
+        treeView.Height <- Dim.Fill(Dim.Absolute 2)
         treeView.AllowLetterBasedNavigation <- false
         treeView.Style.ShowBranchLines <- false
         treeView.Style.HighlightModelTextOnly <- true
@@ -136,6 +139,29 @@ type LockPane(initialEntries: LockEntry list) as this =
                 else "  "
             $"{prefix}{node.Entry.LocalPath}"
         this.Add(treeView) |> ignore
+
+        searchRow.X <- Pos.Absolute 1
+        searchRow.Y <- Pos.Bottom treeView
+        searchRow.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
+        searchRow.Height <- Dim.Absolute 1
+        searchRow.CanFocus <- true
+        BrowseTheme.apply BrowseTheme.Bar searchRow
+
+        searchPrompt.Text <- "/"
+        searchPrompt.X <- Pos.Absolute 0
+        searchPrompt.Y <- Pos.Absolute 0
+        searchPrompt.Width <- Dim.Absolute 2
+        BrowseTheme.apply BrowseTheme.Muted searchPrompt
+        searchRow.Add(searchPrompt) |> ignore
+
+        searchField.X <- Pos.Right searchPrompt
+        searchField.Y <- Pos.Absolute 0
+        searchField.Width <- Dim.Fill()
+        searchField.Height <- Dim.Absolute 1
+        searchField.CanFocus <- false
+        BrowseTheme.apply BrowseTheme.Bar searchField
+        searchRow.Add(searchField) |> ignore
+        this.Add(searchRow) |> ignore
 
         detailView.X      <- Pos.Right treeView + Pos.Absolute 3
         detailView.Y      <- Pos.Absolute 1
@@ -195,11 +221,28 @@ type LockPane(initialEntries: LockEntry list) as this =
             if isNull (box e.NewValue) then showEmpty ()
             else showEntry e.NewValue.Entry)
 
+        searchField.ValueChanged.Add(fun e ->
+            let text = if isNull (box e.NewValue) then "" else e.NewValue
+            applyFilter text)
+
+        searchField.KeyDown.Add(fun key ->
+            if key.KeyCode = KeyCode.Esc then
+                key.Handled <- true
+                searchField.Text <- ""
+                applyFilter ""
+                searchField.CanFocus <- false
+                treeView.SetFocus() |> ignore
+            elif key.KeyCode = KeyCode.Enter then
+                key.Handled <- true
+                searchField.CanFocus <- false
+                treeView.SetFocus() |> ignore)
+
         treeView.KeyDown.Add(fun key ->
             if not key.Handled then
                 if not key.IsShift && not key.IsCtrl && not key.IsAlt && key.AsRune.Value = int '/' then
                     key.Handled <- true
-                    actionEvent.Trigger(FocusFilter)
+                    searchField.CanFocus <- true
+                    searchField.SetFocus() |> ignore
                 elif key.KeyCode = KeyCode.D && not key.IsShift then
                     match selectedEntry () with
                     | Some e ->
@@ -221,8 +264,6 @@ type LockPane(initialEntries: LockEntry list) as this =
     member _.ActionRequested = actionEvent.Publish
 
     member _.FocusContent() = treeView.SetFocus() |> ignore
-
-    member _.ApplyFilter(filter: string) = applyFilter filter
 
     member _.Reload(entries: LockEntry list) =
         allEntries <- entries

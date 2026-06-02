@@ -73,6 +73,9 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         new TreeView<SourceTreeNode>(builder)
 
     let navLabel       = new Label()
+    let searchRow      = new View()
+    let searchPrompt   = new Label()
+    let searchField    = new TextField()
     let detailView     = new View()
     let detailTitle    = new Label()
     let detailTags     = new Label()
@@ -185,7 +188,7 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         treeView.X <- Pos.Absolute 1
         treeView.Y <- Pos.Absolute 3
         treeView.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
-        treeView.Height <- Dim.Fill(Dim.Absolute 1)
+        treeView.Height <- Dim.Fill(Dim.Absolute 2)
         treeView.AllowLetterBasedNavigation <- false
         treeView.Style.ShowBranchLines <- false
         treeView.Style.HighlightModelTextOnly <- true
@@ -201,6 +204,29 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
             | _ -> $"{prefix}{node.Label}"
         populateSources ""
         this.Add(treeView) |> ignore
+
+        searchRow.X <- Pos.Absolute 1
+        searchRow.Y <- Pos.Bottom treeView
+        searchRow.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
+        searchRow.Height <- Dim.Absolute 1
+        searchRow.CanFocus <- true
+        BrowseTheme.apply BrowseTheme.Bar searchRow
+
+        searchPrompt.Text <- "/"
+        searchPrompt.X <- Pos.Absolute 0
+        searchPrompt.Y <- Pos.Absolute 0
+        searchPrompt.Width <- Dim.Absolute 2
+        BrowseTheme.apply BrowseTheme.Muted searchPrompt
+        searchRow.Add(searchPrompt) |> ignore
+
+        searchField.X <- Pos.Right searchPrompt
+        searchField.Y <- Pos.Absolute 0
+        searchField.Width <- Dim.Fill()
+        searchField.Height <- Dim.Absolute 1
+        searchField.CanFocus <- false
+        BrowseTheme.apply BrowseTheme.Bar searchField
+        searchRow.Add(searchField) |> ignore
+        this.Add(searchRow) |> ignore
 
         detailView.X      <- Pos.Right treeView + Pos.Absolute 3
         detailView.Y      <- Pos.Absolute 1
@@ -269,11 +295,30 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
                 previewText.Text  <- ""
             | _ -> ())
 
+        searchField.ValueChanged.Add(fun e ->
+            let text = if isNull (box e.NewValue) then "" else e.NewValue
+            currentFilter <- text
+            populateSources text)
+
+        searchField.KeyDown.Add(fun key ->
+            if key.KeyCode = KeyCode.Esc then
+                key.Handled <- true
+                searchField.Text <- ""
+                currentFilter <- ""
+                populateSources ""
+                searchField.CanFocus <- false
+                treeView.SetFocus() |> ignore
+            elif key.KeyCode = KeyCode.Enter then
+                key.Handled <- true
+                searchField.CanFocus <- false
+                treeView.SetFocus() |> ignore)
+
         treeView.KeyDown.Add(fun key ->
             if not key.Handled then
                 if not key.IsShift && not key.IsCtrl && not key.IsAlt && key.AsRune.Value = int '/' then
                     key.Handled <- true
-                    actionEvent.Trigger(FocusFilter)
+                    searchField.CanFocus <- true
+                    searchField.SetFocus() |> ignore
                 elif key.KeyCode = KeyCode.A && not key.IsShift then
                     match treeView.SelectedObject with
                     | :? FileNode as fn ->
@@ -298,10 +343,6 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
     member _.ActionRequested = actionEvent.Publish
 
     member _.FocusContent() = treeView.SetFocus() |> ignore
-
-    member _.ApplyFilter(filter: string) =
-        currentFilter <- filter
-        populateSources filter
 
     member _.RefreshLockBadges(entries: LockEntry list) =
         lockEntries <- entries

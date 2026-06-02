@@ -20,19 +20,17 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     let _ = BrowseTheme.register ()
 
-    let topBar      = new View()
-    let tabSrc      = new Label()
-    let tabLock     = new Label()
-    let filterLbl   = new Label()
-    let filterField = new TextField()
+    let topBar  = new View()
+    let tabSrc  = new Label()
+    let tabLock = new Label()
 
     let sourcesPane = new SourcesPane.SourcesPane(deps, sources, lockEntries)
     let lockPane    = new LockPane.LockPane(lockEntries)
 
     let hintBar = new Label()
 
-    let sourcesHint = " [a] add  [r] refresh  [A] source  [/] filter  [tab] local files  [q] quit"
-    let lockHint    = " [d] disconnect  [del] remove  [A] source  [/] filter  [tab] sources  [q] quit"
+    let sourcesHint = " [a] add  [r] refresh  [A] source  [/] search  [tab] local files  [q] quit"
+    let lockHint    = " [d] disconnect  [del] remove  [A] source  [/] search  [tab] sources  [q] quit"
 
     let styledDialog (title: string) (msg: string) (msgScheme: string) (buttons: string[]) =
         let mutable result = -1
@@ -100,10 +98,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             lockPane.Visible    <- true
             hintBar.Text <- lockHint
             lockPane.FocusContent()
-
-    let applyFilter (text: string) =
-        sourcesPane.ApplyFilter text
-        lockPane.ApplyFilter text
 
     let restoreHint () =
         hintBar.Text <- match currentTab with SourcesTab -> sourcesHint | LockTab -> lockHint
@@ -193,10 +187,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             | Error e -> showError e
             | Ok _    -> reloadLockEntries ()
 
-    let focusFilter () =
-        filterField.CanFocus <- true
-        filterField.SetFocus() |> ignore
-
     let handleAction (action: BrowseAction) =
         match action with
         | AddFile(sn, rp)    -> handleAddFile sn rp
@@ -204,7 +194,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         | RefreshSource name -> handleRefreshSource name
         | Disconnect path    -> handleDisconnect path
         | RemoveEntry path   -> handleRemoveEntry path
-        | FocusFilter        -> focusFilter ()
 
     do
         this.Title <- "eru browse"
@@ -219,7 +208,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         topBar.Y <- Pos.Absolute 0
         topBar.Width <- Dim.Fill()
         topBar.Height <- Dim.Absolute 1
-        topBar.CanFocus <- true
         BrowseTheme.apply BrowseTheme.Bar topBar
 
         tabSrc.Text  <- "[ Sources ]"
@@ -238,24 +226,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         tabLock.MouseEvent.Add(fun mouse ->
             if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab LockTab)
 
-        filterLbl.Text <- "filter"
-        filterLbl.X <- Pos.Right tabLock + Pos.Absolute 4
-        filterLbl.Y <- Pos.Absolute 0
-        filterLbl.Width <- Dim.Absolute 7
-        BrowseTheme.apply BrowseTheme.Muted filterLbl
-
-        filterField.X <- Pos.Right filterLbl + Pos.Absolute 1
-        filterField.Y <- Pos.Absolute 0
-        filterField.Width <- Dim.Fill(Dim.Absolute 1)
-        filterField.CanFocus <- false
-        BrowseTheme.apply BrowseTheme.Bar filterField
-        filterField.MouseEvent.Add(fun mouse ->
-            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then focusFilter())
-
-        filterField.ValueChanged.Add(fun e ->
-            let text = if isNull (box e.NewValue) then "" else e.NewValue
-            applyFilter text)
-
         sourcesPane.X <- Pos.Absolute 0
         sourcesPane.Y <- Pos.Absolute 1
         sourcesPane.Width  <- Dim.Fill()
@@ -272,7 +242,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         hintBar.Height <- Dim.Absolute 1
         BrowseTheme.apply BrowseTheme.Bar hintBar
 
-        topBar.Add(tabSrc, tabLock, filterLbl, filterField) |> ignore
+        topBar.Add(tabSrc, tabLock) |> ignore
         this.Add(topBar) |> ignore
         this.Add(sourcesPane, lockPane, hintBar) |> ignore
 
@@ -296,21 +266,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         elif key.KeyCode = KeyCode.Q && not key.IsShift && not key.IsCtrl && not key.IsAlt then
             key.Handled <- true
             this.RequestStop()
-        elif key.KeyCode = KeyCode.Esc && not filterField.HasFocus then
+        elif key.KeyCode = KeyCode.Esc then
             key.Handled <- true
             this.RequestStop()
-        elif key.KeyCode = KeyCode.Enter && filterField.HasFocus then
-            key.Handled <- true
-            filterField.CanFocus <- false
-            match currentTab with
-            | SourcesTab -> sourcesPane.FocusContent()
-            | LockTab    -> lockPane.FocusContent()
-        elif key.KeyCode = KeyCode.Esc && filterField.HasFocus then
-            key.Handled <- true
-            filterField.Text <- ""
-            filterField.CanFocus <- false
-            applyFilter ""
-            match currentTab with
-            | SourcesTab -> sourcesPane.FocusContent()
-            | LockTab    -> lockPane.FocusContent()
         base.OnKeyDown(key)
