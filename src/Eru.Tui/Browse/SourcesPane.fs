@@ -16,6 +16,7 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
     let mutable currentFilter = ""
     let mutable lockEntries: LockEntry list = initialLockEntries
     let mutable allSources: SourceList.SourceRow list = initialSources
+    let mutable searchHits: Set<string * string> option = None
 
     let makeFileNode (sourceName: string) (row: SourceFiles.SourceFileRow) =
         let entry =
@@ -27,22 +28,44 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         if not (fileCache.ContainsKey(sourceName)) then
             match SourceFiles.execute deps (Some sourceName) with
             | Ok results ->
-                let rows =
+                fileCache.[sourceName] <-
                     results
                     |> List.tryFind (fun (n, _) -> n = sourceName)
                     |> Option.map snd
                     |> Option.defaultValue []
-                fileCache.[sourceName] <- rows
             | Error _ -> fileCache.[sourceName] <- []
         fileCache.[sourceName]
         |> Seq.map (makeFileNode sourceName >> (fun n -> n :> SourceTreeNode))
+
+    let runSearch (filter: string) =
+        if filter = "" then
+            searchHits <- None
+        else
+            let query =
+                if filter.StartsWith("#") then
+                    { Search.Terms = []; Search.Tags = [ filter.Substring(1).Trim() ] }
+                else
+                    { Search.Terms = [ filter ]; Search.Tags = [] }
+            match Search.execute deps query with
+            | Ok results ->
+                searchHits <- Some (results |> List.map (fun r -> r.SourceName, r.RemotePath) |> Set.ofList)
+            | Error _ ->
+                searchHits <- None
 
     let treeView =
         let builder =
             DelegateTreeBuilder<SourceTreeNode>(
                 (fun node ->
                     match node with
-                    | :? SourceNode as sn -> loadSourceFiles sn.Source.Name
+                    | :? SourceNode as sn ->
+                        let children = loadSourceFiles sn.Source.Name
+                        match searchHits with
+                        | None      -> children
+                        | Some hits ->
+                            children |> Seq.filter (fun n ->
+                                match n with
+                                | :? FileNode as fn -> hits.Contains((fn.SourceName, fn.Row.Path))
+                                | _ -> true)
                     | _ -> Seq.empty),
                 (fun node -> node :? SourceNode))
         new TreeView<SourceTreeNode>(builder)
@@ -106,13 +129,18 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
             previewText.Text  <- ""
 
     let populateSources (filter: string) =
+        runSearch filter
         treeView.ClearObjects()
         let filtered =
-            if filter = "" then allSources
-            else allSources |> List.filter (fun s ->
-                s.Name.Contains(filter, System.StringComparison.OrdinalIgnoreCase))
+            match searchHits with
+            | None      -> allSources
+            | Some hits ->
+                let matchedSources = hits |> Set.map fst
+                allSources |> List.filter (fun s -> matchedSources.Contains(s.Name))
         for src in filtered do
-            treeView.AddObject(SourceNode src)
+            let node = SourceNode src
+            treeView.AddObject(node)
+            if searchHits.IsSome then treeView.Expand(node)
 
     do
         this.Title <- "Sources"
