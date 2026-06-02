@@ -1,4 +1,4 @@
-module Eru.Cli.Browse.BrowseState
+module Eru.Tui.Browse.BrowseState
 
 open Eru
 

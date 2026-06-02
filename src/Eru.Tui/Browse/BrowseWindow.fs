@@ -1,5 +1,5 @@
 #nowarn "0044"
-module Eru.Cli.Browse.BrowseWindow
+module Eru.Tui.Browse.BrowseWindow
 
 open System
 open Terminal.Gui.App
@@ -16,23 +16,19 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
     let mutable currentTab = initialTab
     let mutable currentLockEntries = lockEntries
 
-    // ── Tab labels + filter ───────────────────────────────────────────────
     let tabSrc      = new Label()
     let tabLock     = new Label()
     let filterLbl   = new Label()
     let filterField = new TextField()
 
-    // ── Content panes ────────────────────────────────────────────────────
     let sourcesPane = new SourcesPane.SourcesPane(deps, sources, lockEntries)
     let lockPane    = new LockPane.LockPane(lockEntries)
 
-    // ── Hint bar ─────────────────────────────────────────────────────────
     let hintBar = new Label()
 
     let sourcesHint = " a:Add  A:Add source  r:Refresh  Tab:Switch  /:Filter  q:Quit"
     let lockHint    = " d:Disconnect  Del:Remove  A:Add source  Tab:Switch  /:Filter  q:Quit"
 
-    // ── Helpers ──────────────────────────────────────────────────────────
     let showError (msg: string) =
         MessageBox.Query(Application.Instance, "Error", msg, [| "OK" |]) |> ignore
 
@@ -73,7 +69,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         sourcesPane.ApplyFilter text
         lockPane.ApplyFilter text
 
-    // ── Action handlers ───────────────────────────────────────────────────
     let handleAddFile (sourceName: string) (remotePath: string) =
         let cmd: Add.Command = {
             RemotePath     = Some $"{sourceName}:{remotePath}"
@@ -157,7 +152,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         this.Width  <- Dim.Fill()
         this.Height <- Dim.Fill()
 
-        // Tab labels + filter (row 0 inside window content)
         tabSrc.Text  <- "[Sources]"
         tabSrc.X  <- Pos.Absolute 1
         tabSrc.Y  <- Pos.Absolute 0
@@ -181,7 +175,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             let text = if isNull (box e.NewValue) then "" else e.NewValue
             applyFilter text)
 
-        // Content panes (row 1 to height-2)
         sourcesPane.X <- Pos.Absolute 0
         sourcesPane.Y <- Pos.Absolute 1
         sourcesPane.Width  <- Dim.Fill()
@@ -192,7 +185,6 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         lockPane.Width  <- Dim.Fill()
         lockPane.Height <- Dim.Fill(Dim.Absolute 1)
 
-        // Hint bar anchored to bottom row
         hintBar.X <- Pos.Absolute 0
         hintBar.Y <- Pos.AnchorEnd()
         hintBar.Width  <- Dim.Fill()

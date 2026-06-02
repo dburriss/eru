@@ -1,4 +1,4 @@
-module Eru.Cli.Browse.LockPane
+module Eru.Tui.Browse.LockPane
 
 open System.Data
 open Terminal.Gui.App

@@ -1,5 +1,5 @@
 #nowarn "0044"
-module Eru.Cli.Browse.AddSourceDialog
+module Eru.Tui.Browse.AddSourceDialog
 
 open Terminal.Gui.App
 open Terminal.Gui.ViewBase

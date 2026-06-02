@@ -1,4 +1,4 @@
-module Eru.Cli.Browse.SourcesPane
+module Eru.Tui.Browse.SourcesPane
 
 open System.Collections.Generic
 open Terminal.Gui.App
@@ -60,7 +60,7 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
     let formatFileDetail (fn: FileNode) =
         let tags    = fn.Row.Tags |> String.concat ", "
         let desc    = fn.Row.Description |> Option.defaultValue ""
-        let status  = if fn.IsInstalled then $"✓ installed" else "not installed"
+        let status  = if fn.IsInstalled then "✓ installed" else "not installed"
         let localPt =
             match fn.LockEntry with
             | Some e -> e.LocalPath
