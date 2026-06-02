@@ -21,6 +21,7 @@
 - Default output for all list and query commands (`search`, `sync`, `source list`, `source view`, `source files`, `add`) is now a formatted table instead of plain text — pass `--output text` to restore the previous behaviour
 - Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
 - `eru add` searches through all sources for hash or file path
+- `eru source files` table output now shows **Hash** as the first column
 
 ### Fixed
 

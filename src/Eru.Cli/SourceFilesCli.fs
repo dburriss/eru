@@ -42,15 +42,15 @@ let private renderJson (results: (string * SourceFiles.SourceFileRow list) list)
     printfn "%s" (JsonSerializer.Serialize(payload, opts))
 
 let private renderTable (results: (string * SourceFiles.SourceFileRow list) list) =
-    let t = makeTable ["Source"; "Hash"; "Path"; "Tags"; "Description"]
+    let t = makeTable ["Hash"; "Source"; "Path"; "Tags"; "Description"]
     for (sourceName, rows) in results do
         if rows.IsEmpty then
-            t.AddRow(sourceName, "", "(no files found in index)", "", "") |> ignore
+            t.AddRow("", sourceName, "(no files found in index)", "", "") |> ignore
         else
             for row in rows do
                 let tags = row.Tags |> String.concat ", "
                 let desc = row.Description |> Option.defaultValue ""
-                t.AddRow(sourceName, row.Hash, row.Path, tags, desc) |> ignore
+                t.AddRow(row.Hash, sourceName, row.Path, tags, desc) |> ignore
     AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
