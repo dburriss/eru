@@ -196,8 +196,8 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
                 else "  "
             match node with
             | :? FileNode as fn ->
-                let suffix = if fn.IsTracked then "  tracked" else ""
-                $"{prefix}{fn.Row.Path}{suffix}"
+                let check = if fn.IsTracked then "[✓]" else "[ ]"
+                $"{prefix}{check} {fn.Row.Path}"
             | _ -> $"{prefix}{node.Label}"
         populateSources ""
         this.Add(treeView) |> ignore
