@@ -124,24 +124,27 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
                     Description = lockEntry.Description
                 })
 
-        // 3. Local knowledge directories (unchanged)
+        // 3. Local knowledge directories
         let cwd = deps.GetCwd()
-        for knowledgeDir in [ "knowledge"; "KNOWLEDGE" ] do
-            let dirPath = Path.Combine(cwd, knowledgeDir)
-            if Directory.Exists(dirPath) then
-                for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
-                    let relPath = Path.GetRelativePath(cwd, file)
-                    if isPathAllowed relPath then
-                        let fm = Frontmatter.parse (File.ReadAllText file)
-                        if hasTags requiredTags fm.Tags then
-                            candidates.Add({
-                                AbsPath     = file
-                                RelPath     = relPath
-                                Source      = Local
-                                SourceName  = None
-                                Tags        = fm.Tags
-                                Description = fm.Description
-                            })
+        let knowledgeDirs =
+            [ "knowledge"; "KNOWLEDGE" ]
+            |> List.map (fun d -> Path.Combine(cwd, d))
+            |> List.filter Directory.Exists
+            |> List.distinctBy (fun p -> DirectoryInfo(p).FullName)
+        for dirPath in knowledgeDirs do
+            for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
+                let relPath = Path.GetRelativePath(cwd, file)
+                if isPathAllowed relPath then
+                    let fm = Frontmatter.parse (File.ReadAllText file)
+                    if hasTags requiredTags fm.Tags then
+                        candidates.Add({
+                            AbsPath     = file
+                            RelPath     = relPath
+                            Source      = Local
+                            SourceName  = None
+                            Tags        = fm.Tags
+                            Description = fm.Description
+                        })
 
         let hits = backend termList (candidates |> Seq.toList)
 
