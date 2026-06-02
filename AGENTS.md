@@ -6,10 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Do not write or scaffold any code unless the user explicitly uses the word **implement**. Discuss, plan, and update documentation freely — but make no code changes without that signal.
 
-## Plan mode
-
-When in plan mode, use `AskUserQuestion` to check for further refinements between iterations. Only call `ExitPlanMode` when the user explicitly says the plan is ready or asks to proceed.
-
 ## Project
 
 `eru` is an F# dotnet 10 CLI tool for knowledge sharing between projects. It fetches files from configured knowledge sources (remote repos) and tracks what has been pulled into the local repo via a state file. Knowledge can be synced to and from a knowledge base.
