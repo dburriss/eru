@@ -11,6 +11,8 @@
   - `json` emits machine-readable JSON for scripting and tool integration
 - `eru remove` command to delete a local artifact file and its lock entry by path; supports `--dryrun` and `--output` flags
 - `eru disconnect` command to remove a tracked artifact from the lock file without deleting the local file; supports `--dryrun` and `--output` flags
+- `eru cache prune` command to remove orphaned content files not referenced by any source index; supports `--force` to skip confirmation
+- `eru cache clear` command to delete all cached indexes and files (`sources/`, `index/`, and `collections/` directories under `~/.cache/eru/`); supports `--dryrun`, `--force`, and `--output` flags
 
 ### Changed
 

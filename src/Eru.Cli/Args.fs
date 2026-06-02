@@ -275,19 +275,19 @@ type DisconnectArgs =
             | Output _ -> "Output format: table (default), text, json."
 
 type CachePruneArgs =
-    | [<Unique>] Yes
+    | [<Unique>] Force
     interface IArgParserTemplate with
-        member a.Usage = match a with Yes -> "Skip confirmation prompt and delete immediately."
+        member a.Usage = match a with Force -> "Skip confirmation prompt and delete immediately."
 
 type CacheClearArgs =
     | [<Unique>]                         Dryrun
-    | [<Unique>]                         Yes
+    | [<Unique>]                         Force
     | [<Unique; AltCommandLine("-o")>]   Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Dryrun   -> "List what would be deleted without deleting anything."
-            | Yes      -> "Skip confirmation prompt and delete immediately."
+            | Force    -> "Skip confirmation prompt and delete immediately."
             | Output _ -> "Output format: table (default), text, json."
 
 [<CliPrefix(CliPrefix.None)>]

@@ -13,7 +13,7 @@ let (|CachePruneCmd|_|) (r: ParseResults<EruArgs>) =
         | _ -> None)
 
 let runPrune (pruneArgs: ParseResults<CachePruneArgs>) : int =
-    let autoConfirm = pruneArgs.Contains CachePruneArgs.Yes
+    let autoConfirm = pruneArgs.Contains CachePruneArgs.Force
 
     let sourcesBase = Path.GetDirectoryName(Paths.sourceCacheManifestPath "dummy") |> Path.GetDirectoryName
 

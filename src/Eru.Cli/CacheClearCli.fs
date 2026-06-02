@@ -35,7 +35,7 @@ let private renderJson (targets: string list) (deleted: bool) =
 
 let runClear (clearArgs: ParseResults<CacheClearArgs>) : int =
     let dryRun      = clearArgs.Contains CacheClearArgs.Dryrun
-    let autoConfirm = clearArgs.Contains CacheClearArgs.Yes
+    let autoConfirm = clearArgs.Contains CacheClearArgs.Force
     let format      = parseFormat (clearArgs.TryGetResult CacheClearArgs.Output)
 
     let sourcesBase =
