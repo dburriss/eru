@@ -152,7 +152,7 @@ type SourcesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialL
         treeView.AspectGetter <- fun node ->
             match node with
             | :? FileNode as fn ->
-                if fn.IsInstalled then $"{fn.Row.Path} [✓]" else fn.Row.Path
+                if fn.IsInstalled then $"[✓] {fn.Row.Path}" else $"[ ] {fn.Row.Path}"
             | _ -> node.Label
         populateSources ""
         this.Add(treeView) |> ignore
