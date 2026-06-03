@@ -32,4 +32,5 @@ type BrowseAction =
     | RefreshSource
     | Disconnect    of localPath: string
     | RemoveEntry   of localPath: string
+    | RemoveGlob    of sourceName: string * globPath: string
     | RemoveSource  of sourceName: string

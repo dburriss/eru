@@ -222,6 +222,34 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             | Error e -> showError e
             | Ok _    -> reloadLockEntries ()
 
+    let handleRemoveGlob (sourceName: string) (globPath: string) =
+        let matching =
+            currentLockEntries
+            |> List.filter (fun e ->
+                e.SourceName = sourceName &&
+                Patterns.matchesGlob globPath e.RemotePath)
+        if matching.IsEmpty then
+            showError $"No tracked files match '{globPath}'."
+        else
+            let noun  = if matching.Length = 1 then "file" else "files"
+            let paths = matching |> List.map (fun e -> $"  {e.LocalPath}") |> String.concat "\n"
+            let r = styledDialog "Remove"
+                        $"Delete {matching.Length} {noun} from disk and lock file?\n{paths}"
+                        BrowseTheme.Danger [| "Yes"; "No" |]
+            if r = 0 then
+                let errors =
+                    matching
+                    |> List.choose (fun e ->
+                        let cmd: Remove.Command = { Target = e.LocalPath; DryRun = false }
+                        match Remove.execute deps cmd with
+                        | Error err -> Some err
+                        | Ok _      -> None)
+                if errors.IsEmpty then
+                    reloadLockEntries ()
+                else
+                    reloadLockEntries ()
+                    showError (errors |> String.concat "\n")
+
     let handleRemoveSource (name: string) =
         let r = styledDialog "Remove Source"
                     $"Remove source '{name}' from config?"
@@ -240,12 +268,13 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     let handleAction (action: BrowseAction) =
         match action with
-        | AddFile(sn, rp)    -> handleAddFile sn rp
-        | AddSource          -> handleAddSource ()
-        | RefreshSource      -> handleRefreshSource ()
-        | Disconnect path    -> handleDisconnect path
-        | RemoveEntry path   -> handleRemoveEntry path
-        | RemoveSource name  -> handleRemoveSource name
+        | AddFile(sn, rp)          -> handleAddFile sn rp
+        | AddSource                -> handleAddSource ()
+        | RefreshSource            -> handleRefreshSource ()
+        | Disconnect path          -> handleDisconnect path
+        | RemoveEntry path         -> handleRemoveEntry path
+        | RemoveGlob(sn, globPath) -> handleRemoveGlob sn globPath
+        | RemoveSource name        -> handleRemoveSource name
 
     do
         this.Title <- "eru browse"

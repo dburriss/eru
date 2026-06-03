@@ -210,6 +210,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                     idx
                     |> Map.toSeq
                     |> Seq.map fst
+                    |> Seq.filter (fun k -> not (k.Contains('*') || k.Contains('?')))
                     |> Seq.filter (Patterns.matchesGlob path)
                     |> Seq.sort
                     |> Seq.toArray
@@ -422,11 +423,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                         actionEvent.Trigger(RemoveEntry localPath)
                     | :? GlobNode as gn when gn.IsTracked ->
                         key.Handled <- true
-                        let localPath =
-                            match gn.FileNode.LockEntry with
-                            | Some e -> e.LocalPath
-                            | None   -> gn.FileNode.Row.Path
-                        actionEvent.Trigger(RemoveEntry localPath)
+                        actionEvent.Trigger(RemoveGlob(gn.SourceName, gn.FileNode.Row.Path))
                     | _ -> ()
                 elif key.KeyCode = KeyCode.R && not key.IsShift then
                     match treeView.SelectedObject with
