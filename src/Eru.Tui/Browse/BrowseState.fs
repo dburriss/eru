@@ -13,12 +13,12 @@ type SourceNode(src: SourceList.SourceRow) =
     inherit SourceTreeNode(src.Name)
     member _.Source = src
 
-type FileNode(row: SourceFiles.SourceFileRow, sourceName: string, lockEntry: LockEntry option) =
+type FileNode(row: SourceFiles.SourceFileRow, sourceName: string, lockEntry: LockEntry option, isGlobAllTracked: bool) =
     inherit SourceTreeNode(row.Path)
     member _.Row = row
     member _.SourceName = sourceName
     member val LockEntry: LockEntry option = lockEntry with get, set
-    member this.IsTracked = this.LockEntry.IsSome
+    member this.IsTracked = this.LockEntry.IsSome || isGlobAllTracked
 
 type BrowseAction =
     | AddFile       of sourceName: string * remotePath: string

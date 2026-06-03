@@ -24,7 +24,24 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
         let entry =
             lockEntries |> List.tryFind (fun e ->
                 e.SourceName = sourceName && e.RemotePath = row.Path)
-        FileNode(row, sourceName, entry)
+        let globAllTracked =
+            if row.Path.Contains('*') || row.Path.Contains('?') then
+                match deps.ReadSourceIndex sourceName with
+                | Ok (Some idx) ->
+                    let matchingPaths =
+                        idx
+                        |> Map.toSeq
+                        |> Seq.map fst
+                        |> Seq.filter (fun k -> not (k.Contains('*') || k.Contains('?')))
+                        |> Seq.filter (Patterns.matchesGlob row.Path)
+                        |> Seq.toList
+                    matchingPaths.Length > 0 &&
+                    (matchingPaths |> List.forall (fun p ->
+                        lockEntries |> List.exists (fun e ->
+                            e.SourceName = sourceName && e.RemotePath = p)))
+                | _ -> false
+            else false
+        FileNode(row, sourceName, entry, globAllTracked)
 
     let loadSourceFiles (sourceName: string) : SourceTreeNode seq =
         if not (fileCache.ContainsKey(sourceName)) then
