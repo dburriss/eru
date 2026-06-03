@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-03
+
 ### Added
 
 - `eru add` now supports using hashes instead of the file path to add files to local repository

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.7.1</Version>
+    <Version>0.8.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,7 +16,25 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>MCP resources now declare `text/plain` MIME type — previously the SDK defaulted to `application/octet-stream`, causing many MCP clients and inspectors to not display the `eru://sources`, `eru://sources/{name}`, and `eru://installed` resources</PackageReleaseNotes>
+    <PackageReleaseNotes>`eru add` now supports using hashes instead of the file path to add files to local repository
+`--output &lt;format&gt;` flag (short: `-o`) on every command and subcommand that produces output — accepted values are `table` (default), `text`, and `json`
+`table` renders results as a Spectre.Console table with column headers
+`text` preserves the original plain-text style for piping and terminal use
+`json` emits machine-readable JSON for scripting and tool integration
+`eru remove` command to delete a local artifact file and its lock entry by path; supports `--dryrun` and `--output` flags
+`eru disconnect` command to remove a tracked artifact from the lock file without deleting the local file; supports `--dryrun` and `--output` flags
+`eru cache prune` command to remove orphaned content files not referenced by any source index; supports `--force` to skip confirmation
+`eru cache clear` command to delete all cached indexes and files (`sources/`, `index/`, and `collections/` directories under `~/.cache/eru/`); supports `--dryrun`, `--force`, and `--output` flags
+`eru browse` command to interactively browse sources and tracked files in the terminal
+MCP schema updates and fixes
+`eru sync` now performs one git clone per source instead of one per lock entry — all paths from the same repository are fetched in a single blobless sparse-checkout call, reducing network I/O from O(files) to O(sources); the same batching applies to the MCP knowledge cache sync in `KnowledgeSyncService`
+`eru add --target` (short: `-d`) now supports two modes: a path ending with `/` is treated as a target directory and keeps only the source filename (e.g. `--target docs/` + `shared/adr.md` → `docs/adr.md`); a path without a trailing slash is used directly as the local file path (e.g. `--target docs/custom.md` or `--target bin/mybinary`). **Breaking:** `--target docs` (no slash) previously wrote to `docs/&lt;filename&gt;` — add a trailing slash to preserve that behaviour.
+Default output for all list and query commands (`search`, `sync`, `source list`, `source view`, `source files`, `add`) is now a formatted table instead of plain text — pass `--output text` to restore the previous behaviour
+Search results now return structured data in addition to the existing text output — the `search_knowledge` MCP tool returns an array of hits with path, source, tags, description, and excerpts; clients can parse the structured content or fall back to the text as before
+`eru add` searches through all sources for hash or file path
+`eru source files` table output now shows **Hash** as the first column
+`eru.lock` now lives at `.eru/eru.lock` instead of the repository root, keeping all eru state inside the `.eru/` directory alongside `config.json` and `manifest.json`; existing `eru.lock` files at the repo root are migrated automatically on the first command that reads the lock file
+`eru source files &lt;name&gt;` no longer crashes with `NullReferenceException` when a manifest entry has no `tags` field — `System.Text.Json` was deserializing absent or null list fields as `null` rather than `[]`; manifests are now normalized on load so all consumers see empty lists instead</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
