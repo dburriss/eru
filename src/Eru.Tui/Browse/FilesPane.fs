@@ -112,6 +112,43 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                 (fun node -> node :? SourceNode || node :? GlobNode))
         new TreeView<SourceTreeNode>(builder)
 
+    let saveSelectionKey () : (string * string option) option =
+        match treeView.SelectedObject with
+        | :? SourceNode as sn -> Some (sn.Source.Name, None)
+        | :? FileNode   as fn -> Some (fn.SourceName, Some fn.Row.Path)
+        | :? GlobNode   as gn -> Some (gn.SourceName, Some gn.FileNode.Row.Path)
+        | _                   -> None
+
+    let restoreSelection (key: (string * string option) option) =
+        match key with
+        | None -> ()
+        | Some (sName, None) ->
+            treeView.Objects
+            |> Seq.tryFind (fun n -> match n with :? SourceNode as sn -> sn.Source.Name = sName | _ -> false)
+            |> Option.iter treeView.GoTo
+        | Some (sName, Some path) ->
+            let srcNodeOpt =
+                treeView.Objects
+                |> Seq.tryPick (fun n ->
+                    match n with
+                    | :? SourceNode as sn when sn.Source.Name = sName -> Some sn
+                    | _ -> None)
+            match srcNodeOpt with
+            | None -> ()
+            | Some srcNode ->
+                let child =
+                    if treeView.IsExpanded srcNode then
+                        treeView.GetChildren srcNode
+                        |> Seq.tryFind (fun n ->
+                            match n with
+                            | :? FileNode as fn -> fn.Row.Path = path
+                            | :? GlobNode as gn -> gn.FileNode.Row.Path = path
+                            | _ -> false)
+                    else None
+                child
+                |> Option.defaultValue (srcNode :> SourceTreeNode)
+                |> treeView.GoTo
+
     let navLabel       = new Label()
     let searchRow      = new View()
     let searchPrompt   = new Label()
@@ -403,9 +440,11 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
     member _.FocusContent() = treeView.SetFocus() |> ignore
 
     member _.RefreshLockBadges(entries: LockEntry list) =
+        let saved = saveSelectionKey ()
         lockEntries <- entries
         fileCache.Clear()
-        populateSources currentFilter
+        treeView.RebuildTree()
+        restoreSelection saved
 
     member _.Reload(sources: SourceList.SourceRow list, entries: LockEntry list) =
         allSources <- sources
