@@ -21,3 +21,7 @@ type SearchHit = {
     Description : string option
     Excerpts    : string list
 }
+
+type SearchResult = {
+    Hits : SearchHit[]
+}

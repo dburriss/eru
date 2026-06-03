@@ -45,7 +45,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
                 if File.Exists abs then Some abs else None
             | None -> None
 
-    [<McpServerTool(Name = "search_knowledge", UseStructuredContent = true, OutputSchemaType = typeof<SearchHit[]>)>]
+    [<McpServerTool(Name = "search_knowledge", UseStructuredContent = true, OutputSchemaType = typeof<SearchResult>)>]
     [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and content excerpts.")>]
     member _.Search(
         [<Description("Search terms (space-separated, OR semantics). Matched against file content and path. Leave empty to list all known artifacts.")>] query: string,
@@ -197,7 +197,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
 
         CallToolResult(
             Content           = [| TextContentBlock(Text = textOutput) |],
-            StructuredContent = System.Nullable(JsonSerializer.SerializeToElement(structuredHits))
+            StructuredContent = System.Nullable(JsonSerializer.SerializeToElement({ Hits = structuredHits }))
         )
 
     [<McpServerTool(Name = "read_artifact")>]
