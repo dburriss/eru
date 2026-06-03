@@ -74,12 +74,15 @@ module Sync =
 
         let errors = System.Collections.Generic.List<string>()
 
-        // Step 1c: Rebuild index.json for each source from manifest metadata (no content fetch)
+        // Step 1c: Rebuild index.json for each source from manifest metadata (no content fetch).
+        // Glob patterns are excluded — they are replaced by resolved paths in Step 2.
+        let isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
         for src in eff.Sources do
             let initialIndex =
                 match deps.ReadCachedManifest src.Name with
                 | Ok (Some manifest) ->
                     manifest.Files
+                    |> List.filter (fun f -> not (isGlob f.Path))
                     |> List.map (fun f ->
                         f.Path, { emptyIndexEntry with
                                     Tags        = f.Tags |> List.map (fun t -> t.ToLowerInvariant()) |> List.distinct

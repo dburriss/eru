@@ -58,6 +58,8 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         let isPathAllowed path =
             not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
 
+        let isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
+
         let candidates = System.Collections.Generic.List<CandidateFile>()
         let metadataOnlyCandidates = System.Collections.Generic.List<CandidateFile>()
 
@@ -72,7 +74,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
             match SourceIndexAdapter.readIndex src.Name with
             | Ok (Some idx) ->
                 for KeyValue(remotePath, entry) in idx do
-                    if isPathAllowed remotePath then
+                    if not (isGlob remotePath) && isPathAllowed remotePath then
                         let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
                         // Collection-side tags (not stored in index)
                         let colTags =

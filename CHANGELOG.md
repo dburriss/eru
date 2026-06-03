@@ -13,6 +13,8 @@
 - `eru disconnect` command to remove a tracked artifact from the lock file without deleting the local file; supports `--dryrun` and `--output` flags
 - `eru cache prune` command to remove orphaned content files not referenced by any source index; supports `--force` to skip confirmation
 - `eru cache clear` command to delete all cached indexes and files (`sources/`, `index/`, and `collections/` directories under `~/.cache/eru/`); supports `--dryrun`, `--force`, and `--output` flags
+- `eru browse` command to interactively browse sources and tracked files in the terminal
+- MCP schema updates and fixes
 
 ### Changed
 
