@@ -43,6 +43,19 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             else false
         FileNode(row, sourceName, entry, globAllTracked)
 
+    let loadGlobChildren (gn: GlobNode) : SourceTreeNode seq =
+        match deps.ReadSourceIndex gn.SourceName with
+        | Ok (Some idx) ->
+            idx
+            |> Map.toSeq
+            |> Seq.filter (fun (k, _) -> not (k.Contains('*') || k.Contains('?')))
+            |> Seq.filter (fun (k, _) -> Patterns.matchesGlob gn.FileNode.Row.Path k)
+            |> Seq.sortBy fst
+            |> Seq.map (fun (path, entry) ->
+                let row: SourceFiles.SourceFileRow = { Hash = Patterns.pathShortHash path; Path = path; Tags = entry.Tags; Description = entry.Description }
+                makeFileNode gn.SourceName row :> SourceTreeNode)
+        | _ -> Seq.empty
+
     let loadSourceFiles (sourceName: string) : SourceTreeNode seq =
         if not (fileCache.ContainsKey(sourceName)) then
             match SourceFiles.execute deps (Some sourceName) with
@@ -53,8 +66,16 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                     |> Option.map snd
                     |> Option.defaultValue []
             | Error _ -> fileCache.[sourceName] <- []
-        fileCache.[sourceName]
-        |> Seq.map (makeFileNode sourceName >> (fun n -> n :> SourceTreeNode))
+        let rows = fileCache.[sourceName]
+        let globs = rows |> List.choose (fun r -> if r.Path.Contains('*') || r.Path.Contains('?') then Some r.Path else None)
+        rows
+        |> Seq.choose (fun row ->
+            if row.Path.Contains('*') || row.Path.Contains('?') then
+                Some (GlobNode(makeFileNode sourceName row) :> SourceTreeNode)
+            elif globs |> List.exists (fun g -> Patterns.matchesGlob g row.Path) then
+                None
+            else
+                Some (makeFileNode sourceName row :> SourceTreeNode))
 
     let runSearch (filter: string) =
         if filter = "" then
@@ -71,22 +92,24 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             | Error _ ->
                 searchHits <- None
 
+    let filterBySearchHits (children: SourceTreeNode seq) =
+        match searchHits with
+        | None      -> children
+        | Some hits ->
+            children |> Seq.filter (fun n ->
+                match n with
+                | :? FileNode as fn -> hits.Contains((fn.SourceName, fn.Row.Path))
+                | _ -> true)
+
     let treeView =
         let builder =
             DelegateTreeBuilder<SourceTreeNode>(
                 (fun node ->
                     match node with
-                    | :? SourceNode as sn ->
-                        let children = loadSourceFiles sn.Source.Name
-                        match searchHits with
-                        | None      -> children
-                        | Some hits ->
-                            children |> Seq.filter (fun n ->
-                                match n with
-                                | :? FileNode as fn -> hits.Contains((fn.SourceName, fn.Row.Path))
-                                | _ -> true)
+                    | :? SourceNode as sn -> loadSourceFiles sn.Source.Name |> filterBySearchHits
+                    | :? GlobNode  as gn -> loadGlobChildren gn |> filterBySearchHits
                     | _ -> Seq.empty),
-                (fun node -> node :? SourceNode))
+                (fun node -> node :? SourceNode || node :? GlobNode))
         new TreeView<SourceTreeNode>(builder)
 
     let navLabel       = new Label()
@@ -218,6 +241,9 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             | :? FileNode as fn ->
                 let check = if fn.IsTracked then "[✓]" else "[ ]"
                 $"{prefix}{check} {fn.Row.Path}"
+            | :? GlobNode as gn ->
+                let check = if gn.IsTracked then "[✓]" else "[ ]"
+                $"{prefix}{check} {gn.FileNode.Row.Path}"
             | _ -> $"{prefix}{node.Label}"
         populateSources ""
         this.Add(treeView) |> ignore
@@ -306,6 +332,9 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             | :? FileNode as fn ->
                 showFileDetail fn
                 updatePreview fn
+            | :? GlobNode as gn ->
+                showFileDetail gn.FileNode
+                updatePreview gn.FileNode
             | :? SourceNode as sn ->
                 showSourceDetail sn.Source
                 previewLabel.Text <- "Preview"
@@ -341,6 +370,9 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                     | :? FileNode as fn ->
                         key.Handled <- true
                         actionEvent.Trigger(AddFile(fn.SourceName, fn.Row.Path))
+                    | :? GlobNode as gn ->
+                        key.Handled <- true
+                        actionEvent.Trigger(AddFile(gn.SourceName, gn.FileNode.Row.Path))
                     | _ -> ()
                 elif key.KeyCode = KeyCode.X && not key.IsShift then
                     match treeView.SelectedObject with
@@ -351,10 +383,17 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                             | Some e -> e.LocalPath
                             | None   -> fn.Row.Path
                         actionEvent.Trigger(RemoveEntry localPath)
+                    | :? GlobNode as gn when gn.IsTracked ->
+                        key.Handled <- true
+                        let localPath =
+                            match gn.FileNode.LockEntry with
+                            | Some e -> e.LocalPath
+                            | None   -> gn.FileNode.Row.Path
+                        actionEvent.Trigger(RemoveEntry localPath)
                     | _ -> ()
                 elif key.KeyCode = KeyCode.R && not key.IsShift then
                     match treeView.SelectedObject with
-                    | :? FileNode | :? SourceNode ->
+                    | :? FileNode | :? SourceNode | :? GlobNode ->
                         key.Handled <- true
                         actionEvent.Trigger(RefreshSource)
                     | _ -> ())

@@ -20,6 +20,12 @@ type FileNode(row: SourceFiles.SourceFileRow, sourceName: string, lockEntry: Loc
     member val LockEntry: LockEntry option = lockEntry with get, set
     member this.IsTracked = this.LockEntry.IsSome || isGlobAllTracked
 
+type GlobNode(fileNode: FileNode) =
+    inherit SourceTreeNode(fileNode.Row.Path)
+    member _.FileNode = fileNode
+    member _.SourceName = fileNode.SourceName
+    member _.IsTracked = fileNode.IsTracked
+
 type BrowseAction =
     | AddFile       of sourceName: string * remotePath: string
     | AddSource
