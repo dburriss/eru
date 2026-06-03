@@ -2,7 +2,7 @@ module Eru.Tui.Browse.BrowseState
 
 open Eru
 
-type ActiveTab = SourcesTab | LockTab
+type ActiveTab = FilesTab | SourcesTab | LocalTab | CollectionsTab | ConfigTab
 
 [<AbstractClass>]
 type SourceTreeNode(label: string) =
@@ -23,6 +23,7 @@ type FileNode(row: SourceFiles.SourceFileRow, sourceName: string, lockEntry: Loc
 type BrowseAction =
     | AddFile       of sourceName: string * remotePath: string
     | AddSource
-    | RefreshSource of sourceName: string
+    | RefreshSource
     | Disconnect    of localPath: string
     | RemoveEntry   of localPath: string
+    | RemoveSource  of sourceName: string

@@ -117,7 +117,7 @@ type LockPane(initialEntries: LockEntry list) as this =
         this.CanFocus <- true
         BrowseTheme.apply BrowseTheme.Main this
 
-        navLabel.Text <- "Tracked Files"
+        navLabel.Text <- "Local Files"
         navLabel.X <- Pos.Absolute 1
         navLabel.Y <- Pos.Absolute 1
         navLabel.Width <- Dim.Percent(35, DimPercentMode.ContentSize)
@@ -249,10 +249,13 @@ type LockPane(initialEntries: LockEntry list) as this =
                         key.Handled <- true
                         actionEvent.Trigger(Disconnect e.LocalPath)
                     | None -> ()
-                elif key.KeyCode = (KeyCode.ShiftMask ||| KeyCode.A) then
-                    key.Handled <- true
-                    actionEvent.Trigger(AddSource)
-                elif key.KeyCode = KeyCode.Delete then
+                elif key.KeyCode = KeyCode.R && not key.IsShift then
+                    match selectedEntry () with
+                    | Some e ->
+                        key.Handled <- true
+                        actionEvent.Trigger(RefreshSource)
+                    | None -> ()
+                elif key.KeyCode = KeyCode.X && not key.IsShift then
                     match selectedEntry () with
                     | Some e ->
                         key.Handled <- true

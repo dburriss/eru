@@ -15,8 +15,11 @@
     <Compile Include="Browse/BrowseState.fs" />
     <Compile Include="Browse/BrowseTheme.fs" />
     <Compile Include="Browse/LockPane.fs" />
+    <Compile Include="Browse/FilesPane.fs" />
     <Compile Include="Browse/SourcesPane.fs" />
     <Compile Include="Browse/AddSourceDialog.fs" />
+    <Compile Include="Browse/CollectionsPane.fs" />
+    <Compile Include="Browse/ConfigPane.fs" />
     <Compile Include="Browse/BrowseWindow.fs" />
     <Compile Include="BrowseTui.fs" />
   </ItemGroup>

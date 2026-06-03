@@ -23,9 +23,9 @@ let run (deps: Deps) : int =
             | Error _ -> []
         | _ -> []
 
-    // Lock view only makes sense when there is something in it
+    // Show local tab when there are tracked files, otherwise start on files
     let initialTab =
-        if lockEntries.IsEmpty then SourcesTab else LockTab
+        if lockEntries.IsEmpty then FilesTab else LocalTab
 
     Application.Init(Unchecked.defaultof<string>)
     try

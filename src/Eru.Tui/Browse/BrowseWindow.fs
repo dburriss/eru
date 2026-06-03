@@ -20,17 +20,34 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
 
     let _ = BrowseTheme.register ()
 
-    let topBar  = new View()
-    let tabSrc  = new Label()
-    let tabLock = new Label()
+    let topBar         = new View()
+    let tabFiles       = new Label()
+    let tabSources     = new Label()
+    let tabLocal       = new Label()
+    let tabCollections = new Label()
+    let tabConfig      = new Label()
 
-    let sourcesPane = new SourcesPane.SourcesPane(deps, sources, lockEntries)
-    let lockPane    = new LockPane.LockPane(lockEntries)
+    let filesPane       = new FilesPane.FilesPane(deps, sources, lockEntries)
+    let sourcesPane     = new SourcesPane.SourcesPane(sources)
+    let lockPane        = new LockPane.LockPane(lockEntries)
+    let collectionsPane = new CollectionsPane.CollectionsPane()
+    let configPane      = new ConfigPane.ConfigPane()
 
     let hintBar = new Label()
 
-    let sourcesHint = " [a] add  [r] refresh  [A] source  [/] search  [tab] local files  [q] quit"
-    let lockHint    = " [d] disconnect  [del] remove  [A] source  [/] search  [tab] sources  [q] quit"
+    let filesHint       = " [a] add  [x] remove  [r] refresh  [/] search  [tab] sources  [q] quit"
+    let sourcesHint     = " [A] add source  [X] remove source  [r] refresh  [/] search  [tab] local  [q] quit"
+    let localHint       = " [x] remove  [d] disconnect  [r] refresh  [/] search  [tab] collections  [q] quit"
+    let collectionsHint = " [tab] config  [q] quit"
+    let configHint      = " [tab] files  [q] quit"
+
+    let tabHint tab =
+        match tab with
+        | FilesTab       -> filesHint
+        | SourcesTab     -> sourcesHint
+        | LocalTab       -> localHint
+        | CollectionsTab -> collectionsHint
+        | ConfigTab      -> configHint
 
     let styledDialog (title: string) (msg: string) (msgScheme: string) (buttons: string[]) =
         let mutable result = -1
@@ -76,31 +93,48 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
                 | Ok entries ->
                     currentLockEntries <- entries
                     lockPane.Reload entries
-                    sourcesPane.RefreshLockBadges entries
+                    filesPane.RefreshLockBadges entries
                 | Error _ -> ()
             | Error _ -> ()
         | _ -> ()
 
     let showTab (tab: ActiveTab) =
         currentTab <- tab
+        filesPane.Visible       <- false
+        sourcesPane.Visible     <- false
+        lockPane.Visible        <- false
+        collectionsPane.Visible <- false
+        configPane.Visible      <- false
+        tabFiles.Text       <- "  Files  "
+        tabSources.Text     <- "  Sources  "
+        tabLocal.Text       <- "  Local  "
+        tabCollections.Text <- "  Collections  "
+        tabConfig.Text      <- "  Config  "
+        hintBar.Text <- tabHint tab
         match tab with
+        | FilesTab ->
+            tabFiles.Text <- "[ Files ]"
+            filesPane.Visible <- true
+            filesPane.FocusContent()
         | SourcesTab ->
-            tabSrc.Text  <- "[ Sources ]"
-            tabLock.Text <- "  Local Files"
+            tabSources.Text <- "[ Sources ]"
             sourcesPane.Visible <- true
-            lockPane.Visible    <- false
-            hintBar.Text <- sourcesHint
             sourcesPane.FocusContent()
-        | LockTab ->
-            tabSrc.Text  <- "  Sources  "
-            tabLock.Text <- "[ Local Files ]"
-            sourcesPane.Visible <- false
-            lockPane.Visible    <- true
-            hintBar.Text <- lockHint
+        | LocalTab ->
+            tabLocal.Text <- "[ Local ]"
+            lockPane.Visible <- true
             lockPane.FocusContent()
+        | CollectionsTab ->
+            tabCollections.Text <- "[ Collections ]"
+            collectionsPane.Visible <- true
+            collectionsPane.FocusContent()
+        | ConfigTab ->
+            tabConfig.Text <- "[ Config ]"
+            configPane.Visible <- true
+            configPane.FocusContent()
 
     let restoreHint () =
-        hintBar.Text <- match currentTab with SourcesTab -> sourcesHint | LockTab -> lockHint
+        hintBar.Text <- tabHint currentTab
 
     let handleAddFile (sourceName: string) (remotePath: string) =
         let cmd: Add.Command = {
@@ -149,18 +183,19 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             | Ok msg ->
                 match SourceList.execute deps with
                 | Ok newSources ->
-                    sourcesPane.Reload(newSources, currentLockEntries)
+                    sourcesPane.Reload newSources
+                    filesPane.Reload(newSources, currentLockEntries)
                     showInfo msg
                 | Error e -> showError e
 
-    let handleRefreshSource (name: string) =
-        hintBar.Text <- $" Refreshing {name}..."
+    let handleRefreshSource () =
+        hintBar.Text <- " Refreshing sources..."
         let _ = Threading.Tasks.Task.Run(fun () ->
             try
                 Sync.populateIndex deps |> ignore
                 Application.Invoke(fun () ->
                     restoreHint ()
-                    sourcesPane.RefreshSource name)
+                    filesPane.RefreshAll())
             with ex ->
                 Application.Invoke(fun () ->
                     restoreHint ()
@@ -187,13 +222,30 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             | Error e -> showError e
             | Ok _    -> reloadLockEntries ()
 
+    let handleRemoveSource (name: string) =
+        let r = styledDialog "Remove Source"
+                    $"Remove source '{name}' from config?"
+                    BrowseTheme.Danger [| "Yes"; "No" |]
+        if r = 0 then
+            let cmd: SourceRemove.Command = { Name = name; IsGlobal = false; DryRun = false }
+            match SourceRemove.execute deps cmd with
+            | Error e -> showError e
+            | Ok msg ->
+                match SourceList.execute deps with
+                | Ok newSources ->
+                    sourcesPane.Reload newSources
+                    filesPane.Reload(newSources, currentLockEntries)
+                    showInfo msg
+                | Error e -> showError e
+
     let handleAction (action: BrowseAction) =
         match action with
         | AddFile(sn, rp)    -> handleAddFile sn rp
         | AddSource          -> handleAddSource ()
-        | RefreshSource name -> handleRefreshSource name
+        | RefreshSource      -> handleRefreshSource ()
         | Disconnect path    -> handleDisconnect path
         | RemoveEntry path   -> handleRemoveEntry path
+        | RemoveSource name  -> handleRemoveSource name
 
     do
         this.Title <- "eru browse"
@@ -210,31 +262,57 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         topBar.Height <- Dim.Absolute 1
         BrowseTheme.apply BrowseTheme.Bar topBar
 
-        tabSrc.Text  <- "[ Sources ]"
-        tabSrc.X  <- Pos.Absolute 1
-        tabSrc.Y  <- Pos.Absolute 0
-        tabSrc.Width <- Dim.Absolute 12
-        BrowseTheme.apply BrowseTheme.Accent tabSrc
-        tabSrc.MouseEvent.Add(fun mouse ->
+        tabFiles.Text <- "[ Files ]"
+        tabFiles.X <- Pos.Absolute 1
+        tabFiles.Y <- Pos.Absolute 0
+        tabFiles.Width <- Dim.Absolute 10
+        BrowseTheme.apply BrowseTheme.Accent tabFiles
+        tabFiles.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab FilesTab)
+
+        tabSources.Text <- "  Sources  "
+        tabSources.X <- Pos.Right tabFiles + Pos.Absolute 1
+        tabSources.Y <- Pos.Absolute 0
+        tabSources.Width <- Dim.Absolute 12
+        BrowseTheme.apply BrowseTheme.Accent tabSources
+        tabSources.MouseEvent.Add(fun mouse ->
             if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab SourcesTab)
 
-        tabLock.Text <- "  Local Files"
-        tabLock.X <- Pos.Right tabSrc + Pos.Absolute 2
-        tabLock.Y <- Pos.Absolute 0
-        tabLock.Width <- Dim.Absolute 17
-        BrowseTheme.apply BrowseTheme.Accent tabLock
-        tabLock.MouseEvent.Add(fun mouse ->
-            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab LockTab)
+        tabLocal.Text <- "  Local  "
+        tabLocal.X <- Pos.Right tabSources + Pos.Absolute 1
+        tabLocal.Y <- Pos.Absolute 0
+        tabLocal.Width <- Dim.Absolute 10
+        BrowseTheme.apply BrowseTheme.Accent tabLocal
+        tabLocal.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab LocalTab)
 
-        sourcesPane.X <- Pos.Absolute 0
-        sourcesPane.Y <- Pos.Absolute 1
-        sourcesPane.Width  <- Dim.Fill()
-        sourcesPane.Height <- Dim.Fill(Dim.Absolute 1)
+        tabCollections.Text <- "  Collections  "
+        tabCollections.X <- Pos.Right tabLocal + Pos.Absolute 1
+        tabCollections.Y <- Pos.Absolute 0
+        tabCollections.Width <- Dim.Absolute 16
+        BrowseTheme.apply BrowseTheme.Accent tabCollections
+        tabCollections.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab CollectionsTab)
 
-        lockPane.X <- Pos.Absolute 0
-        lockPane.Y <- Pos.Absolute 1
-        lockPane.Width  <- Dim.Fill()
-        lockPane.Height <- Dim.Fill(Dim.Absolute 1)
+        tabConfig.Text <- "  Config  "
+        tabConfig.X <- Pos.Right tabCollections + Pos.Absolute 1
+        tabConfig.Y <- Pos.Absolute 0
+        tabConfig.Width <- Dim.Absolute 11
+        BrowseTheme.apply BrowseTheme.Accent tabConfig
+        tabConfig.MouseEvent.Add(fun mouse ->
+            if mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) then showTab ConfigTab)
+
+        let panePos (p: View) =
+            p.X <- Pos.Absolute 0
+            p.Y <- Pos.Absolute 1
+            p.Width  <- Dim.Fill()
+            p.Height <- Dim.Fill(Dim.Absolute 1)
+
+        panePos filesPane
+        panePos sourcesPane
+        panePos lockPane
+        panePos collectionsPane
+        panePos configPane
 
         hintBar.X <- Pos.Absolute 0
         hintBar.Y <- Pos.AnchorEnd()
@@ -242,10 +320,11 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
         hintBar.Height <- Dim.Absolute 1
         BrowseTheme.apply BrowseTheme.Bar hintBar
 
-        topBar.Add(tabSrc, tabLock) |> ignore
+        topBar.Add(tabFiles, tabSources, tabLocal, tabCollections, tabConfig) |> ignore
         this.Add(topBar) |> ignore
-        this.Add(sourcesPane, lockPane, hintBar) |> ignore
+        this.Add(filesPane, sourcesPane, lockPane, collectionsPane, configPane, hintBar) |> ignore
 
+        filesPane.ActionRequested.Add(handleAction)
         sourcesPane.ActionRequested.Add(handleAction)
         lockPane.ActionRequested.Add(handleAction)
 
@@ -254,15 +333,23 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
             TimeSpan.Zero,
             fun () ->
                 (match currentTab with
-                 | SourcesTab -> sourcesPane.FocusContent()
-                 | LockTab    -> lockPane.FocusContent())
+                 | FilesTab       -> filesPane.FocusContent()
+                 | SourcesTab     -> sourcesPane.FocusContent()
+                 | LocalTab       -> lockPane.FocusContent()
+                 | CollectionsTab -> collectionsPane.FocusContent()
+                 | ConfigTab      -> configPane.FocusContent())
                 false)
         |> ignore
 
     override _.OnKeyDown(key: Key) =
         if key.KeyCode = KeyCode.Tab then
             key.Handled <- true
-            showTab (match currentTab with SourcesTab -> LockTab | LockTab -> SourcesTab)
+            showTab (match currentTab with
+                     | FilesTab       -> SourcesTab
+                     | SourcesTab     -> LocalTab
+                     | LocalTab       -> CollectionsTab
+                     | CollectionsTab -> ConfigTab
+                     | ConfigTab      -> FilesTab)
         elif key.KeyCode = KeyCode.Q && not key.IsShift && not key.IsCtrl && not key.IsAlt then
             key.Handled <- true
             this.RequestStop()
