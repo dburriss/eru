@@ -23,9 +23,7 @@ let run (deps: Deps) : int =
             | Error _ -> []
         | _ -> []
 
-    // Show local tab when there are tracked files, otherwise start on files
-    let initialTab =
-        if lockEntries.IsEmpty then FilesTab else LocalTab
+    let initialTab = FilesTab
 
     Application.Init(Unchecked.defaultof<string>)
     try
