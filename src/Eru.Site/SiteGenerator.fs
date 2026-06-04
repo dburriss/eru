@@ -222,9 +222,8 @@ body.theme-dark .badge-cached { background: #451a03; color: #fcd34d; }
 body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 
 /* page header */
-.page-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.page-header { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; margin-bottom: 1.5rem; }
 .page-header h1 { margin-bottom: 0; }
-.breadcrumb { font-size: 0.85rem; }
 
 /* markdown body */
 .markdown-body {
@@ -272,6 +271,42 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 .markdown-body th { background: var(--color-surface); font-weight: 600; }
 .markdown-body a { color: var(--color-primary); }
 .markdown-body img { max-width: 100%; }
+
+/* breadcrumbs */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  opacity: 0.65;
+  margin-bottom: 0.4rem;
+}
+.bc-sep { opacity: 0.5; }
+.bc-current { opacity: 0.75; }
+
+/* document metadata box */
+.doc-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 860px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.25rem;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+.doc-description {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  opacity: 0.85;
+  margin: 0;
+}
+.doc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
 
 /* cli tips */
 .cli-tips {
@@ -558,7 +593,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     let sourceSlug = Uri.EscapeDataString doc.Source
                     let fileSlug = doc.RemotePath.Replace('/', '_').Replace('\\', '_').Replace(' ', '-')
                     let filePath = Path.Combine(out, $"files/{sourceSlug}/{fileSlug}.html")
-                    writeFileR filePath (HtmlTemplates.filePage doc.Source doc.RemotePath htmlContent)
+                    writeFileR filePath (HtmlTemplates.filePage doc htmlContent)
                 | None -> ()
             | _ -> ()
 

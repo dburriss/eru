@@ -21,6 +21,20 @@ let private cliTips (items: (string * string) list) =
     let inner = items |> List.map (fun (l, c) -> cliTip l c) |> String.concat "\n"
     $"""<div class="cli-tips">{inner}</div>"""
 
+let private breadcrumbs (items: (string * string option) list) =
+    let parts =
+        items
+        |> List.mapi (fun i (label, href) ->
+            let isLast = i = items.Length - 1
+            let node =
+                match href with
+                | Some url when not isLast -> $"""<a href="{url}">{escapeHtml label}</a>"""
+                | _ -> $"""<span class="bc-current">{escapeHtml label}</span>"""
+            if i = 0 then node
+            else $"""<span class="bc-sep">/</span>{node}""")
+        |> String.concat ""
+    $"""<nav class="breadcrumbs" aria-label="breadcrumb">{parts}</nav>"""
+
 let private tagList (tags: string list) (prefix: string) =
     tags
     |> List.map (fun t ->
@@ -157,9 +171,10 @@ let sourceFilesPage (source: SiteSource) : string =
         |> String.concat "\n"
     let addRef = source.Url |> Option.defaultValue source.Name
     let sourceTip = cliTips ["add source", $"eru source add {escapeHtml addRef}"]
+    let crumbs = breadcrumbs ["Sources", Some "../index.html"; source.Name, None]
     let body = $"""<div class="page-header">
+  {crumbs}
   <h1>{escapeHtml source.Name} {manifestBadge}</h1>
-  <a href="../index.html">← sources</a>
 </div>
 {sourceTip}
 <div id="file-list">{cards}</div>"""
@@ -182,23 +197,39 @@ let tagFilesPage (tag: SiteTag) : string =
         |> List.map (fileCard p)
         |> String.concat "\n"
     let tagTip = cliTips ["pull all", $"eru add --tag {escapeHtml tag.Name}"; "search", $"eru search --tag {escapeHtml tag.Name}"]
+    let crumbs = breadcrumbs ["Tags", Some "../index.html"; $"#{tag.Name}", None]
     let body = $"""<div class="page-header">
+  {crumbs}
   <h1>#{escapeHtml tag.Name}</h1>
-  <a href="../index.html">← tags</a>
 </div>
 {tagTip}
 <div id="file-list">{cards}</div>"""
     layout 2 tag.Name body
 
-let filePage (source: string) (remotePath: string) (contentHtml: string) : string =
+let filePage (doc: SiteDocument) (contentHtml: string) : string =
     let p = prefixFor 2
-    let fileTip = cliTips ["pull this file", $"eru add {escapeHtml source}:{escapeHtml remotePath}"]
+    let fileName = System.IO.Path.GetFileName doc.RemotePath
+    let fileTip = cliTips ["pull this file", $"eru add {escapeHtml doc.Source}:{escapeHtml doc.RemotePath}"]
+    let crumbs = breadcrumbs [
+        "Sources", Some $"{p}sources/index.html"
+        doc.Source, Some $"{p}sources/{Uri.EscapeDataString doc.Source}/index.html"
+        fileName, None
+    ]
+    let descHtml =
+        match doc.Description with
+        | Some d -> $"""<p class="doc-description">{escapeHtml d}</p>"""
+        | None -> ""
+    let tagsHtml =
+        if doc.Tags.IsEmpty then ""
+        else $"""<div class="doc-tags">{tagList doc.Tags p}</div>"""
+    let metaBox =
+        if descHtml = "" && tagsHtml = "" then ""
+        else $"""<div class="doc-meta">{descHtml}{tagsHtml}</div>"""
     let body = $"""<div class="page-header">
-  <h1>{escapeHtml (System.IO.Path.GetFileName remotePath)}</h1>
-  <div class="breadcrumb">
-    <a href="{p}sources/{Uri.EscapeDataString source}/index.html">← {escapeHtml source}</a>
-  </div>
+  {crumbs}
+  <h1>{escapeHtml fileName}</h1>
 </div>
+{metaBox}
 {fileTip}
 <article class="markdown-body">{contentHtml}</article>"""
-    layout 2 (System.IO.Path.GetFileName remotePath) body
+    layout 2 fileName body
