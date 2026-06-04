@@ -1,6 +1,7 @@
 module Eru.Cli.SiteGenerateCli
 
 open Argu
+open Spectre.Console
 open Eru
 open Eru.Site
 
@@ -29,7 +30,10 @@ let run (deps: Deps) (args: ParseResults<SiteGenerateArgs>) : int =
                         OutputDir   = outputDir
                         OpenBrowser = openBrowser
                         Theme       = { SiteGenerator.GenerateOptions.defaults.Theme with CustomCssPath = customCss } }
-        match SiteGenerator.generate deps cfg opts with
+        let status = AnsiConsole.Status()
+        status.Spinner <- Spinner.Known.Dots
+        match status.Start<Result<unit, string>>("Generating site...", fun _ ->
+            SiteGenerator.generate deps cfg opts) with
         | Ok () ->
             printfn "Site generated at %s" (System.IO.Path.GetFullPath outputDir)
             0

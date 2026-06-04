@@ -14,11 +14,17 @@ let private statusLabel =
     | Cached    -> "cached"
     | IndexOnly -> "index-only"
 
-let private cliTip (label: string) (cmd: string) =
-    $"""<span class="cli-tip"><span class="cli-tip-label">{escapeHtml label}</span><code>{escapeHtml cmd}</code></span>"""
+type private CliLabel = ShowLabel | HideLabel
+
+let private cliTip (label: string) (cmd: string) (visibility: CliLabel) =
+    let labelHtml =
+        match visibility with
+        | ShowLabel -> $"""<span class="cli-tip-label">{escapeHtml label}</span>"""
+        | HideLabel -> ""
+    $"""<span class="cli-tip">{labelHtml}<code>{escapeHtml cmd}</code><button class="copy-btn" data-copy="{escapeHtml cmd}" aria-label="Copy command"></button></span>"""
 
 let private cliTips (items: (string * string) list) =
-    let inner = items |> List.map (fun (l, c) -> cliTip l c) |> String.concat "\n"
+    let inner = items |> List.map (fun (l, c) -> cliTip l c ShowLabel) |> String.concat "\n"
     $"""<div class="cli-tips">{inner}</div>"""
 
 let private breadcrumbs (items: (string * string option) list) =
@@ -143,21 +149,30 @@ let indexPage (model: SiteModel) : string =
     layout 0 "Browse" body
 
 let sourcesPage (sources: SiteSource list) : string =
-    let rows =
-        sources
-        |> List.map (fun s ->
-            let manifestBadge =
-                if s.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
-                else """<span class="badge badge-no-manifest">no manifest</span>"""
-            $"""<li class="source-row">
-  <a href="{Uri.EscapeDataString s.Name}/index.html">{escapeHtml s.Name}</a>
-  {manifestBadge}
-  <span class="count">{s.FileCount} files</span>
-</li>""")
-        |> String.concat "\n"
+    let sourceCard (s: SiteSource) =
+        let manifestBadge =
+            if s.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
+            else """<span class="badge badge-no-manifest">no manifest</span>"""
+        let urlHtml =
+            match s.Url with
+            | Some u -> $"""<div class="source-card-url"><a href="{escapeHtml u}" target="_blank" rel="noopener">{escapeHtml u}</a></div>"""
+            | None -> ""
+        let addRef = s.Url |> Option.defaultValue s.Name
+        let tip = cliTip "add source" $"eru source add {addRef}" HideLabel
+        $"""<article class="source-card">
+  <div class="source-card-header">
+    <a class="source-card-name" href="{Uri.EscapeDataString s.Name}/index.html">{escapeHtml s.Name}</a>
+    {manifestBadge}
+  </div>
+  {urlHtml}
+  <div class="source-card-meta">
+    <span class="count">{s.FileCount} files</span>
+  </div>
+  <div class="source-card-tip">{tip}</div>
+</article>"""
+    let cards = sources |> List.map sourceCard |> String.concat "\n"
     let body = $"""<h1>Sources</h1>
-{cliTips ["add source", "eru source add <url>"]}
-<ul class="source-list">{rows}</ul>"""
+<div class="source-grid">{cards}</div>"""
     layout 1 "Sources" body
 
 let sourceFilesPage (source: SiteSource) : string =

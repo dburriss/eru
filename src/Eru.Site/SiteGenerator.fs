@@ -208,9 +208,38 @@ body.theme-dark .badge-cached { background: #451a03; color: #fcd34d; }
   color: var(--color-badge-text);
 }
 
-/* source / tag list pages */
-.source-list, .tag-list { list-style: none; }
-.source-row, .tag-list li {
+/* source grid (sources/index.html) */
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.source-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.source-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.source-card-name { font-weight: 600; font-size: 1.1rem; }
+.source-card-url { font-size: 0.82rem; word-break: break-all; opacity: 0.75; }
+.source-card-meta { font-size: 0.88rem; }
+.source-card-tip { margin-top: auto; padding-top: 0.75rem; min-width: 0; }
+.source-card-tip .cli-tip { width: 100%; min-width: 0; }
+.source-card-tip .cli-tip code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+
+/* tag list page */
+.tag-list { list-style: none; }
+.tag-list li {
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -337,6 +366,29 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
   font-family: var(--font-mono);
   font-size: 0.8rem;
 }
+:root {
+  --copy-icon: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M13 7H7V5H13V7Z' fill='currentColor'/%3E%3Cpath d='M13 11H7V9H13V11Z' fill='currentColor'/%3E%3Cpath d='M7 15H13V13H7V15Z' fill='currentColor'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3 19V1H17V5H21V23H7V19H3ZM15 17V3H5V17H15ZM17 7V19H9V21H19V7H17Z' fill='currentColor'/%3E%3C/svg%3E");
+}
+.copy-btn {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  background-color: var(--color-primary);
+  -webkit-mask-image: var(--copy-icon);
+  mask-image: var(--copy-icon);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.copy-btn:hover { opacity: 1; }
+.copy-btn.copied { background-color: #22c55e; opacity: 1; }
 """
 
 let private themeJs = """
@@ -425,6 +477,15 @@ let private appJs = """
       });
     });
   }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.copy-btn');
+    if (!btn || !navigator.clipboard) return;
+    navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function () {
+      btn.classList.add('copied');
+      setTimeout(function () { btn.classList.remove('copied'); }, 1500);
+    });
+  });
 
   document.addEventListener('DOMContentLoaded', function () {
     replaceLinksWithCheckboxes('source-filters', 'sources');
