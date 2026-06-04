@@ -259,7 +259,7 @@ let ``merge returns empty Collections when no global config`` () =
 let ``withManifests appends manifest files not in user config`` () =
     let src = makeSource "kb" (Some "https://kb.com")
     let eff = Config.merge (Some (makeGlobal [ src ] [])) None |> unwrapOk "base"
-    let manifest = { Version = 1; Files = [ { Path = "guide.md"; Tags = ["docs"]; Description = None } ] }
+    let manifest = { Version = 1; Description = None; Files = [ { Path = "guide.md"; Tags = ["docs"]; Description = None } ] }
     let result = Config.withManifests (fun _ -> Ok (Some manifest)) eff
     Assert.Equal(1, result.Collections.Length)
     Assert.Equal("kb",       result.Collections[0].Source)
@@ -273,7 +273,7 @@ let ``withManifests user-explicit entry wins on collision`` () =
     let col      = { Name = "c"; Tags = []; Files = [ explicit ]; Description = None }
     let g        = makeGlobal [ src ] [ col ]
     let eff      = Config.merge (Some g) None |> unwrapOk "base"
-    let manifest = { Version = 1; Files = [ { Path = "guide.md"; Tags = ["manifest"]; Description = None } ] }
+    let manifest = { Version = 1; Description = None; Files = [ { Path = "guide.md"; Tags = ["manifest"]; Description = None } ] }
     let result   = Config.withManifests (fun _ -> Ok (Some manifest)) eff
     // Should still have exactly one entry (no duplicate), and it should be the user-explicit one
     Assert.Equal(1, result.Collections.Length)

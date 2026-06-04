@@ -3,7 +3,7 @@ module Eru.Tests.ManifestTests
 open Xunit
 open Eru
 
-let private emptyManifest : SourceManifest = { Version = 1; Files = [] }
+let private emptyManifest : SourceManifest = { Version = 1; Description = None; Files = [] }
 
 let private makeFileRef path tags description : ManifestFileRef =
     { Path = path; Tags = tags; Description = description }

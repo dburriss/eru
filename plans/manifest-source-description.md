@@ -1,5 +1,5 @@
 ---
-status: todo
+status: done
 ---
 # Plan: source-level description in manifest
 

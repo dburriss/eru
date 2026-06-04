@@ -4,7 +4,7 @@ module ManifestInit =
 
     type Command = { Force: bool }
 
-    let private emptyManifest = { Version = 1; Files = [] }
+    let private emptyManifest = { Version = 1; Description = None; Files = [] }
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
         match deps.ReadLocalManifest () with

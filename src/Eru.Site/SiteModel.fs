@@ -18,6 +18,7 @@ type SiteDocument = {
 type SiteSource = {
     Name        : string
     Url         : string option
+    Description : string option
     HasManifest : bool
     FileCount   : int
     Files       : SiteDocument list

@@ -232,6 +232,7 @@ body.theme-dark .badge-cached { background: #451a03; color: #fcd34d; }
 }
 .source-card-name { font-weight: 600; font-size: 1.1rem; }
 .source-card-url { font-size: 0.82rem; word-break: break-all; opacity: 0.75; }
+.source-card-desc { font-size: 0.85rem; line-height: 1.5; opacity: 0.85; margin: 0; }
 .source-card-meta { font-size: 0.88rem; }
 .source-card-tip { margin-top: auto; padding-top: 0.75rem; min-width: 0; }
 .source-card-tip .cli-tip { width: 100%; min-width: 0; }

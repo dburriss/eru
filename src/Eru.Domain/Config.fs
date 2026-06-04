@@ -12,8 +12,9 @@ type ManifestFileRef = {
 }
 
 type SourceManifest = {
-    Version : int      // kept for future format evolution
-    Files   : ManifestFileRef list
+    Version     : int      // kept for future format evolution
+    Description : string option
+    Files       : ManifestFileRef list
 }
 
 type SourceConfig = {

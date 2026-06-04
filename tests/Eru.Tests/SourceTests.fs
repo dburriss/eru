@@ -254,7 +254,7 @@ let ``list shows tags from cached manifest`` () =
     let local    = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
     let f1       = { Path = "a.md"; Tags = ["dotnet"; "adr"];          Description = None }
     let f2       = { Path = "b.md"; Tags = ["dotnet"; "architecture"]; Description = None }
-    let manifest = { Version = 1; Files = [f1; f2] }
+    let manifest = { Version = 1; Description = None; Files = [f1; f2] }
     let deps     = { makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None) with
                        ReadCachedManifest = fun _ -> Ok (Some manifest) }
     match SourceList.execute deps with

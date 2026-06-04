@@ -32,10 +32,12 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
             match deps.ReadSourceIndex src.Name with
             | Error _ | Ok None -> None
             | Ok (Some index) ->
-                let hasManifest =
+                let cachedManifest =
                     match deps.ReadCachedManifest src.Name with
-                    | Ok (Some _) -> true
-                    | _ -> false
+                    | Ok (Some m) -> Some m
+                    | _           -> None
+
+                let manifestDescription = cachedManifest |> Option.bind (fun m -> m.Description)
 
                 let docs =
                     index
@@ -70,7 +72,8 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
                 Some {
                     Name        = src.Name
                     Url         = src.Url
-                    HasManifest = hasManifest
+                    Description = manifestDescription
+                    HasManifest = cachedManifest.IsSome
                     FileCount   = docs.Length
                     Files       = docs
                 })

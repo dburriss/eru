@@ -153,6 +153,10 @@ let sourcesPage (sources: SiteSource list) : string =
         let manifestBadge =
             if s.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
             else """<span class="badge badge-no-manifest">no manifest</span>"""
+        let descHtml =
+            match s.Description with
+            | Some d -> $"""<p class="source-card-desc">{escapeHtml d}</p>"""
+            | None   -> ""
         let urlHtml =
             match s.Url with
             | Some u -> $"""<div class="source-card-url"><a href="{escapeHtml u}" target="_blank" rel="noopener">{escapeHtml u}</a></div>"""
@@ -164,6 +168,7 @@ let sourcesPage (sources: SiteSource list) : string =
     <a class="source-card-name" href="{Uri.EscapeDataString s.Name}/index.html">{escapeHtml s.Name}</a>
     {manifestBadge}
   </div>
+  {descHtml}
   {urlHtml}
   <div class="source-card-meta">
     <span class="count">{s.FileCount} files</span>
