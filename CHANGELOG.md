@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## Added
+
+- Added description to the manifest
+
 ## [0.8.0] - 2026-06-03
 
 ### Added
@@ -18,7 +22,7 @@
 - `eru browse` command to interactively browse sources and tracked files in the terminal
 - MCP schema updates and fixes
 - `eru site generate` command to create a static HTML site for browsing the local cache with search and filtering; supports `--output` to specify the output directory (default: `./cache-site/`) and `--open` to open the generated site in the default browser immediately after generation
-
+ 
 ### Changed
 
 - `eru sync` now performs one git clone per source instead of one per lock entry — all paths from the same repository are fetched in a single blobless sparse-checkout call, reducing network I/O from O(files) to O(sources); the same batching applies to the MCP knowledge cache sync in `KnowledgeSyncService`

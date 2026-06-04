@@ -47,7 +47,7 @@ eru add [<remote-path>] [-s <source>] [-c <collection>] [-t <tag>] [-d <target>]
 | `-s <source>` | Source name fallback when no `source:` prefix is given |
 | `-c <collection>` | Pull all files in a named collection (e.g. `name` or `source:name`) |
 | `-t <tag>` | Filter by tag; repeat for multiple tags (AND semantics) |
-| `-d <target>` | Local directory to write files into |
+| `-d` / `--target` | Local target path — trailing `/` keeps filename and sets directory; no trailing slash uses path verbatim |
 | `--dryrun` | Show what would be pulled without writing anything |
 | `--global` | Write any auto-created source entry to the global config |
 
@@ -129,7 +129,7 @@ Manage knowledge sources.
 Register a git repository or local path as a knowledge source.
 
 ```
-eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g]
+eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -139,6 +139,7 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g]
 | `-b <branch>` | Branch to track |
 | `-p <basepath>` | Explicitly set the base path, skipping auto-detection |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
+| `--dryrun` | Preview without writing |
 
 **Examples**
 
@@ -231,7 +232,7 @@ Manage collections — curated groups of file references that can be pulled as a
 Create a new empty collection.
 
 ```
-eru collection create <name> [-t <tag>] [-d <description>] [-g]
+eru collection create <name> [-t <tag>] [-d <description>] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -240,6 +241,7 @@ eru collection create <name> [-t <tag>] [-d <description>] [-g]
 | `-t <tag>` | Tag for the collection; repeat for multiple tags |
 | `-d <description>` | Short description of the collection |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
+| `--dryrun` | Preview without writing |
 
 **Examples**
 
@@ -253,7 +255,7 @@ eru collection create adr-pack -t adr -t docs -g
 Add a file reference to an existing collection.
 
 ```
-eru collection add <collection> -f <source:remotePath> [-t <tag>] [-d <description>] [-g]
+eru collection add <collection> -f <source:remotePath> [-t <tag>] [-d <description>] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -263,6 +265,7 @@ eru collection add <collection> -f <source:remotePath> [-t <tag>] [-d <descripti
 | `-t <tag>` | Tag for this file reference; repeat for multiple tags |
 | `-d <description>` | Short description of the file reference |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
+| `--dryrun` | Preview without writing |
 
 **Examples**
 
@@ -420,6 +423,7 @@ eru disconnect <target> [--dryrun]
 
 ```bash
 eru disconnect docs/adr-template.md
+eru disconnect a1b2c3d4               # disconnect by short hash
 eru disconnect docs/adr-template.md --dryrun
 ```
 
@@ -446,18 +450,18 @@ Manage the local knowledge cache.
 Remove orphaned content files from the cache — files that exist on disk but are no longer referenced by any source index entry.
 
 ```
-eru cache prune [--yes]
+eru cache prune [--force]
 ```
 
 | Flag | Description |
 |---|---|
-| `--yes` | Skip the confirmation prompt and delete immediately |
+| `--force` | Skip the confirmation prompt and delete immediately |
 
 **Examples**
 
 ```bash
-eru cache prune        # list orphans and prompt before deleting
-eru cache prune --yes  # delete without prompting
+eru cache prune          # list orphans and prompt before deleting
+eru cache prune --force  # delete without prompting
 ```
 
 Orphans accumulate when files are removed from a manifest or when sources are deleted. `eru cache prune` is safe to run at any time; it only removes files not referenced by the current index.
@@ -467,20 +471,20 @@ Orphans accumulate when files are removed from a manifest or when sources are de
 Delete the entire local cache — all source indices, cached content, search index, and collection data under `~/.cache/eru/`.
 
 ```
-eru cache clear [--dryrun] [--yes]
+eru cache clear [--dryrun] [--force]
 ```
 
 | Flag | Description |
 |---|---|
 | `--dryrun` | List what would be deleted without deleting anything |
-| `--yes` | Skip the confirmation prompt and delete immediately |
+| `--force` | Skip the confirmation prompt and delete immediately |
 
 **Examples**
 
 ```bash
-eru cache clear --dryrun   # preview what would be removed
-eru cache clear            # prompt before deleting
-eru cache clear --yes      # delete without prompting
+eru cache clear --dryrun    # preview what would be removed
+eru cache clear             # prompt before deleting
+eru cache clear --force     # delete without prompting
 ```
 
 Run `eru sync` after clearing to rebuild the cache from all configured sources.

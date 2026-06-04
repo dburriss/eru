@@ -7,6 +7,7 @@
 - **Tag-based pulls** — `--tag devops` fetches everything tagged `devops` across all collections
 - **Glob patterns** — collection entries can use globs to pull multiple files in one reference (e.g. `docs/*.md`)
 - **Lock file** (`.eru/eru.lock`) records every pulled file: its origin, path, and content hash
+- **Static site** — `eru site generate` builds a self-contained HTML site for browsing and searching the local knowledge cache
 - **Dry-run mode** on every write command
 - **Global config** (`~/.config/eru/config.json`) for sources and collections shared across all your repos
 
@@ -97,9 +98,14 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru manifest add <path>` | Add a file/glob entry to the manifest |
 | `eru manifest remove <path>` | Remove an entry from the manifest |
 | `eru manifest verify` | Check all manifest entries resolve to local files |
+| `eru site generate [-o <dir>]` | Generate a static HTML site for browsing the local knowledge cache |
 | `eru mcp` | Start an MCP stdio server for AI agent use |
 
 For full argument details see [docs/cli-reference.md](docs/cli-reference.md).
+
+## Static site
+
+`eru site generate` builds a self-contained HTML site from the local knowledge cache — browse and search all source files offline. See [docs/site.md](docs/site.md).
 
 ## MCP server
 

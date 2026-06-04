@@ -75,12 +75,12 @@ Performs one git clone per source (not per file), refreshes all manifest caches,
 ## `eru remove`
 
 ```
-eru remove <path> [--dryrun]
+eru remove <target> [--dryrun]
 ```
 
 | Argument / Flag | Description |
 |---|---|
-| `<path>` | Local path of the artifact to delete (required) |
+| `<target>` | Local path or 8-character path short-hash of the artifact to delete (required) |
 | `--dryrun` | Show what would be removed without deleting anything |
 
 Deletes the local file and removes its entry from `.eru/eru.lock`.
@@ -90,12 +90,12 @@ Deletes the local file and removes its entry from `.eru/eru.lock`.
 ## `eru disconnect`
 
 ```
-eru disconnect <path> [--dryrun]
+eru disconnect <target> [--dryrun]
 ```
 
 | Argument / Flag | Description |
 |---|---|
-| `<path>` | Local path of the artifact to disconnect (required) |
+| `<target>` | Local path or 8-character path short-hash of the artifact to disconnect (required) |
 | `--dryrun` | Show what would be removed without modifying anything |
 
 Removes the lock file entry without touching the local file.
@@ -254,11 +254,42 @@ No arguments. Exits 0 if all entries resolve to at least one local file, 1 other
 ## `eru cache prune`
 
 ```
-eru cache prune [--yes]
+eru cache prune [--force]
 ```
 
 | Flag | Description |
 |---|---|
-| `--yes` | Skip the confirmation prompt and delete immediately |
+| `--force` | Skip the confirmation prompt and delete immediately |
 
 Removes orphaned content files from the cache — files on disk no longer referenced by any source index entry. Safe to run at any time.
+
+---
+
+## `eru cache clear`
+
+```
+eru cache clear [--dryrun] [--force]
+```
+
+| Flag | Description |
+|---|---|
+| `--dryrun` | List what would be deleted without deleting anything |
+| `--force` | Skip the confirmation prompt and delete immediately |
+
+Deletes the entire local cache (`~/.cache/eru/`) — all source indices, cached content, search index, and collection data. Run `eru sync` after clearing to rebuild.
+
+---
+
+## `eru site generate`
+
+```
+eru site generate [-o <dir>] [--open] [--custom-css <path>]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `-o` / `--output` | `./cache-site/` | Directory to write the generated site into |
+| `--open` | off | Open `index.html` in the default browser after generation |
+| `--custom-css <path>` | — | Path to a CSS file copied into the site and loaded after `style.css` |
+
+Generates a self-contained static HTML site for browsing and searching the local knowledge cache. Fully navigable without JavaScript; JS adds in-place search and facet filtering as an optional enhancement.

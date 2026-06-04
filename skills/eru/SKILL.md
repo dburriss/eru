@@ -1,6 +1,6 @@
 ---
 name: eru
-description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru remove", "eru disconnect", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "list source files", or any question about using the eru CLI tool.
+description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru site", "eru remove", "eru disconnect", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "clear the cache", "generate a site", "list source files", or any question about using the eru CLI tool.
 ---
 
 # eru
@@ -99,6 +99,7 @@ Remove a tracked artifact from the lock file without deleting the local file.
 
 ```bash
 eru disconnect docs/adr-template.md
+eru disconnect a1b2c3d4               # disconnect by short hash
 eru disconnect docs/adr-template.md --dryrun
 ```
 
@@ -166,11 +167,29 @@ Paths support gitignore-style globs. `verify` expands each entry against local f
 Manage the local knowledge cache.
 
 ```bash
-eru cache prune        # list orphaned cache files and prompt before deleting
-eru cache prune --yes  # delete without prompting
+eru cache prune          # list orphaned cache files and prompt before deleting
+eru cache prune --force  # delete without prompting
+
+eru cache clear          # delete entire cache (~/.cache/eru/) with confirmation prompt
+eru cache clear --force  # delete without prompting
+eru cache clear --dryrun # preview what would be removed
 ```
 
-Orphans accumulate when files are removed from a manifest or when sources are deleted. Safe to run at any time.
+Orphans accumulate when files are removed from a manifest or when sources are deleted. Run `eru sync` after `eru cache clear` to rebuild from all configured sources.
+
+---
+
+### `eru site`
+
+Generate a self-contained static HTML site for browsing and searching the local knowledge cache.
+
+```bash
+eru site generate                          # generate into ./cache-site/
+eru site generate -o /tmp/my-site --open  # write to custom dir and open in browser
+eru site generate --custom-css ~/theme.css # apply a custom stylesheet on every run
+```
+
+The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement.
 
 ---
 
@@ -268,5 +287,6 @@ eru disconnect docs/old-guide.md      # remove from lock only, keep file
 ### Clean up stale cache entries
 
 ```bash
-eru cache prune
+eru cache prune           # remove orphaned files only
+eru cache clear --force   # wipe the entire cache, then run eru sync to rebuild
 ```
