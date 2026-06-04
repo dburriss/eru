@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Eru.Site</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
+    <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="SiteModel.fs" />
+    <Compile Include="MarkdownRenderer.fs" />
+    <Compile Include="IndexBuilder.fs" />
+    <Compile Include="HtmlTemplates.fs" />
+    <Compile Include="SiteGenerator.fs" />
+  </ItemGroup>
+</Project>

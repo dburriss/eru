@@ -199,6 +199,27 @@ eru source files knowledge --refresh # re-fetch from network, then display
 
 If no index has been built yet, run `eru sync` first.
 
+### `eru source remove`
+
+Remove a knowledge source from the config.
+
+```
+eru source remove <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the source to remove (required) |
+| `-g` | Remove from global config (`~/.config/eru/config.json`) |
+| `--dryrun` | Preview without writing |
+
+**Examples**
+
+```bash
+eru source remove old-source
+eru source remove shared-knowledge -g --dryrun
+```
+
 ---
 
 ## `eru collection`
@@ -249,6 +270,28 @@ eru collection add <collection> -f <source:remotePath> [-t <tag>] [-d <descripti
 eru collection add onboarding-docs -f knowledge:docs/adr-template.md
 eru collection add adr-pack -f knowledge:KNOWLEDGE/adr/template.md -t adr
 eru collection add adr-pack -f knowledge:KNOWLEDGE/adr/log.md -t adr -g
+```
+
+### `eru collection remove`
+
+Remove a file reference from a collection.
+
+```
+eru collection remove <collection> -f <source:remotePath> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<collection>` | Name of the collection (required) |
+| `-f <source:path>` | File reference to remove as `source:remotePath` (required) |
+| `-g` | Write to global config (`~/.config/eru/config.json`) |
+| `--dryrun` | Preview without writing |
+
+**Examples**
+
+```bash
+eru collection remove onboarding-docs -f knowledge:docs/old-guide.md
+eru collection remove adr-pack -f knowledge:KNOWLEDGE/adr/template.md --dryrun
 ```
 
 ---
@@ -337,6 +380,63 @@ Glob patterns are expanded against the current directory tree. An entry like `do
 
 ---
 
+## `eru remove`
+
+Delete a locally pulled file from disk and remove its entry from `.eru/eru.lock`.
+
+```
+eru remove <target> [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<target>` | Local path or path short-hash of the file to remove (required) |
+| `--dryrun` | Preview without deleting |
+
+**Examples**
+
+```bash
+eru remove docs/adr-template.md
+eru remove a1b2c3d4               # remove by short hash
+eru remove docs/adr-template.md --dryrun
+```
+
+---
+
+## `eru disconnect`
+
+Remove a file's entry from `.eru/eru.lock` without deleting the local file. Use this when you want to keep the file on disk but stop eru tracking it.
+
+```
+eru disconnect <target> [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<target>` | Local path or path short-hash of the file to disconnect (required) |
+| `--dryrun` | Preview without writing |
+
+**Examples**
+
+```bash
+eru disconnect docs/adr-template.md
+eru disconnect docs/adr-template.md --dryrun
+```
+
+---
+
+## `eru browse`
+
+Open an interactive TUI for browsing sources and tracked files.
+
+```
+eru browse
+```
+
+No arguments.
+
+---
+
 ## `eru cache`
 
 Manage the local knowledge cache.
@@ -361,6 +461,62 @@ eru cache prune --yes  # delete without prompting
 ```
 
 Orphans accumulate when files are removed from a manifest or when sources are deleted. `eru cache prune` is safe to run at any time; it only removes files not referenced by the current index.
+
+### `eru cache clear`
+
+Delete the entire local cache — all source indices, cached content, search index, and collection data under `~/.cache/eru/`.
+
+```
+eru cache clear [--dryrun] [--yes]
+```
+
+| Flag | Description |
+|---|---|
+| `--dryrun` | List what would be deleted without deleting anything |
+| `--yes` | Skip the confirmation prompt and delete immediately |
+
+**Examples**
+
+```bash
+eru cache clear --dryrun   # preview what would be removed
+eru cache clear            # prompt before deleting
+eru cache clear --yes      # delete without prompting
+```
+
+Run `eru sync` after clearing to rebuild the cache from all configured sources.
+
+---
+
+## `eru site`
+
+Generate a self-contained static HTML site for browsing and searching the local knowledge cache.
+
+### `eru site generate`
+
+```
+eru site generate [-o <dir>] [--open] [--custom-css <path>]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `-o` / `--output` | `./cache-site/` | Directory to write the generated site into |
+| `--open` | off | Open `index.html` in the default browser after generation |
+| `--custom-css <path>` | — | Path to a CSS file copied into the site on every run and loaded after `style.css` |
+
+**Examples**
+
+```bash
+# Generate into the default ./cache-site/ directory
+eru site generate
+
+# Generate into a custom directory and open the browser
+eru site generate -o /tmp/my-site --open
+
+# Apply a custom theme on every run
+eru site generate --custom-css ~/themes/company.css
+```
+
+The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement. See [docs/site.md](site.md) for customisation details.
 
 ---
 

@@ -24,6 +24,7 @@ open Eru.Cli.DisconnectCli
 open Eru.Cli.CachePruneCli
 open Eru.Cli.CacheClearCli
 open Eru.Cli.BrowseCli
+open Eru.Cli.SiteGenerateCli
 
 let private (|McpCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -61,6 +62,7 @@ let main argv =
         | CachePruneCmd pruneArgs     -> CachePruneCli.runPrune pruneArgs
         | CacheClearCmd clearArgs    -> CacheClearCli.runClear clearArgs
         | BrowseCmd cmd               -> BrowseCli.run deps cmd
+        | SiteGenerateCmd args        -> SiteGenerateCli.run deps args
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0

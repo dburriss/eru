@@ -17,6 +17,7 @@
 - `eru cache clear` command to delete all cached indexes and files (`sources/`, `index/`, and `collections/` directories under `~/.cache/eru/`); supports `--dryrun`, `--force`, and `--output` flags
 - `eru browse` command to interactively browse sources and tracked files in the terminal
 - MCP schema updates and fixes
+- `eru site generate` command to create a static HTML site for browsing the local cache with search and filtering; supports `--output` to specify the output directory (default: `./cache-site/`) and `--open` to open the generated site in the default browser immediately after generation
 
 ### Changed
 

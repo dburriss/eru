@@ -310,6 +310,25 @@ type McpArgs =
     interface IArgParserTemplate with
         member a.Usage = match a with Placeholder -> ""
 
+type SiteGenerateArgs =
+    | [<Unique; AltCommandLine("-o")>] Output     of dir: string
+    | [<Unique>]                       Open
+    | [<Unique>]                       Custom_Css of path: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _     -> "Output directory (default: ./cache-site/)."
+            | Open         -> "Open the generated site in the default browser."
+            | Custom_Css _ -> "Path to a CSS file appended after style.css on every run."
+
+[<CliPrefix(CliPrefix.None)>]
+type SiteArgs =
+    | [<SubCommand>] Generate of ParseResults<SiteGenerateArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Generate _ -> "Generate a static HTML site from the local cache index."
+
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =
     | [<Unique; CliPrefix(CliPrefix.DoubleDash)>] Debug
@@ -325,6 +344,7 @@ type EruArgs =
     | [<SubCommand>] Cache      of ParseResults<CacheArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
+    | [<SubCommand>] Site       of ParseResults<SiteArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -341,3 +361,4 @@ type EruArgs =
             | Cache _      -> "Manage the local knowledge cache."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
             | Browse _     -> "Interactively browse sources and tracked files."
+            | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
