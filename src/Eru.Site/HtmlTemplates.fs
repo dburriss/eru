@@ -64,7 +64,7 @@ let private fileCard (prefix: string) (doc: SiteDocument) =
     let tagsAttr = doc.Tags |> String.concat " " |> escapeHtml
     let bodyHtml = if snippet <> "" then $"<p class=\"card-body\">{snippet}</p>" else ""
     let tagsBlock = if not doc.Tags.IsEmpty then $"<div class=\"card-tags\">{tagsHtml}</div>" else ""
-    $"""<article class="file-card" data-source="{escapeHtml doc.Source}" data-ext="{escapeHtml doc.Extension}" data-tags="{tagsAttr}">
+    $"""<article class="file-card" data-id="{escapeHtml doc.Id}" data-source="{escapeHtml doc.Source}" data-ext="{escapeHtml doc.Extension}" data-tags="{tagsAttr}">
   <div class="card-header">
     <span class="card-title">{titleHtml}</span>
     <span class="badge badge-source">{escapeHtml doc.Source}</span>
@@ -96,6 +96,7 @@ let layout (depth: int) (title: string) (body: string) : string =
   <noscript><p class="noscript-note">Search requires JavaScript. Browse by source or tag using the navigation links.</p></noscript>
   <main>{body}</main>
   <script defer src="{p}js/theme.js"></script>
+  <script>window.ERU_DATA_ROOT = "{p}data/";</script>
   <script defer src="{p}js/app.js"></script>
 </body>
 </html>"""

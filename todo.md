@@ -15,3 +15,4 @@
 - [x] TUI for browsing sources and lock file entries; maybe start with a `eru browse` command that lists all sources and their files in a navigable console UI using Spectre.Console's tree and table components, with details on selection. https://spectreconsole.net/console and https://gui-cs.github.io/Terminal.Gui/docs/index.html
 - [x] generate command that generates a html site for browsing the local cache, similar to how some static site generators work; could be a `eru site generate` command that outputs to a specified directory or defaults to `./cache-site/`. Should have search functionality and filtering based on source, file type, tags, and collections.
 - [ ] `eru site serve` command to serve the generated site locally with live reload on changes to the cache
+- [ ] Add HTTP MCP

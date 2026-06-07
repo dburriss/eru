@@ -427,14 +427,28 @@ let private themeJs = """
 let private appJs = """
 (function () {
   var filterState = { sources: {}, exts: {}, tags: {}, query: '' };
+  var jsonIndex = null;
+  var matchingIds = null;
 
   function applyFilters() {
     var srcActive = Object.keys(filterState.sources).filter(function (k) { return filterState.sources[k]; });
     var extActive = Object.keys(filterState.exts).filter(function (k) { return filterState.exts[k]; });
     var tagActive = Object.keys(filterState.tags).filter(function (k) { return filterState.tags[k]; });
-    var q = filterState.query.toLowerCase();
+    var q = filterState.query.toLowerCase().trim();
     var cards = document.querySelectorAll('.file-card');
     var visible = 0;
+
+    if (q && jsonIndex !== null) {
+      var terms = q.split(/\s+/).filter(Boolean);
+      matchingIds = new Set();
+      jsonIndex.forEach(function (entry) {
+        var ok = terms.every(function (t) { return entry.s.indexOf(t) >= 0; });
+        if (ok) matchingIds.add(entry.id);
+      });
+    } else {
+      matchingIds = null;
+    }
+
     cards.forEach(function (card) {
       var src = card.dataset.source || '';
       var ext = card.dataset.ext || '';
@@ -442,13 +456,39 @@ let private appJs = """
       var srcOk = srcActive.length === 0 || srcActive.indexOf(src) >= 0;
       var extOk = extActive.length === 0 || extActive.indexOf(ext) >= 0;
       var tagOk = tagActive.length === 0 || tagActive.some(function (t) { return cardTags.indexOf(t) >= 0; });
-      var textOk = !q || card.textContent.toLowerCase().indexOf(q) >= 0;
+      var textOk;
+      if (!q) {
+        textOk = true;
+      } else if (matchingIds !== null) {
+        textOk = matchingIds.has(card.dataset.id || '');
+      } else {
+        textOk = card.textContent.toLowerCase().indexOf(q) >= 0;
+      }
       var show = srcOk && extOk && tagOk && textOk;
       card.style.display = show ? '' : 'none';
       if (show) visible++;
     });
     var counter = document.getElementById('file-count');
     if (counter) counter.textContent = '(' + visible + ')';
+  }
+
+  function loadJsonIndex() {
+    if (!window.ERU_DATA_ROOT) return;
+    fetch(window.ERU_DATA_ROOT + 'documents.json')
+      .then(function(r) { return r.json(); })
+      .then(function(docs) {
+        jsonIndex = docs.map(function(d) {
+          var parts = [d.title, d.description, d.body].concat(d.tags || []);
+          return { id: d.id, s: parts.filter(Boolean).join(' ').toLowerCase() };
+        });
+        applyFilters();
+      })
+      .catch(function(err) {
+        var reason = window.location.protocol === 'file:'
+          ? 'CORS restriction blocks fetch() for file:// URLs'
+          : (err && err.message ? err.message : String(err));
+        console.info('[eru] JSON index unavailable (' + reason + '). Falling back to DOM text search — only visible card text (title, description snippet, tags) will be matched.');
+      });
   }
 
   function replaceLinksWithCheckboxes(listId, filterKey) {
@@ -503,16 +543,15 @@ let private appJs = """
         applyFilters();
       });
     }
+
+    loadJsonIndex();
   });
 })();
 """
 
 // ── JSON serialisation ────────────────────────────────────────────────────────
 
-type private StatusDto = { case_: string }
-
-[<CLIMutable>]
-type private DocDto = {
+type DocDto = {
     id          : string
     source      : string
     remotePath  : string
@@ -525,8 +564,7 @@ type private DocDto = {
     pageUrl     : string option
 }
 
-[<CLIMutable>]
-type private SourceDto = {
+type SourceDto = {
     name        : string
     hasManifest : bool
     fileCount   : int
