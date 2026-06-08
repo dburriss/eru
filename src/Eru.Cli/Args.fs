@@ -324,14 +324,14 @@ type SiteGenerateArgs =
 type SiteServeArgs =
     | [<AltCommandLine("-o")>] Output        of dir: string
     | [<AltCommandLine("-p")>] Port          of port: int
-    | No_Open
+    | Open
     | Sync_Interval                          of minutes: int
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Output _        -> "Site output directory (default: ./cache-site/)."
             | Port _          -> "HTTP port (default: 5173)."
-            | No_Open         -> "Do not open the browser automatically."
+            | Open            -> "Open the browser automatically when the server starts."
             | Sync_Interval _ -> "Minutes between background cache syncs (default: 15)."
 
 [<CliPrefix(CliPrefix.None)>]

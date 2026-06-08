@@ -26,7 +26,7 @@ let run (deps: Deps) (args: ParseResults<SiteServeArgs>) : int =
             SiteServeServer.ServeOptions.defaults with
                 OutputDir    = args.TryGetResult(SiteServeArgs.Output)        |> Option.defaultValue "./cache-site/"
                 Port         = args.TryGetResult(SiteServeArgs.Port)          |> Option.defaultValue 5173
-                OpenBrowser  = not (args.Contains SiteServeArgs.No_Open)
+                OpenBrowser  = args.Contains SiteServeArgs.Open
                 SyncInterval = args.TryGetResult(SiteServeArgs.Sync_Interval) |> Option.defaultValue 15
         }
         SiteServeServer.run deps cfg opts |> Async.AwaitTask |> Async.RunSynchronously
