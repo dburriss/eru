@@ -4,6 +4,8 @@
     <Project Path="src/Eru.Cli/Eru.Cli.fsproj" />
     <Project Path="src/Eru.Domain/Eru.Domain.fsproj" />
     <Project Path="src/Eru.Mcp/Eru.Mcp.fsproj" />
+    <Project Path="src/Eru.Search/Eru.Search.fsproj" />
+    <Project Path="src/Eru.Serve/Eru.Serve.fsproj" />
     <Project Path="src/Eru.Site/Eru.Site.fsproj" />
     <Project Path="src/Eru.Tui/Eru.Tui.fsproj" />
   </Folder>

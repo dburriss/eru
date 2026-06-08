@@ -522,6 +522,44 @@ eru site generate --custom-css ~/themes/company.css
 
 The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement. See [docs/site.md](site.md) for customisation details.
 
+### `eru site serve`
+
+Generate the site and start a local HTTP server with live reload and a full-text search API.
+
+```
+eru site serve [-o <dir>] [-p <port>] [--no-open] [--sync-interval <minutes>]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `-o` / `--output` | `./cache-site/` | Directory to write the site into |
+| `-p` / `--port` | `5173` | HTTP port to listen on |
+| `--no-open` | off | Do not open the browser automatically on startup |
+| `--sync-interval <minutes>` | `15` | Minutes between background cache syncs |
+
+**Examples**
+
+```bash
+# Serve on the default port (opens browser automatically)
+eru site serve
+
+# Custom port, no auto-open
+eru site serve -p 8080 --no-open
+
+# Custom output directory with a faster sync interval
+eru site serve -o ./docs-site/ --sync-interval 5
+```
+
+The server exposes three endpoints in addition to the static site files:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/search?q=<terms>` | Full-text search returning JSON `{ hits: [...] }` |
+| `GET /api/sync` | Trigger an immediate background sync + site rebuild (returns 202) |
+| `GET /api/events` | SSE stream — sends `data: rebuild` after every successful sync |
+
+The browser connects to `/api/events` automatically and reloads the page on each `rebuild` event. Press `Ctrl+C` to stop the server.
+
 ---
 
 ## `eru mcp`

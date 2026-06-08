@@ -321,13 +321,28 @@ type SiteGenerateArgs =
             | Open         -> "Open the generated site in the default browser."
             | Custom_Css _ -> "Path to a CSS file appended after style.css on every run."
 
+type SiteServeArgs =
+    | [<AltCommandLine("-o")>] Output        of dir: string
+    | [<AltCommandLine("-p")>] Port          of port: int
+    | No_Open
+    | Sync_Interval                          of minutes: int
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _        -> "Site output directory (default: ./cache-site/)."
+            | Port _          -> "HTTP port (default: 5173)."
+            | No_Open         -> "Do not open the browser automatically."
+            | Sync_Interval _ -> "Minutes between background cache syncs (default: 15)."
+
 [<CliPrefix(CliPrefix.None)>]
 type SiteArgs =
     | [<SubCommand>] Generate of ParseResults<SiteGenerateArgs>
+    | [<SubCommand>] Serve    of ParseResults<SiteServeArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Generate _ -> "Generate a static HTML site from the local cache index."
+            | Serve _    -> "Serve the site locally with live reload and search API."
 
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =

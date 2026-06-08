@@ -4,6 +4,7 @@ open System.ComponentModel
 open System.IO
 open Eru
 open Eru.Adapters
+open Eru.Search
 open ModelContextProtocol.Server
 
 [<McpServerResourceType>]

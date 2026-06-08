@@ -2,6 +2,7 @@ namespace Eru.Mcp
 
 open System.Threading
 open Microsoft.Extensions.Hosting
+open Eru.Search
 
 type CollectionCacheService(sync: KnowledgeSyncService) =
     inherit BackgroundService()

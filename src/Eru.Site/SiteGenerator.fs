@@ -428,27 +428,16 @@ let private appJs = """
 (function () {
   var filterState = { sources: {}, exts: {}, tags: {}, query: '' };
   var jsonIndex = null;
-  var matchingIds = null;
+  var matchedPaths = null;  // Set of matched values
+  var matchedAttr = 'id';   // 'path' (api search) or 'id' (json search)
 
-  function applyFilters() {
+  function renderCards() {
     var srcActive = Object.keys(filterState.sources).filter(function (k) { return filterState.sources[k]; });
     var extActive = Object.keys(filterState.exts).filter(function (k) { return filterState.exts[k]; });
     var tagActive = Object.keys(filterState.tags).filter(function (k) { return filterState.tags[k]; });
     var q = filterState.query.toLowerCase().trim();
     var cards = document.querySelectorAll('.file-card');
     var visible = 0;
-
-    if (q && jsonIndex !== null) {
-      var terms = q.split(/\s+/).filter(Boolean);
-      matchingIds = new Set();
-      jsonIndex.forEach(function (entry) {
-        var ok = terms.every(function (t) { return entry.s.indexOf(t) >= 0; });
-        if (ok) matchingIds.add(entry.id);
-      });
-    } else {
-      matchingIds = null;
-    }
-
     cards.forEach(function (card) {
       var src = card.dataset.source || '';
       var ext = card.dataset.ext || '';
@@ -459,8 +448,9 @@ let private appJs = """
       var textOk;
       if (!q) {
         textOk = true;
-      } else if (matchingIds !== null) {
-        textOk = matchingIds.has(card.dataset.id || '');
+      } else if (matchedPaths !== null) {
+        var attr = matchedAttr === 'path' ? (card.dataset.path || '') : (card.dataset.id || '');
+        textOk = matchedPaths.has(attr);
       } else {
         textOk = card.textContent.toLowerCase().indexOf(q) >= 0;
       }
@@ -470,6 +460,42 @@ let private appJs = """
     });
     var counter = document.getElementById('file-count');
     if (counter) counter.textContent = '(' + visible + ')';
+  }
+
+  function applyJsonSearch(q) {
+    if (jsonIndex !== null) {
+      var terms = q.split(/\s+/).filter(Boolean);
+      matchedPaths = new Set();
+      matchedAttr = 'id';
+      jsonIndex.forEach(function (entry) {
+        var ok = terms.every(function (t) { return entry.s.indexOf(t) >= 0; });
+        if (ok) matchedPaths.add(entry.id);
+      });
+    } else {
+      matchedPaths = null;
+    }
+    renderCards();
+  }
+
+  function applyFilters() {
+    var q = filterState.query.toLowerCase().trim();
+    if (q && window.location.protocol !== 'file:') {
+      fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (result) {
+          matchedPaths = new Set((result.hits || []).map(function (h) { return h.path; }));
+          matchedAttr = 'id';
+          renderCards();
+        })
+        .catch(function () { applyJsonSearch(q); });
+    } else {
+      if (q) {
+        applyJsonSearch(q);
+      } else {
+        matchedPaths = null;
+        renderCards();
+      }
+    }
   }
 
   function loadJsonIndex() {
@@ -546,6 +572,13 @@ let private appJs = """
 
     loadJsonIndex();
   });
+})();
+
+(function () {
+  if (window.location.protocol === 'file:') return;
+  var es = new EventSource('/api/events');
+  es.onmessage = function (e) { if (e.data === 'rebuild') location.reload(); };
+  es.onerror   = function ()  { es.close(); };
 })();
 """
 

@@ -1,4 +1,4 @@
-module Eru.Mcp.IndexedSearch
+module Eru.Search.IndexedSearch
 
 open Eru.Adapters
 

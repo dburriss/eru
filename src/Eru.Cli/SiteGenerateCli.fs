@@ -9,7 +9,8 @@ let (|SiteGenerateCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Site args ->
             args.TryGetSubCommand() |> Option.bind (function
-                | SiteArgs.Generate generateArgs -> Some generateArgs)
+                | SiteArgs.Generate generateArgs -> Some generateArgs
+                | _ -> None)
         | _ -> None)
 
 let run (deps: Deps) (args: ParseResults<SiteGenerateArgs>) : int =

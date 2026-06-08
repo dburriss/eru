@@ -1,4 +1,4 @@
-module Eru.Mcp.SimpleScan
+module Eru.Search.SimpleScan
 
 open System.IO
 

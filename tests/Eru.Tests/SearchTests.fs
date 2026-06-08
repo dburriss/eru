@@ -60,7 +60,7 @@ let private makeDeps
         BuildSearchIndex        = fun _ _ -> ()
     }
 
-let private emptyQuery : Search.Query = { Terms = []; Tags = [] }
+let private emptyQuery : LocalSearch.Query = { Terms = []; Tags = [] }
 
 let private assertOk result = match result with Error e -> Assert.Fail(e) | Ok _ -> ()
 
@@ -73,7 +73,7 @@ let ``no query returns all collection and lock results`` () =
     let col    = makeCollection "logging" [] [ file ]
     let lock   = [ makeLockEntry "ops/deploy.sh" "kb" "ops/deploy.sh" ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) lock
-    assertOk (Search.execute deps emptyQuery)
+    assertOk (LocalSearch.execute deps emptyQuery)
 
 // ── Term filter ───────────────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ let ``term matches remote path substring`` () =
     let file   = makeFileRef "kb" "dotnet/Logging.fs" []
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps { emptyQuery with Terms = ["logging"] })
+    assertOk (LocalSearch.execute deps { emptyQuery with Terms = ["logging"] })
 
 [<Fact>]
 let ``term is case insensitive`` () =
@@ -91,7 +91,7 @@ let ``term is case insensitive`` () =
     let file   = makeFileRef "kb" "dotnet/Logging.fs" []
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps { emptyQuery with Terms = ["LOGGING"] })
+    assertOk (LocalSearch.execute deps { emptyQuery with Terms = ["LOGGING"] })
 
 [<Fact>]
 let ``multiple terms use OR semantics`` () =
@@ -100,7 +100,7 @@ let ``multiple terms use OR semantics`` () =
     let fileB  = makeFileRef "kb" "ops/Deploy.sh" []
     let col    = makeCollection "col" [] [ fileA; fileB ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps { emptyQuery with Terms = ["logging"; "deploy"] })
+    assertOk (LocalSearch.execute deps { emptyQuery with Terms = ["logging"; "deploy"] })
 
 [<Fact>]
 let ``term matches description text`` () =
@@ -108,7 +108,7 @@ let ``term matches description text`` () =
     let file   = makeFileRefWithDesc "kb" "utils/helper.fs" [] "Shared logging utilities"
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps { emptyQuery with Terms = ["logging"] })
+    assertOk (LocalSearch.execute deps { emptyQuery with Terms = ["logging"] })
 
 [<Fact>]
 let ``term with no match returns empty list`` () =
@@ -116,7 +116,7 @@ let ``term with no match returns empty list`` () =
     let file   = makeFileRef "kb" "dotnet/Logging.fs" []
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match Search.execute deps { emptyQuery with Terms = ["xyz-no-match"] } with
+    match LocalSearch.execute deps { emptyQuery with Terms = ["xyz-no-match"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Empty(results)
 
@@ -128,7 +128,7 @@ let ``single tag matches collection file`` () =
     let file   = makeFileRef "kb" "dotnet/Logging.fs" ["dotnet"]
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps { emptyQuery with Tags = ["dotnet"] })
+    assertOk (LocalSearch.execute deps { emptyQuery with Tags = ["dotnet"] })
 
 [<Fact>]
 let ``collection-level tag applies to all files`` () =
@@ -136,7 +136,7 @@ let ``collection-level tag applies to all files`` () =
     let file   = makeFileRef "kb" "dotnet/Logging.fs" []
     let col    = makeCollection "col" ["dotnet"] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps { emptyQuery with Tags = ["dotnet"] })
+    assertOk (LocalSearch.execute deps { emptyQuery with Tags = ["dotnet"] })
 
 [<Fact>]
 let ``all tags must match AND semantics`` () =
@@ -145,7 +145,7 @@ let ``all tags must match AND semantics`` () =
     let fileB   = makeFileRef "kb" "b.fs" ["dotnet"; "observability"]
     let col     = makeCollection "col" [] [ fileA; fileB ]
     let deps    = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match Search.execute deps { emptyQuery with Tags = ["dotnet"; "observability"] } with
+    match LocalSearch.execute deps { emptyQuery with Tags = ["dotnet"; "observability"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Single(results) |> ignore
 
@@ -155,7 +155,7 @@ let ``partial tag match excludes file`` () =
     let file   = makeFileRef "kb" "a.fs" ["dotnet"]
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match Search.execute deps { emptyQuery with Tags = ["dotnet"; "observability"] } with
+    match LocalSearch.execute deps { emptyQuery with Tags = ["dotnet"; "observability"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Empty(results)
 
@@ -168,7 +168,7 @@ let ``combined term and tag both must match`` () =
     let fileB  = makeFileRef "kb" "ops/Deploy.sh" ["ops"]
     let col    = makeCollection "col" [] [ fileA; fileB ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match Search.execute deps { Terms = ["logging"]; Tags = ["ops"] } with
+    match LocalSearch.execute deps { Terms = ["logging"]; Tags = ["ops"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Empty(results)
 
@@ -179,7 +179,7 @@ let ``lock-only entry appears in results`` () =
     let source = makeSource "kb" "https://example.com/kb.git"
     let lock   = [ makeLockEntry "local/script.sh" "kb" "ops/script.sh" ]
     let deps   = makeDeps (Some (makeGlobal [source] [])) (Some (makeLocal [source])) lock
-    match Search.execute deps emptyQuery with
+    match LocalSearch.execute deps emptyQuery with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Single(results) |> ignore
 
@@ -190,7 +190,7 @@ let ``collection entry enriched with local path from lock`` () =
     let col    = makeCollection "col" [] [ file ]
     let lock   = [ makeLockEntry "local/Logging.fs" "kb" "dotnet/Logging.fs" ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) lock
-    match Search.execute deps emptyQuery with
+    match LocalSearch.execute deps emptyQuery with
     | Error e -> Assert.Fail(e)
     | Ok results ->
         Assert.Single(results) |> ignore
@@ -203,7 +203,7 @@ let ``file in both collection and lock appears once`` () =
     let col    = makeCollection "col" [] [ file ]
     let lock   = [ makeLockEntry "utils.fs" "kb" "shared/utils.fs" ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) lock
-    match Search.execute deps { emptyQuery with Tags = ["dotnet"] } with
+    match LocalSearch.execute deps { emptyQuery with Tags = ["dotnet"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Single(results) |> ignore
 
@@ -215,7 +215,7 @@ let ``file description takes precedence over collection description`` () =
     let file   = makeFileRefWithDesc "kb" "utils/helper.fs" [] "File-level description"
     let col    = makeCollectionWithDesc "col" [] [ file ] "Collection-level description"
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match Search.execute deps { emptyQuery with Terms = ["file-level"] } with
+    match LocalSearch.execute deps { emptyQuery with Terms = ["file-level"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Single(results) |> ignore
 
@@ -225,7 +225,7 @@ let ``collection description used when file has none`` () =
     let file   = makeFileRef "kb" "utils/helper.fs" []
     let col    = makeCollectionWithDesc "col" [] [ file ] "Collection-level description"
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match Search.execute deps { emptyQuery with Terms = ["collection-level"] } with
+    match LocalSearch.execute deps { emptyQuery with Terms = ["collection-level"] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Single(results) |> ignore
 
@@ -236,7 +236,7 @@ let ``global config absent returns only lock results`` () =
     let source = makeSource "kb" "https://example.com/kb.git"
     let lock   = [ makeLockEntry "local/script.sh" "kb" "ops/script.sh" ]
     let deps   = makeDeps None (Some (makeLocal [source])) lock
-    assertOk (Search.execute deps emptyQuery)
+    assertOk (LocalSearch.execute deps emptyQuery)
 
 [<Fact>]
 let ``lock absent returns only collection results`` () =
@@ -244,11 +244,11 @@ let ``lock absent returns only collection results`` () =
     let file   = makeFileRef "kb" "dotnet/Logging.fs" []
     let col    = makeCollection "col" [] [ file ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    assertOk (Search.execute deps emptyQuery)
+    assertOk (LocalSearch.execute deps emptyQuery)
 
 [<Fact>]
 let ``empty global config and empty lock returns empty results`` () =
     let deps = makeDeps (Some (makeGlobal [] [])) None []
-    match Search.execute deps emptyQuery with
+    match LocalSearch.execute deps emptyQuery with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Empty(results)

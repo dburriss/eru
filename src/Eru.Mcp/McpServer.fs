@@ -2,6 +2,7 @@ module Eru.Mcp.Server
 
 open Eru
 open Eru.Adapters
+open Eru.Search
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging

@@ -1,4 +1,4 @@
-namespace Eru.Mcp
+namespace Eru.Search
 
 open System.Threading
 open System.Threading.Tasks

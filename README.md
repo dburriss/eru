@@ -7,7 +7,7 @@
 - **Tag-based pulls** — `--tag devops` fetches everything tagged `devops` across all collections
 - **Glob patterns** — collection entries can use globs to pull multiple files in one reference (e.g. `docs/*.md`)
 - **Lock file** (`.eru/eru.lock`) records every pulled file: its origin, path, and content hash
-- **Static site** — `eru site generate` builds a self-contained HTML site for browsing and searching the local knowledge cache
+- **Static site** — `eru site generate` builds a self-contained HTML site for browsing and searching the local knowledge cache; `eru site serve` adds live reload and a search API
 - **Dry-run mode** on every write command
 - **Global config** (`~/.config/eru/config.json`) for sources and collections shared across all your repos
 
@@ -99,13 +99,16 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru manifest remove <path>` | Remove an entry from the manifest |
 | `eru manifest verify` | Check all manifest entries resolve to local files |
 | `eru site generate [-o <dir>]` | Generate a static HTML site for browsing the local knowledge cache |
+| `eru site serve [-p <port>]` | Serve the site locally with live reload and a search API |
 | `eru mcp` | Start an MCP stdio server for AI agent use |
 
 For full argument details see [docs/cli-reference.md](docs/cli-reference.md).
 
 ## Static site
 
-`eru site generate` builds a self-contained HTML site from the local knowledge cache — browse and search all source files offline. See [docs/site.md](docs/site.md).
+`eru site generate` builds a self-contained HTML site from the local knowledge cache — browse and search all source files offline.
+
+`eru site serve` does the same but also starts a local HTTP server with a live-reload SSE feed and a `/api/search` endpoint. The browser reconnects and reloads automatically whenever the cache is synced. See [docs/site.md](docs/site.md).
 
 ## MCP server
 

@@ -1,6 +1,6 @@
 namespace Eru
 
-module Search =
+module LocalSearch =
 
     type Query = {
         Terms : string list

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Eru.Serve</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
+    <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
+    <ProjectReference Include="../Eru.Search/Eru.Search.fsproj" />
+    <ProjectReference Include="../Eru.Site/Eru.Site.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="SiteServeServer.fs" />
+  </ItemGroup>
+</Project>

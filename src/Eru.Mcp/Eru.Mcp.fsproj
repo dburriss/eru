@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
+    <ProjectReference Include="../Eru.Search/Eru.Search.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="1.*" />
@@ -14,12 +15,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.*" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SearchTypes.fs" />
-    <Compile Include="SimpleScan.fs" />
-    <Compile Include="IndexedSearch.fs" />
-    <Compile Include="CkSearch.fs" />
     <Compile Include="IndexService.fs" />
-    <Compile Include="KnowledgeSyncService.fs" />
     <Compile Include="CollectionCacheService.fs" />
     <Compile Include="McpResources.fs" />
     <Compile Include="McpTools.fs" />

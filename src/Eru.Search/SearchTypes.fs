@@ -1,10 +1,11 @@
-namespace Eru.Mcp
+namespace Eru.Search
 
 type KnowledgeSource = Cache | Lock | Local
 
 type CandidateFile = {
     AbsPath     : string
     RelPath     : string
+    RemotePath  : string option  // original remote path (for Cache/Lock); None for Local
     Source      : KnowledgeSource
     SourceName  : string option
     Tags        : string list

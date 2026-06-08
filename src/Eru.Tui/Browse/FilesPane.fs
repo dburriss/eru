@@ -83,10 +83,10 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
         else
             let query =
                 if filter.StartsWith("#") then
-                    { Search.Terms = []; Search.Tags = [ filter.Substring(1).Trim() ] }
+                    { LocalSearch.Terms = []; LocalSearch.Tags = [ filter.Substring(1).Trim() ] }
                 else
-                    { Search.Terms = [ filter ]; Search.Tags = [] }
-            match Search.execute deps query with
+                    { LocalSearch.Terms = [ filter ]; LocalSearch.Tags = [] }
+            match LocalSearch.execute deps query with
             | Ok results ->
                 searchHits <- Some (results |> List.map (fun r -> r.SourceName, r.RemotePath) |> Set.ofList)
             | Error _ ->

@@ -1,4 +1,4 @@
-module Eru.Mcp.CkSearch
+module Eru.Search.CkSearch
 
 open Eru.Adapters
 

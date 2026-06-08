@@ -6,21 +6,21 @@ open System.Text.Json
 open Eru
 open Eru.Cli.OutputFormat
 
-type Cmd = { Query: Search.Query; Format: OutputFormat }
+type Cmd = { Query: LocalSearch.Query; Format: OutputFormat }
 
 let (|SearchCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Search args ->
             Some {
                 Query = {
-                    Search.Query.Terms = args.GetResult(SearchArgs.Terms, defaultValue = [])
-                    Search.Query.Tags  = args.GetResults SearchArgs.Tag
+                    LocalSearch.Query.Terms = args.GetResult(SearchArgs.Terms, defaultValue = [])
+                    LocalSearch.Query.Tags  = args.GetResults SearchArgs.Tag
                 }
                 Format = parseFormat (args.TryGetResult SearchArgs.Output)
             }
         | _ -> None)
 
-let private renderText (results: Search.SearchResult list) =
+let private renderText (results: LocalSearch.SearchResult list) =
     if results.IsEmpty then
         printfn "No results found."
     else
@@ -35,11 +35,11 @@ let private renderText (results: Search.SearchResult list) =
             printfn "%s:%s  [hash: %s]%s%s" r.SourceName r.RemotePath hash tagPart localPart
             r.Description |> Option.iter (fun d -> printfn "  %s" d)
 
-let private renderJson (results: Search.SearchResult list) =
+let private renderJson (results: LocalSearch.SearchResult list) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
     printfn "%s" (JsonSerializer.Serialize(results, opts))
 
-let private renderTable (results: Search.SearchResult list) =
+let private renderTable (results: LocalSearch.SearchResult list) =
     if results.IsEmpty then
         printfn "No results found."
     else
@@ -53,7 +53,7 @@ let private renderTable (results: Search.SearchResult list) =
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match Search.execute deps cmd.Query with
+    match LocalSearch.execute deps cmd.Query with
     | Error e -> renderError e; 1
     | Ok results ->
         match cmd.Format with

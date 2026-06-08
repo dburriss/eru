@@ -51,6 +51,7 @@ Search results now return structured data in addition to the existing text outpu
     <ProjectReference Include="../Eru.Mcp/Eru.Mcp.fsproj" />
     <ProjectReference Include="../Eru.Tui/Eru.Tui.fsproj" />
     <ProjectReference Include="../Eru.Site/Eru.Site.fsproj" />
+    <ProjectReference Include="../Eru.Serve/Eru.Serve.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Argu" Version="6.*" />
@@ -81,6 +82,7 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="CacheClearCli.fs" />
     <Compile Include="BrowseCli.fs" />
     <Compile Include="SiteGenerateCli.fs" />
+    <Compile Include="SiteServeCli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
