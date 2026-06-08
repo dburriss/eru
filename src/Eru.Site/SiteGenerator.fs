@@ -500,8 +500,12 @@ let private appJs = """
 
   function loadJsonIndex() {
     if (!window.ERU_DATA_ROOT) return;
+    if (window.location.protocol === 'file:') {
+      console.warn('[eru] file:// mode — using DOM text search (title, description, tags only). Run "eru site serve" for full search.');
+      return;
+    }
     fetch(window.ERU_DATA_ROOT + 'documents.json')
-      .then(function(r) { return r.json(); })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function(docs) {
         jsonIndex = docs.map(function(d) {
           var parts = [d.title, d.description, d.body].concat(d.tags || []);
@@ -509,11 +513,8 @@ let private appJs = """
         });
         applyFilters();
       })
-      .catch(function(err) {
-        var reason = window.location.protocol === 'file:'
-          ? 'CORS restriction blocks fetch() for file:// URLs'
-          : (err && err.message ? err.message : String(err));
-        console.info('[eru] JSON index unavailable (' + reason + '). Falling back to DOM text search — only visible card text (title, description snippet, tags) will be matched.');
+      .catch(function() {
+        console.warn('[eru] Static mode — using DOM text search (title, description, tags only). Run "eru site serve" for full search.');
       });
   }
 
@@ -576,9 +577,14 @@ let private appJs = """
 
 (function () {
   if (window.location.protocol === 'file:') return;
-  var es = new EventSource('/api/events');
-  es.onmessage = function (e) { if (e.data === 'rebuild') location.reload(); };
-  es.onerror   = function ()  { es.close(); };
+  fetch('/api/ping').then(function (r) {
+    if (!r.ok) { console.warn('[eru] Static mode — fallen back to JSON document search, live reload unavailable. Run "eru site serve" for full search and live reload.'); return; }
+    var es = new EventSource('/api/events');
+    es.onmessage = function (e) { if (e.data === 'rebuild') location.reload(); };
+    es.onerror   = function ()  { es.close(); };
+  }).catch(function () {
+    console.warn('[eru] Static mode — fallen back to JSON document search, live reload unavailable. Run "eru site serve" for full search and live reload.');
+  });
 })();
 """
 

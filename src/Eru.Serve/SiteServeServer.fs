@@ -103,6 +103,10 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
                 with ex -> eprintfn "[eru serve] Sync error: %s" ex.Message) |> ignore
             Task.CompletedTask)) |> ignore
 
+        app.MapGet("/api/ping", RequestDelegate(fun (ctx: HttpContext) ->
+            ctx.Response.StatusCode <- 204
+            Task.CompletedTask)) |> ignore
+
         app.MapGet("/api/events", rd (fun ctx -> task {
             ctx.Response.Headers["Content-Type"]      <- "text/event-stream"
             ctx.Response.Headers["Cache-Control"]     <- "no-cache"
