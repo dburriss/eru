@@ -527,24 +527,24 @@ The site is fully navigable as plain HTML with no JavaScript. JS adds in-place s
 Generate the site and start a local HTTP server with live reload and a full-text search API.
 
 ```
-eru site serve [-o <dir>] [-p <port>] [--no-open] [--sync-interval <minutes>]
+eru site serve [-o <dir>] [-p <port>] [--open] [--sync-interval <minutes>]
 ```
 
 | Flag | Default | Description |
 |---|---|---|
 | `-o` / `--output` | `./cache-site/` | Directory to write the site into |
 | `-p` / `--port` | `5173` | HTTP port to listen on |
-| `--no-open` | off | Do not open the browser automatically on startup |
+| `--open` | off | Open the browser automatically when the server starts |
 | `--sync-interval <minutes>` | `15` | Minutes between background cache syncs |
 
 **Examples**
 
 ```bash
-# Serve on the default port (opens browser automatically)
+# Serve on the default port
 eru site serve
 
-# Custom port, no auto-open
-eru site serve -p 8080 --no-open
+# Custom port, open browser automatically
+eru site serve -p 8080 --open
 
 # Custom output directory with a faster sync interval
 eru site serve -o ./docs-site/ --sync-interval 5

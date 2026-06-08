@@ -4,7 +4,7 @@
 
 ## Added
 
-- Added description to the manifest
+- Added description field to the manifest
 - Added `eru site serve` command to serve the generated static site locally with live reload on changes to the cache
 
 ## [0.8.0] - 2026-06-03
