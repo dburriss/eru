@@ -6,7 +6,8 @@ module Sync =
 
     type SyncStatus =
         | Current
-        | Drifted   // "would update" on dry-run; "updated" on actual run
+        | Drifted       // "would update" on dry-run; "updated" on actual run
+        | LocalDrifted  // "would restore" on dry-run; "restored" on actual run
         | Missing
         | Skipped of string
         | Blocked
@@ -22,19 +23,21 @@ module Sync =
     }
 
     type private EntryResult =
-        | ECurrent of LockEntry
-        | EDrifted of LockEntry * string
-        | EMissing of LockEntry
-        | ESkipped of LockEntry * string
-        | EBlocked of LockEntry
+        | ECurrent      of LockEntry
+        | EDrifted      of LockEntry * string
+        | ELocalDrifted of LockEntry * string
+        | EMissing      of LockEntry
+        | ESkipped      of LockEntry * string
+        | EBlocked      of LockEntry
 
     let private toSyncEntry (r: EntryResult) : SyncEntry =
         match r with
-        | ECurrent e       -> { Status = Current;      LocalPath = e.LocalPath }
-        | EDrifted (e, _)  -> { Status = Drifted;      LocalPath = e.LocalPath }
-        | EMissing e       -> { Status = Missing;      LocalPath = e.LocalPath }
-        | ESkipped (e, rs) -> { Status = Skipped rs;   LocalPath = e.LocalPath }
-        | EBlocked e       -> { Status = Blocked;      LocalPath = e.LocalPath }
+        | ECurrent e            -> { Status = Current;       LocalPath = e.LocalPath }
+        | EDrifted (e, _)       -> { Status = Drifted;       LocalPath = e.LocalPath }
+        | ELocalDrifted (e, _)  -> { Status = LocalDrifted;  LocalPath = e.LocalPath }
+        | EMissing e            -> { Status = Missing;       LocalPath = e.LocalPath }
+        | ESkipped (e, rs)      -> { Status = Skipped rs;    LocalPath = e.LocalPath }
+        | EBlocked e            -> { Status = Blocked;       LocalPath = e.LocalPath }
 
     let private emptyIndexEntry = {
         Tags         = []
@@ -304,21 +307,31 @@ module Sync =
                                 EBlocked entry
                             else
                                 let hash = deps.HashContent content
-                                if hash = entry.ContentHash then ECurrent entry
-                                else EDrifted (entry, content))
+                                if hash <> entry.ContentHash then
+                                    EDrifted (entry, content)
+                                else
+                                    let localHash =
+                                        match deps.ReadLocalFile entry.LocalPath with
+                                        | Ok (Some c) -> Some (deps.HashContent c)
+                                        | _           -> None
+                                    match localHash with
+                                    | Some h when h = entry.ContentHash -> ECurrent entry
+                                    | _                                 -> ELocalDrifted (entry, content))
 
         if opts.DryRun then
             Ok { Entries = classified |> List.map toSyncEntry; DryRun = true }
         else
 
-        let drifted = classified |> List.choose (function EDrifted (e, c) -> Some (e, c) | _ -> None)
+        let drifted      = classified |> List.choose (function EDrifted (e, c)      -> Some (e, c) | _ -> None)
+        let localDrifted = classified |> List.choose (function ELocalDrifted (e, c) -> Some (e, c) | _ -> None)
+        let toWrite      = drifted @ localDrifted
 
-        if drifted.IsEmpty then
+        if toWrite.IsEmpty then
             Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }
         else
 
         let writeError =
-            drifted |> List.tryPick (fun (entry, content) ->
+            toWrite |> List.tryPick (fun (entry, content) ->
                 match deps.WriteLocalFile entry.LocalPath content with
                 | Error e -> Some e
                 | Ok ()   -> None)
@@ -326,6 +339,10 @@ module Sync =
         match writeError with
         | Some e -> Error $"Error writing file: {e}"
         | None ->
+
+        if drifted.IsEmpty then
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }
+        else
 
         let updatedEntries =
             entries |> List.map (fun entry ->

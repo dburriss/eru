@@ -24,6 +24,7 @@ let private makeDeps
         ListRemoteTopLevel  = fun _ _ -> Ok []
         ListRemoteFiles     = fun _ _ _ -> Ok []
         WriteLocalFile      = fun _ _ -> Ok ()
+        ReadLocalFile       = fun _ -> Ok None
         DeleteLocalFile     = fun path -> capturedDeletePath.Value <- Some path; deleteResult
         HashContent         = fun s -> $"sha256:{s}"
         GetCwd              = fun () -> "/repo"

@@ -11,6 +11,7 @@ type Deps = {
     ListRemoteTopLevel       : string -> string option -> Result<string list, string>
     ListRemoteFiles          : string -> string option -> string option -> Result<string list, string>
     WriteLocalFile           : string -> string -> Result<unit, string>
+    ReadLocalFile            : string -> Result<string option, string>
     DeleteLocalFile          : string -> Result<unit, string>
     HashContent              : string -> string
     GetCwd                   : unit   -> string

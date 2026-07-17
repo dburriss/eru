@@ -20,7 +20,8 @@ let (|SyncCmd|_|) (r: ParseResults<EruArgs>) =
 let private statusLabel (isDryRun: bool) (s: Sync.SyncStatus) =
     match s with
     | Sync.Current       -> "current"
-    | Sync.Drifted       -> if isDryRun then "drifted" else "updated"
+    | Sync.Drifted       -> if isDryRun then "drifted"       else "updated"
+    | Sync.LocalDrifted  -> if isDryRun then "local-drifted" else "restored"
     | Sync.Missing       -> "missing"
     | Sync.Skipped _     -> "skipped"
     | Sync.Blocked       -> "blocked"
@@ -33,7 +34,7 @@ let private reason (s: Sync.SyncStatus) =
 let private counts (entries: Sync.SyncEntry list) =
     let n s = entries |> List.sumBy (fun e -> if e.Status = s then 1 else 0)
     let nSkipped = entries |> List.sumBy (function { Status = Sync.Skipped _ } -> 1 | _ -> 0)
-    n Sync.Current, n Sync.Drifted, n Sync.Missing, nSkipped, n Sync.Blocked
+    n Sync.Current, n Sync.Drifted, n Sync.LocalDrifted, n Sync.Missing, nSkipped, n Sync.Blocked
 
 let private renderText (result: Sync.SyncResult) =
     for e in result.Entries do
@@ -41,13 +42,13 @@ let private renderText (result: Sync.SyncResult) =
         match e.Status with
         | Sync.Skipped r -> printfn "[%s]  %s  (%s)" label e.LocalPath r
         | _              -> printfn "[%s]  %s" label e.LocalPath
-    let nCurrent, nDrifted, nMissing, nSkipped, nBlocked = counts result.Entries
+    let nCurrent, nDrifted, nLocalDrifted, nMissing, nSkipped, nBlocked = counts result.Entries
     if result.DryRun then
-        printfn "Sync dry-run: %d drifted, %d current, %d missing, %d skipped, %d blocked."
-            nDrifted nCurrent nMissing nSkipped nBlocked
+        printfn "Sync dry-run: %d drifted, %d local-drifted, %d current, %d missing, %d skipped, %d blocked."
+            nDrifted nLocalDrifted nCurrent nMissing nSkipped nBlocked
     else
-        printfn "Sync complete: %d updated, %d current, %d missing, %d skipped, %d blocked."
-            nDrifted nCurrent nMissing nSkipped nBlocked
+        printfn "Sync complete: %d updated, %d restored, %d current, %d missing, %d skipped, %d blocked."
+            nDrifted nLocalDrifted nCurrent nMissing nSkipped nBlocked
 
 let private renderJson (result: Sync.SyncResult) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
@@ -58,13 +59,13 @@ let private renderTable (result: Sync.SyncResult) =
     for e in result.Entries do
         t.AddRow(statusLabel result.DryRun e.Status, e.LocalPath, reason e.Status) |> ignore
     AnsiConsole.Write(t)
-    let nCurrent, nDrifted, nMissing, nSkipped, nBlocked = counts result.Entries
+    let nCurrent, nDrifted, nLocalDrifted, nMissing, nSkipped, nBlocked = counts result.Entries
     if result.DryRun then
-        printfn "\nSync dry-run: %d drifted, %d current, %d missing, %d skipped, %d blocked."
-            nDrifted nCurrent nMissing nSkipped nBlocked
+        printfn "\nSync dry-run: %d drifted, %d local-drifted, %d current, %d missing, %d skipped, %d blocked."
+            nDrifted nLocalDrifted nCurrent nMissing nSkipped nBlocked
     else
-        printfn "\nSync complete: %d updated, %d current, %d missing, %d skipped, %d blocked."
-            nDrifted nCurrent nMissing nSkipped nBlocked
+        printfn "\nSync complete: %d updated, %d restored, %d current, %d missing, %d skipped, %d blocked."
+            nDrifted nLocalDrifted nCurrent nMissing nSkipped nBlocked
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
     let syncResult =

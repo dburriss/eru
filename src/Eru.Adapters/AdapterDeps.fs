@@ -57,6 +57,11 @@ module AdapterDeps =
             ListRemoteTopLevel       = GitAdapter.listRemoteTopLevel debug
             ListRemoteFiles          = GitAdapter.listRemoteFiles debug
             WriteLocalFile           = writeFile
+            ReadLocalFile            = fun path ->
+                try
+                    if File.Exists path then Ok (Some (File.ReadAllText path))
+                    else Ok None
+                with ex -> Error ex.Message
             DeleteLocalFile          = fun path -> try File.Delete path; Ok () with ex -> Error ex.Message
             HashContent              = hashContent
             GetCwd                   = fun () -> cwd
