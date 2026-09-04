@@ -1,3 +1,9 @@
+---
+title: Inspecting state and searching
+type: reference
+tags: [search, source, cache, freshness]
+---
+
 # Inspecting state and searching
 
 Four commands let you read what eru knows without pulling any files: `source list`, `source view`, `source files`, and `search`. They differ in where they read from and whether they touch the network.

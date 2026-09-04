@@ -1,3 +1,9 @@
+---
+title: eru CLI reference
+type: reference
+tags: [cli, commands, flags]
+---
+
 # eru CLI reference
 
 ## Global flags
@@ -520,7 +526,7 @@ eru site generate -o /tmp/my-site --open
 eru site generate --custom-css ~/themes/company.css
 ```
 
-The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement. See [docs/site.md](site.md) for customisation details.
+The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement. See [site generation reference](site-generation.md) and [customize the generated site](../how-to/customize-the-generated-site.md) for details.
 
 ### `eru site serve`
 
@@ -570,4 +576,4 @@ Start an MCP stdio server that exposes eru's knowledge search and retrieval capa
 eru mcp
 ```
 
-No arguments. See [docs/mcp.md](mcp.md) for configuration and tool details.
+No arguments. See the [MCP server reference](mcp-server.md) and [set up the MCP server](../how-to/set-up-the-mcp-server.md) for configuration and tool details.

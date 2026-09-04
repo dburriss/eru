@@ -102,14 +102,18 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru site serve [-p <port>]` | Serve the site locally with live reload and a search API |
 | `eru mcp` | Start an MCP stdio server for AI agent use |
 
-For full argument details see [docs/cli-reference.md](docs/cli-reference.md).
+For full argument details see [docs/reference/cli.md](docs/reference/cli.md).
 
 ## Static site
 
 `eru site generate` builds a self-contained HTML site from the local knowledge cache — browse and search all source files offline.
 
-`eru site serve` does the same but also starts a local HTTP server with a live-reload SSE feed and a `/api/search` endpoint. The browser reconnects and reloads automatically whenever the cache is synced. See [docs/site.md](docs/site.md).
+`eru site serve` does the same but also starts a local HTTP server with a live-reload SSE feed and a `/api/search` endpoint. The browser reconnects and reloads automatically whenever the cache is synced. See [docs/reference/site-generation.md](docs/reference/site-generation.md) and [docs/how-to/customize-the-generated-site.md](docs/how-to/customize-the-generated-site.md).
 
 ## MCP server
 
-`eru mcp` exposes knowledge search and retrieval to AI agents (Claude, Copilot, Cursor, etc.) over the Model Context Protocol. See [docs/mcp.md](docs/mcp.md).
+`eru mcp` exposes knowledge search and retrieval to AI agents (Claude, Copilot, Cursor, etc.) over the Model Context Protocol. See [docs/how-to/set-up-the-mcp-server.md](docs/how-to/set-up-the-mcp-server.md).
+
+## Documentation
+
+Full documentation lives under [docs/](docs/README.md), organised by [Diataxis](https://diataxis.fr/): tutorials, how-to guides, reference, and explanation.
