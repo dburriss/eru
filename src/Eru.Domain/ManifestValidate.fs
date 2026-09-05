@@ -1,13 +1,13 @@
 namespace Eru
 
-module ManifestVerify =
+module ManifestValidate =
 
-    type VerifyResult = {
+    type ValidateResult = {
         Total   : int
         Missing : string list
     }
 
-    let execute (deps: Deps) : Result<VerifyResult, string> =
+    let execute (deps: Deps) : Result<ValidateResult, string> =
         match deps.ReadLocalManifest () with
         | Error e -> Error e
         | Ok None -> Error "no .eru/manifest.json found. Run 'eru manifest init' first."

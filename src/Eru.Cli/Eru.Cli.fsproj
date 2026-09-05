@@ -75,7 +75,7 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="ManifestInitCli.fs" />
     <Compile Include="ManifestAddCli.fs" />
     <Compile Include="ManifestRemoveCli.fs" />
-    <Compile Include="ManifestVerifyCli.fs" />
+    <Compile Include="ManifestValidateCli.fs" />
     <Compile Include="RemoveCli.fs" />
     <Compile Include="DisconnectCli.fs" />
     <Compile Include="CachePruneCli.fs" />
@@ -83,6 +83,7 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="BrowseCli.fs" />
     <Compile Include="SiteGenerateCli.fs" />
     <Compile Include="SiteServeCli.fs" />
+    <Compile Include="OkfValidateCli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

@@ -28,6 +28,24 @@ module Frontmatter =
             | Ok (Yaml.Map kvs) -> Map.ofList kvs
             | _ -> empty
 
+    /// Distinguishes "no frontmatter block at all" from "block present but
+    /// malformed/not-a-mapping" from "well-formed" — needed by conformance
+    /// checks that must report which of these occurred, unlike `parse`
+    /// which treats all three as equally "no data".
+    type ParseOutcome =
+        | NoBlock
+        | MalformedYaml of string
+        | Parsed of FrontmatterMap
+
+    let tryParse (parseYaml: Yaml.Parse) (content: string) : ParseOutcome =
+        match extractBlock content with
+        | None -> NoBlock
+        | Some blockText ->
+            match parseYaml blockText with
+            | Ok (Yaml.Map kvs) -> Parsed (Map.ofList kvs)
+            | Ok _ -> MalformedYaml "frontmatter block is not a YAML mapping"
+            | Error e -> MalformedYaml e
+
     // --- Lenses over well-known fields ---
 
     let private scalar (key: string) (fm: FrontmatterMap) : string option =

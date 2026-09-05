@@ -153,12 +153,12 @@ Manage `.eru/manifest.json` in a knowledge-source repo. Use in the repo that *pu
 eru manifest init
 eru manifest add "docs/*.md" --tag docs --description "All documentation"
 eru manifest add "README.md" --tag meta
-eru manifest verify           # exits 1 if any entry resolves to no local files
+eru manifest validate         # exits 1 if any entry resolves to no local files (alias: verify)
 eru manifest remove "README.md"
 eru manifest init --force     # overwrite existing manifest
 ```
 
-Paths support gitignore-style globs. `verify` expands each entry against local files.
+Paths support gitignore-style globs. `validate` expands each entry against local files.
 
 ---
 
@@ -190,6 +190,16 @@ eru site generate --custom-css ~/theme.css # apply a custom stylesheet on every 
 ```
 
 The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement.
+
+---
+
+### `eru okf validate`
+
+Check a directory tree for OKF §11 conformance (frontmatter with a non-empty `type`, valid `index.md`/`log.md` structure).
+
+```bash
+eru okf validate ./my-bundle   # exits 1 if any conformance violations are found
+```
 
 ---
 
@@ -225,7 +235,7 @@ All commands that produce output accept `--output` (short: `-o`):
 eru manifest init
 eru manifest add "docs/*.md" --tag docs
 eru manifest add "templates/**/*.yaml" --tag templates
-eru manifest verify
+eru manifest validate
 ```
 
 ### New consumer repo setup

@@ -20,6 +20,7 @@
     <Compile Include="LockFileAdapter.fs" />
     <Compile Include="GitAdapter.fs" />
     <Compile Include="ManifestAdapter.fs" />
+    <Compile Include="OkfAdapter.fs" />
     <Compile Include="SourceIndexAdapter.fs" />
     <Compile Include="YamlAdapter.fs" />
     <Compile Include="AdapterDeps.fs" />

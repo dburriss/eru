@@ -38,6 +38,7 @@ let private makeDeps
         ReadCachedSourceContent = fun _ _ -> Ok None
         BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
+        ListMarkdownFiles       = fun _ -> Ok []
     }
 
 let private initCmd force = { ManifestInit.Command.Force = force }
@@ -165,7 +166,7 @@ let ``verify returns ok with no missing when all paths resolve`` () =
         if p = "README.md" then ["README.md"]
         elif p = "docs/*.md" then ["docs/guide.md"; "docs/api.md"]
         else [])
-    match ManifestVerify.execute deps with
+    match ManifestValidate.execute deps with
     | Error e -> Assert.Fail(e)
     | Ok r -> Assert.Empty(r.Missing)
 
@@ -177,18 +178,18 @@ let ``verify returns ok with missing paths when a path resolves to nothing`` () 
     }
     let deps = makeDeps (Some existing) (ref None) (fun p ->
         if p = "README.md" then ["README.md"] else [])
-    match ManifestVerify.execute deps with
+    match ManifestValidate.execute deps with
     | Error e -> Assert.Fail(e)
     | Ok r -> Assert.NotEmpty(r.Missing)
 
 [<Fact>]
 let ``verify returns ok with no missing for empty manifest`` () =
     let deps = makeDeps (Some emptyManifest) (ref None) (fun _ -> [])
-    match ManifestVerify.execute deps with
+    match ManifestValidate.execute deps with
     | Error e -> Assert.Fail(e)
     | Ok r -> Assert.Empty(r.Missing)
 
 [<Fact>]
 let ``verify fails when no manifest exists`` () =
     let deps = makeDeps None (ref None) (fun _ -> [])
-    assertError (ManifestVerify.execute deps)
+    assertError (ManifestValidate.execute deps)

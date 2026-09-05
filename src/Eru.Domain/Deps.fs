@@ -26,4 +26,5 @@ type Deps = {
     ReadCachedSourceContent  : string -> string -> Result<string option, string>
     BuildSearchIndex         : string -> string -> unit
     ParseYamlBlock           : Yaml.Parse
+    ListMarkdownFiles        : string -> Result<string list, string>
 }

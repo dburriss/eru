@@ -78,4 +78,5 @@ module AdapterDeps =
                 let absPath = Path.Combine(Paths.sourceCacheDir sourceName, cacheRelPath)
                 SearchIndexAdapter.getOrBuild absPath |> ignore
             ParseYamlBlock           = YamlAdapter.parse
+            ListMarkdownFiles        = OkfAdapter.listMarkdownFiles
         }

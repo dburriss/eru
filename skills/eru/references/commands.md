@@ -241,13 +241,23 @@ eru manifest remove <path> [--dryrun]
 | `<path>` | Exact path to remove (required) |
 | `--dryrun` | Preview without writing |
 
-## `eru manifest verify`
+## `eru manifest validate`
 
 ```
-eru manifest verify
+eru manifest validate
 ```
 
-No arguments. Exits 0 if all entries resolve to at least one local file, 1 otherwise.
+No arguments. Exits 0 if all entries resolve to at least one local file, 1 otherwise. `verify` is kept as an alias.
+
+---
+
+## `eru okf validate`
+
+```
+eru okf validate <path>
+```
+
+Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Exits 0 if conformant, 1 otherwise.
 
 ---
 

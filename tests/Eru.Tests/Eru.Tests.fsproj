@@ -33,5 +33,6 @@
     <Compile Include="GitAdapterTests.fs" />
     <Compile Include="IndexBuilderTests.fs" />
     <Compile Include="HtmlTemplatesTests.fs" />
+    <Compile Include="OkfValidateTests.fs" />
   </ItemGroup>
 </Project>

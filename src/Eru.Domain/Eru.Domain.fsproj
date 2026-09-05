@@ -27,9 +27,10 @@
     <Compile Include="ManifestRemove.fs" />
     <Compile Include="Remove.fs" />
     <Compile Include="Disconnect.fs" />
-    <Compile Include="ManifestVerify.fs" />
+    <Compile Include="ManifestValidate.fs" />
     <Compile Include="Add.fs" />
     <Compile Include="Search.fs" />
     <Compile Include="Sync.fs" />
+    <Compile Include="OkfValidate.fs" />
   </ItemGroup>
 </Project>

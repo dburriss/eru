@@ -63,6 +63,7 @@ let private makeDeps
         ReadCachedSourceContent = fun _ _ -> Ok None
         BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
+        ListMarkdownFiles       = fun _ -> Ok []
     }
 
 let private defaultFetch (_url: string) (_branch: string) (paths: string list) : Result<(string * string) list, string> =

@@ -97,9 +97,10 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru manifest init` | Create `.eru/manifest.json` in a knowledge-source repo |
 | `eru manifest add <path>` | Add a file/glob entry to the manifest |
 | `eru manifest remove <path>` | Remove an entry from the manifest |
-| `eru manifest verify` | Check all manifest entries resolve to local files |
+| `eru manifest validate` | Check all manifest entries resolve to local files (alias: `verify`) |
 | `eru site generate [-o <dir>]` | Generate a static HTML site for browsing the local knowledge cache |
 | `eru site serve [-p <port>]` | Serve the site locally with live reload and a search API |
+| `eru okf validate <path>` | Check a directory tree for OKF §11 conformance |
 | `eru mcp` | Start an MCP stdio server for AI agent use |
 
 For full argument details see [docs/reference/cli.md](docs/reference/cli.md).

@@ -371,18 +371,19 @@ eru manifest remove "README.md"
 eru manifest remove "docs/*.md" --dryrun
 ```
 
-### `eru manifest verify`
+### `eru manifest validate`
 
-Resolve every manifest entry against local files and report any that match nothing. Exits with code 1 if any entries are unresolved.
+Resolve every manifest entry against local files and report any that match nothing. Exits with code 1 if any entries are unresolved. `verify` is kept as an alias.
 
 ```
-eru manifest verify
+eru manifest validate
 ```
 
 **Examples**
 
 ```bash
-eru manifest verify   # exits 0 if all entries resolve, 1 otherwise
+eru manifest validate   # exits 0 if all entries resolve, 1 otherwise
+eru manifest verify      # alias for the above
 ```
 
 Glob patterns are expanded against the current directory tree. An entry like `docs/*.md` must match at least one local file to pass.
@@ -565,6 +566,31 @@ The server exposes three endpoints in addition to the static site files:
 | `GET /api/events` | SSE stream — sends `data: rebuild` after every successful sync |
 
 The browser connects to `/api/events` automatically and reloads the page on each `rebuild` event. Press `Ctrl+C` to stop the server.
+
+---
+
+## `eru okf`
+
+Check a directory tree for conformance with the Open Knowledge Format (OKF) spec.
+
+### `eru okf validate`
+
+Walk a directory tree and report violations of OKF §11 conformance: every non-reserved `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, broken cross-links, or missing optional fields — those are explicitly permitted by the spec.
+
+```
+eru okf validate <path>
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | Directory to validate (required) |
+| `-o` / `--output` | Output format: table (default), text, json |
+
+**Examples**
+
+```bash
+eru okf validate ./my-bundle   # exits 0 if conformant, 1 if any violations found
+```
 
 ---
 

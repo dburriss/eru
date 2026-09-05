@@ -18,7 +18,7 @@ open Eru.Cli.CollectionRemoveFileCli
 open Eru.Cli.ManifestInitCli
 open Eru.Cli.ManifestAddCli
 open Eru.Cli.ManifestRemoveCli
-open Eru.Cli.ManifestVerifyCli
+open Eru.Cli.ManifestValidateCli
 open Eru.Cli.RemoveCli
 open Eru.Cli.DisconnectCli
 open Eru.Cli.CachePruneCli
@@ -26,6 +26,7 @@ open Eru.Cli.CacheClearCli
 open Eru.Cli.BrowseCli
 open Eru.Cli.SiteGenerateCli
 open Eru.Cli.SiteServeCli
+open Eru.Cli.OkfValidateCli
 
 let private (|McpCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -57,7 +58,7 @@ let main argv =
         | ManifestInitCmd cmd         -> ManifestInitCli.run deps cmd
         | ManifestAddCmd cmd          -> ManifestAddCli.run deps cmd
         | ManifestRemoveCmd cmd       -> ManifestRemoveCli.run deps cmd
-        | ManifestVerifyCmd cmd       -> ManifestVerifyCli.run deps cmd
+        | ManifestValidateCmd cmd     -> ManifestValidateCli.run deps cmd
         | RemoveCmd cmd               -> RemoveCli.run deps cmd
         | DisconnectCmd cmd           -> DisconnectCli.run deps cmd
         | CachePruneCmd pruneArgs     -> CachePruneCli.runPrune pruneArgs
@@ -65,6 +66,7 @@ let main argv =
         | BrowseCmd cmd               -> BrowseCli.run deps cmd
         | SiteGenerateCmd args        -> SiteGenerateCli.run deps args
         | SiteServeCmd args           -> SiteServeCli.run deps args
+        | OkfValidateCmd cmd          -> OkfValidateCli.run deps cmd
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0

@@ -231,7 +231,7 @@ type ManifestRemoveArgs =
             | Dryrun   -> "Show what would be removed without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
-type ManifestVerifyArgs =
+type ManifestValidateArgs =
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
@@ -243,14 +243,14 @@ type ManifestArgs =
     | [<SubCommand>] Init   of ParseResults<ManifestInitArgs>
     | [<SubCommand>] Add    of ParseResults<ManifestAddArgs>
     | [<SubCommand>] Remove of ParseResults<ManifestRemoveArgs>
-    | [<SubCommand>] Verify of ParseResults<ManifestVerifyArgs>
+    | [<SubCommand; AltCommandLine("verify")>] Validate of ParseResults<ManifestValidateArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Init   _ -> "Create a new .eru/manifest.json in the current directory."
-            | Add    _ -> "Add a file reference to the manifest."
-            | Remove _ -> "Remove a file reference from the manifest."
-            | Verify _ -> "Verify all manifest entries resolve to local files."
+            | Init     _ -> "Create a new .eru/manifest.json in the current directory."
+            | Add      _ -> "Add a file reference to the manifest."
+            | Remove   _ -> "Remove a file reference from the manifest."
+            | Validate _ -> "Validate all manifest entries resolve to local files (alias: verify)."
 
 type RemoveArgs =
     | [<MainCommand; ExactlyOnce>]           Target of target: string
@@ -344,6 +344,23 @@ type SiteArgs =
             | Generate _ -> "Generate a static HTML site from the local cache index."
             | Serve _    -> "Serve the site locally with live reload and search API."
 
+type OkfValidateArgs =
+    | [<MainCommand; ExactlyOnce>] Path of path: string
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Path _   -> "Directory to validate against OKF §11."
+            | Output _ -> "Output format: table (default), text, json."
+
+[<CliPrefix(CliPrefix.None)>]
+type OkfArgs =
+    | [<SubCommand>] Validate of ParseResults<OkfValidateArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Validate _ -> "Validate a directory tree for OKF conformance (§11)."
+
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =
     | [<Unique; CliPrefix(CliPrefix.DoubleDash)>] Debug
@@ -360,6 +377,7 @@ type EruArgs =
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
     | [<SubCommand>] Site       of ParseResults<SiteArgs>
+    | [<SubCommand>] Okf        of ParseResults<OkfArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -377,3 +395,4 @@ type EruArgs =
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
             | Browse _     -> "Interactively browse sources and tracked files."
             | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
+            | Okf _        -> "Validate a knowledge bundle for OKF conformance."

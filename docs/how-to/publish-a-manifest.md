@@ -41,7 +41,7 @@ Removal matches by exact path/glob string, not by resolved files.
 ## 4. Verify the manifest before publishing
 
 ```bash
-eru manifest verify
+eru manifest validate
 ```
 
 This resolves every entry against local files and reports any that match nothing, exiting with code 1 if any are

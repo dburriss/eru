@@ -49,10 +49,10 @@ cd knowledge
 eru manifest init
 eru manifest add "skills/code-review/*.md" -t skill -t review -d "Code review checklist skill"
 eru manifest add "skills/init/SKILL.md" -t skill -t bootstrap -d "Repo bootstrap skill"
-eru manifest verify
+eru manifest validate
 ```
 
-`eru manifest verify` confirms every entry resolves to a real file before you commit.
+`eru manifest validate` confirms every entry resolves to a real file before you commit.
 
 ```bash
 git add .eru/manifest.json
