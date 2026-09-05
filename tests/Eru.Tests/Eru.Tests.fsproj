@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../../src/Eru.Adapters/Eru.Adapters.fsproj" />
+    <ProjectReference Include="../../src/Eru.Site/Eru.Site.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="*" />
@@ -30,5 +31,7 @@
     <Compile Include="RemoveTests.fs" />
     <Compile Include="DisconnectTests.fs" />
     <Compile Include="GitAdapterTests.fs" />
+    <Compile Include="IndexBuilderTests.fs" />
+    <Compile Include="HtmlTemplatesTests.fs" />
   </ItemGroup>
 </Project>

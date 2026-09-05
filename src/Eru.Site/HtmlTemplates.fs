@@ -14,6 +14,16 @@ let private statusLabel =
     | Cached    -> "cached"
     | IndexOnly -> "index-only"
 
+/// OKF trust tier derived from `verified[].by` (OKF §5.3):
+/// no entries -> unverified; any human:<id> actor -> human-reviewed; else machine-confirmed.
+let private trustTier (verified: Eru.Frontmatter.ActorAt list) : string =
+    if verified.IsEmpty then "unverified"
+    elif verified |> List.exists (fun v -> v.By.StartsWith("human:")) then "human-reviewed"
+    else "machine-confirmed"
+
+let private isStale (staleAfter: System.DateTimeOffset option) : bool =
+    staleAfter |> Option.exists (fun d -> System.DateTimeOffset.UtcNow >= d)
+
 type private CliLabel = ShowLabel | HideLabel
 
 let private cliTip (label: string) (cmd: string) (visibility: CliLabel) =
@@ -64,11 +74,13 @@ let private fileCard (prefix: string) (doc: SiteDocument) =
     let tagsAttr = doc.Tags |> String.concat " " |> escapeHtml
     let bodyHtml = if snippet <> "" then $"<p class=\"card-body\">{snippet}</p>" else ""
     let tagsBlock = if not doc.Tags.IsEmpty then $"<div class=\"card-tags\">{tagsHtml}</div>" else ""
+    let tier = trustTier doc.Verified
     $"""<article class="file-card" data-id="{escapeHtml doc.Id}" data-path="{escapeHtml doc.RemotePath}" data-source="{escapeHtml doc.Source}" data-ext="{escapeHtml doc.Extension}" data-tags="{tagsAttr}">
   <div class="card-header">
     <span class="card-title">{titleHtml}</span>
     <span class="badge badge-source">{escapeHtml doc.Source}</span>
-    <span class="badge badge-status badge-{statusLabel doc.Status}">{statusLabel doc.Status}</span>
+    <span class="badge badge-status badge-{statusLabel doc.SyncStatus}">{statusLabel doc.SyncStatus}</span>
+    <span class="badge badge-trust badge-{tier}">{tier}</span>
   </div>
   {bodyHtml}
   {tagsBlock}
@@ -91,6 +103,7 @@ let layout (depth: int) (title: string) (body: string) : string =
     <a href="{p}index.html">Browse</a>
     <a href="{p}sources/index.html">Sources</a>
     <a href="{p}tags/index.html">Tags</a>
+    <a href="{p}types/index.html">Types</a>
     <button id="theme-toggle" aria-label="Toggle theme" style="display:none"></button>
   </nav>
   <noscript><p class="noscript-note">Search requires JavaScript. Browse by source or tag using the navigation links.</p></noscript>
@@ -118,6 +131,11 @@ let indexPage (model: SiteModel) : string =
         |> List.map (fun t ->
             $"""<li><a href="{p}tags/{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount})</span></li>""")
         |> String.concat "\n"
+    let typeLinks =
+        model.Types
+        |> List.map (fun t ->
+            $"""<li><a href="{p}types/{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount})</span></li>""")
+        |> String.concat "\n"
     let cards =
         model.Documents
         |> List.map (fileCard p)
@@ -129,12 +147,16 @@ let indexPage (model: SiteModel) : string =
       <ul id="source-filters">{sourceLinks}</ul>
     </section>
     <section class="sidebar-section">
-      <h3>Types</h3>
+      <h3>File Extensions</h3>
       <ul id="ext-filters">{extLinks}</ul>
     </section>
     <section class="sidebar-section">
       <h3>Tags</h3>
       <ul id="tag-filters">{tagLinks}</ul>
+    </section>
+    <section class="sidebar-section">
+      <h3>Types</h3>
+      <ul id="type-filters">{typeLinks}</ul>
     </section>
   </aside>
   <section class="content">
@@ -227,6 +249,30 @@ let tagFilesPage (tag: SiteTag) : string =
 <div id="file-list">{cards}</div>"""
     layout 2 tag.Name body
 
+let typesPage (types: SiteType list) : string =
+    let rows =
+        types
+        |> List.map (fun t ->
+            $"""<li><a href="{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount} files)</span></li>""")
+        |> String.concat "\n"
+    let body = $"""<h1>Types</h1>
+<ul class="tag-list">{rows}</ul>"""
+    layout 1 "Types" body
+
+let typeFilesPage (typ: SiteType) : string =
+    let p = prefixFor 2
+    let cards =
+        typ.Files
+        |> List.map (fileCard p)
+        |> String.concat "\n"
+    let crumbs = breadcrumbs ["Types", Some "../index.html"; typ.Name, None]
+    let body = $"""<div class="page-header">
+  {crumbs}
+  <h1>{escapeHtml typ.Name}</h1>
+</div>
+<div id="file-list">{cards}</div>"""
+    layout 2 typ.Name body
+
 let filePage (doc: SiteDocument) (contentHtml: string) : string =
     let p = prefixFor 2
     let fileName = System.IO.Path.GetFileName doc.RemotePath
@@ -243,9 +289,16 @@ let filePage (doc: SiteDocument) (contentHtml: string) : string =
     let tagsHtml =
         if doc.Tags.IsEmpty then ""
         else $"""<div class="doc-tags">{tagList doc.Tags p}</div>"""
-    let metaBox =
-        if descHtml = "" && tagsHtml = "" then ""
-        else $"""<div class="doc-meta">{descHtml}{tagsHtml}</div>"""
+    let typeHtml =
+        match doc.Type with
+        | Some t -> $"""<span class="badge badge-type">{escapeHtml t}</span>"""
+        | None -> ""
+    let tier = trustTier doc.Verified
+    let trustHtml = $"""<span class="badge badge-trust badge-{tier}">{tier}</span>"""
+    let staleHtml =
+        if isStale doc.StaleAfter then """<p class="doc-stale-warning">Stale — this content is past its stale_after date.</p>"""
+        else ""
+    let metaBox = $"""<div class="doc-meta">{typeHtml}{trustHtml}{descHtml}{tagsHtml}{staleHtml}</div>"""
     let body = $"""<div class="page-header">
   {crumbs}
   <h1>{escapeHtml fileName}</h1>

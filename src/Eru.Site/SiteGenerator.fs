@@ -622,7 +622,7 @@ let private toDocDto (d: SiteDocument) : DocDto = {
     extension   = d.Extension
     tags        = d.Tags |> List.toArray
     description = d.Description
-    status      = match d.Status with Pulled -> "pulled" | Cached -> "cached" | IndexOnly -> "index-only"
+    status      = match d.SyncStatus with Pulled -> "pulled" | Cached -> "cached" | IndexOnly -> "index-only"
     body        = d.Body
     pageUrl     = d.PageUrl
 }
@@ -706,13 +706,20 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
             let tagSlug = Uri.EscapeDataString tag.Name
             writeFileR (Path.Combine(out, $"tags/{tagSlug}/index.html")) (HtmlTemplates.tagFilesPage tag)
 
+    // types/index.html + types/<type>/index.html
+    if opts.Features.TagPages then
+        writeFileR (Path.Combine(out, "types/index.html")) (HtmlTemplates.typesPage model.Types)
+        for typ in model.Types do
+            let typeSlug = Uri.EscapeDataString typ.Name
+            writeFileR (Path.Combine(out, $"types/{typeSlug}/index.html")) (HtmlTemplates.typeFilesPage typ)
+
     // files/<source>/<slug>.html
     if opts.Features.FilePages then
         for doc in model.Documents do
-            match doc.PageUrl, doc.Status with
+            match doc.PageUrl, doc.SyncStatus with
             | Some _, (Pulled | Cached) ->
                 let contentOpt =
-                    match doc.Status with
+                    match doc.SyncStatus with
                     | Pulled | Cached ->
                         // find the IndexEntry to get the cacheRelPath
                         match deps.ReadSourceIndex doc.Source with

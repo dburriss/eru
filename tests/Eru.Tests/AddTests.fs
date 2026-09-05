@@ -54,6 +54,7 @@ let private makeDeps
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ _ -> Ok None
         BuildSearchIndex        = fun _ _ -> ()
+        ParseYamlBlock          = fun _ -> Ok Yaml.Null
     }
 
 let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }

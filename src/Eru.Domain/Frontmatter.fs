@@ -2,70 +2,78 @@ namespace Eru
 
 module Frontmatter =
 
-    type Parsed = {
-        Description : string option
-        Tags        : string list
-    }
+    type FrontmatterMap = Map<string, Yaml.Node>
 
-    let empty = { Description = None; Tags = [] }
+    type ActorAt = { By: string; At: System.DateTimeOffset option }
 
-    let private stripQuotes (s: string) =
-        let s = s.Trim()
-        if s.Length >= 2 &&
-           ((s.[0] = '"'  && s.[s.Length-1] = '"')  ||
-            (s.[0] = '\'' && s.[s.Length-1] = '\'')) then
-            s.[1..s.Length-2]
-        else s
+    let empty : FrontmatterMap = Map.empty
 
-    let private parseInlineTags (value: string) : string list option =
-        let v = value.Trim()
-        if v.StartsWith("[") && v.EndsWith("]") then
-            v.[1..v.Length-2].Split(',')
-            |> Array.map (fun t -> stripQuotes t)
-            |> Array.filter (fun t -> t <> "")
-            |> Array.toList
-            |> Some
-        else None
-
-    let parse (content: string) : Parsed =
+    /// Locates the "---"..."---" delimited block at the start of `content`
+    /// and returns its inner text, or None if there is no well-formed block.
+    let private extractBlock (content: string) : string option =
         let lines = content.Split([| "\r\n"; "\n" |], System.StringSplitOptions.None)
         if lines.Length < 2 || lines.[0].Trim() <> "---" then
-            empty
+            None
         else
-            // Find closing "---"; closeIdx is 0-based within Array.skip 1
             match lines |> Array.skip 1 |> Array.tryFindIndex (fun l -> l.Trim() = "---") with
-            | None -> empty
+            | None -> None
             | Some closeIdx ->
-                // Frontmatter body is lines.[1 .. closeIdx] (exclusive of both delimiters)
-                let fmLines = lines.[1 .. closeIdx]
+                lines.[1 .. closeIdx] |> String.concat "\n" |> Some
 
-                let description =
-                    fmLines
-                    |> Array.tryPick (fun l ->
-                        let l = l.Trim()
-                        if l.StartsWith("description:") then
-                            let v = l.["description:".Length..].Trim() |> stripQuotes
-                            if v = "" then None else Some v
-                        else None)
+    let parse (parseYaml: Yaml.Parse) (content: string) : FrontmatterMap =
+        match extractBlock content with
+        | None -> empty
+        | Some blockText ->
+            match parseYaml blockText with
+            | Ok (Yaml.Map kvs) -> Map.ofList kvs
+            | _ -> empty
 
-                let tags =
-                    // Try inline: tags: [a, b, c]
-                    match fmLines |> Array.tryPick (fun l ->
-                        let l = l.Trim()
-                        if l.StartsWith("tags:") then
-                            parseInlineTags (l.["tags:".Length..].Trim())
-                        else None) with
-                    | Some t -> t
-                    | None ->
-                        // Try block list: "tags:" followed by "  - item" lines
-                        match fmLines |> Array.tryFindIndex (fun l -> l.Trim() = "tags:") with
-                        | None -> []
-                        | Some idx ->
-                            fmLines
-                            |> Array.skip (idx + 1)
-                            |> Array.takeWhile (fun l -> l.TrimStart().StartsWith("-"))
-                            |> Array.map (fun l -> l.TrimStart().TrimStart('-').Trim() |> stripQuotes)
-                            |> Array.filter (fun t -> t <> "")
-                            |> Array.toList
+    // --- Lenses over well-known fields ---
 
-                { Description = description; Tags = tags }
+    let private scalar (key: string) (fm: FrontmatterMap) : string option =
+        match Map.tryFind key fm with
+        | Some (Yaml.Scalar s) when s <> "" -> Some s
+        | _ -> None
+
+    let description (fm: FrontmatterMap) = scalar "description" fm
+    let type_       (fm: FrontmatterMap) = scalar "type" fm
+    let title       (fm: FrontmatterMap) = scalar "title" fm
+    let status      (fm: FrontmatterMap) = scalar "status" fm
+    let resource    (fm: FrontmatterMap) = scalar "resource" fm
+
+    let tags (fm: FrontmatterMap) : string list =
+        match Map.tryFind "tags" fm with
+        | Some (Yaml.Seq items) ->
+            items |> List.choose (function Yaml.Scalar s -> Some s | _ -> None)
+        | _ -> []
+
+    let private parseDate (s: string) : System.DateTimeOffset option =
+        match System.DateTimeOffset.TryParse s with
+        | true, d -> Some d
+        | false, _ -> None
+
+    let private actorAt (node: Yaml.Node) : ActorAt option =
+        match node with
+        | Yaml.Map kvs ->
+            let m = Map.ofList kvs
+            match Map.tryFind "by" m with
+            | Some (Yaml.Scalar by) when by <> "" ->
+                let at =
+                    match Map.tryFind "at" m with
+                    | Some (Yaml.Scalar s) -> parseDate s
+                    | _ -> None
+                Some { By = by; At = at }
+            | _ -> None
+        | _ -> None
+
+    let generated (fm: FrontmatterMap) : ActorAt option =
+        Map.tryFind "generated" fm |> Option.bind actorAt
+
+    let verified (fm: FrontmatterMap) : ActorAt list =
+        match Map.tryFind "verified" fm with
+        | Some (Yaml.Seq items) -> items |> List.choose actorAt
+        | Some (Yaml.Map _ as m) -> actorAt m |> Option.toList
+        | _ -> []
+
+    let staleAfter (fm: FrontmatterMap) : System.DateTimeOffset option =
+        scalar "stale_after" fm |> Option.bind parseDate

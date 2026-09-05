@@ -9,6 +9,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SimpleExec" Version="13.*" />
+    <PackageReference Include="YamlDotNet" Version="*" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Paths.fs" />
@@ -20,6 +21,7 @@
     <Compile Include="GitAdapter.fs" />
     <Compile Include="ManifestAdapter.fs" />
     <Compile Include="SourceIndexAdapter.fs" />
+    <Compile Include="YamlAdapter.fs" />
     <Compile Include="AdapterDeps.fs" />
   </ItemGroup>
 </Project>

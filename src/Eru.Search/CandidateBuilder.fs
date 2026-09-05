@@ -87,15 +87,15 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
         for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
             let relPath = Path.GetRelativePath(cwd, file)
             if isPathAllowed relPath then
-                let fm = Frontmatter.parse (File.ReadAllText file)
+                let fm = Frontmatter.parse YamlAdapter.parse (File.ReadAllText file)
                 candidates.Add({
                     AbsPath     = file
                     RelPath     = relPath
                     RemotePath  = None
                     Source      = Local
                     SourceName  = None
-                    Tags        = fm.Tags
-                    Description = fm.Description
+                    Tags        = Frontmatter.tags fm
+                    Description = Frontmatter.description fm
                 })
 
     candidates |> Seq.toList

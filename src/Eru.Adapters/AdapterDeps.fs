@@ -77,4 +77,5 @@ module AdapterDeps =
             BuildSearchIndex         = fun sourceName cacheRelPath ->
                 let absPath = Path.Combine(Paths.sourceCacheDir sourceName, cacheRelPath)
                 SearchIndexAdapter.getOrBuild absPath |> ignore
+            ParseYamlBlock           = YamlAdapter.parse
         }

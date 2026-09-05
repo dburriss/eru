@@ -45,6 +45,13 @@ module Sync =
         LocalPath    = None
         CacheRelPath = None
         ContentHash  = None
+        Type         = None
+        Title        = None
+        OkfStatus    = None
+        Generated    = None
+        Verified     = []
+        StaleAfter   = None
+        Resource     = None
     }
 
     // Populate sources/<name>/index.json and sources/<name>/files/ cache.
@@ -122,17 +129,24 @@ module Sync =
                                 match deps.CacheSourceContent sourceName contentHash content with
                                 | Ok p  -> Some p
                                 | Error _ -> None
-                            let fm = Frontmatter.parse content
+                            let fm = Frontmatter.parse deps.ParseYamlBlock content
                             let existing = Map.tryFind resolvedPath idx |> Option.defaultValue emptyIndexEntry
                             let mergedTags =
-                                (existing.Tags @ (fm.Tags |> List.map (fun t -> t.ToLowerInvariant())))
+                                (existing.Tags @ (Frontmatter.tags fm |> List.map (fun t -> t.ToLowerInvariant())))
                                 |> List.distinct
                             idx <- idx |> Map.add resolvedPath {
                                 existing with
                                     Tags         = mergedTags
-                                    Description  = existing.Description |> Option.orElse fm.Description
+                                    Description  = existing.Description |> Option.orElse (Frontmatter.description fm)
                                     CacheRelPath = cacheRelPath
                                     ContentHash  = Some contentHash
+                                    Type         = Frontmatter.type_ fm
+                                    Title        = Frontmatter.title fm
+                                    OkfStatus    = Frontmatter.status fm
+                                    Generated    = Frontmatter.generated fm
+                                    Verified     = Frontmatter.verified fm
+                                    StaleAfter   = Frontmatter.staleAfter fm
+                                    Resource     = Frontmatter.resource fm
                             }
                             match cacheRelPath with
                             | Some relPath -> deps.BuildSearchIndex sourceName relPath
@@ -173,14 +187,21 @@ module Sync =
                                     match deps.CacheSourceContent sourceName contentHash content with
                                     | Ok p  -> Some p
                                     | Error _ -> None
-                                let fm = Frontmatter.parse content
+                                let fm = Frontmatter.parse deps.ParseYamlBlock content
                                 let existing = Map.tryFind resolvedPath idx |> Option.defaultValue emptyIndexEntry
                                 idx <- idx |> Map.add resolvedPath {
                                     existing with
-                                        Tags = (existing.Tags @ (fm.Tags |> List.map (fun t -> t.ToLowerInvariant()))) |> List.distinct
-                                        Description = existing.Description |> Option.orElse fm.Description
+                                        Tags = (existing.Tags @ (Frontmatter.tags fm |> List.map (fun t -> t.ToLowerInvariant()))) |> List.distinct
+                                        Description = existing.Description |> Option.orElse (Frontmatter.description fm)
                                         CacheRelPath = cacheRelPath
                                         ContentHash  = Some contentHash
+                                        Type         = Frontmatter.type_ fm
+                                        Title        = Frontmatter.title fm
+                                        OkfStatus    = Frontmatter.status fm
+                                        Generated    = Frontmatter.generated fm
+                                        Verified     = Frontmatter.verified fm
+                                        StaleAfter   = Frontmatter.staleAfter fm
+                                        Resource     = Frontmatter.resource fm
                                 }
                                 match cacheRelPath with
                                 | Some relPath -> deps.BuildSearchIndex sourceName relPath
@@ -208,6 +229,13 @@ module Sync =
                             LocalPath   = Some entry.LocalPath
                             CacheRelPath = None
                             ContentHash  = None
+                            Type         = None
+                            Title        = None
+                            OkfStatus    = None
+                            Generated    = None
+                            Verified     = []
+                            StaleAfter   = None
+                            Resource     = None
                         }
                         changed <- true
                     | _ -> ()

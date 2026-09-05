@@ -87,6 +87,13 @@ type IndexEntry = {
     LocalPath    : string option    // set if the file is in .eru/eru.lock
     CacheRelPath : string option    // relative path under sources/<name>/files/
     ContentHash  : string option    // sha256:<hash> of cached content
+    Type         : string option              // OKF: type
+    Title        : string option              // OKF: title
+    OkfStatus    : string option              // OKF: status (draft|stable|deprecated)
+    Generated    : Frontmatter.ActorAt option // OKF: generated
+    Verified     : Frontmatter.ActorAt list   // OKF: verified
+    StaleAfter   : System.DateTimeOffset option // OKF: stale_after
+    Resource     : string option              // OKF: resource
 }
 
 module Config =

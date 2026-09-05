@@ -6,12 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Domain.fs" />
+    <Compile Include="Yaml.fs" />
+    <Compile Include="Frontmatter.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Patterns.fs" />
     <Compile Include="LockFile.fs" />
     <Compile Include="Deps.fs" />
     <Compile Include="UrlParser.fs" />
-    <Compile Include="Frontmatter.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="SourceList.fs" />
     <Compile Include="SourceView.fs" />

@@ -2,111 +2,181 @@ module Eru.Tests.FrontmatterTests
 
 open Xunit
 open Eru
+open Eru.Adapters
+
+let private parse (content: string) = Frontmatter.parse YamlAdapter.parse content
 
 [<Fact>]
 let ``empty string returns empty`` () =
-    let result = Frontmatter.parse ""
-    Assert.Equal(None, result.Description)
-    Assert.Empty(result.Tags)
+    let result = parse ""
+    Assert.Equal(None, Frontmatter.description result)
+    Assert.Empty(Frontmatter.tags result)
 
 [<Fact>]
 let ``no frontmatter block returns empty`` () =
-    let result = Frontmatter.parse "# Heading\n\nSome content here."
-    Assert.Equal(None, result.Description)
-    Assert.Empty(result.Tags)
+    let result = parse "# Heading\n\nSome content here."
+    Assert.Equal(None, Frontmatter.description result)
+    Assert.Empty(Frontmatter.tags result)
 
 [<Fact>]
 let ``unclosed frontmatter returns empty`` () =
-    let result = Frontmatter.parse "---\ndescription: orphaned\ntags: [a]\n"
-    Assert.Equal(None, result.Description)
-    Assert.Empty(result.Tags)
+    let result = parse "---\ndescription: orphaned\ntags: [a]\n"
+    Assert.Equal(None, Frontmatter.description result)
+    Assert.Empty(Frontmatter.tags result)
 
 [<Fact>]
 let ``empty frontmatter block returns empty`` () =
-    let result = Frontmatter.parse "---\n---\n# Content"
-    Assert.Equal(None, result.Description)
-    Assert.Empty(result.Tags)
+    let result = parse "---\n---\n# Content"
+    Assert.Equal(None, Frontmatter.description result)
+    Assert.Empty(Frontmatter.tags result)
 
 [<Fact>]
 let ``description only`` () =
-    let result = Frontmatter.parse "---\ndescription: A shared utility\n---\n# Content"
-    Assert.Equal(Some "A shared utility", result.Description)
-    Assert.Empty(result.Tags)
+    let result = parse "---\ndescription: A shared utility\n---\n# Content"
+    Assert.Equal(Some "A shared utility", Frontmatter.description result)
+    Assert.Empty(Frontmatter.tags result)
 
 [<Fact>]
 let ``description with double quotes`` () =
-    let result = Frontmatter.parse """---
+    let result = parse """---
 description: "A quoted description"
 ---
 """
-    Assert.Equal(Some "A quoted description", result.Description)
+    Assert.Equal(Some "A quoted description", Frontmatter.description result)
 
 [<Fact>]
 let ``tags inline list`` () =
-    let result = Frontmatter.parse "---\ntags: [dotnet, logging, utils]\n---\n"
-    Assert.Equal<string list>(["dotnet"; "logging"; "utils"], result.Tags)
-    Assert.Equal(None, result.Description)
+    let result = parse "---\ntags: [dotnet, logging, utils]\n---\n"
+    Assert.Equal<string list>(["dotnet"; "logging"; "utils"], Frontmatter.tags result)
+    Assert.Equal(None, Frontmatter.description result)
 
 [<Fact>]
 let ``tags inline list with quoted items`` () =
-    let result = Frontmatter.parse """---
+    let result = parse """---
 tags: ["dotnet", "logging"]
 ---
 """
-    Assert.Equal<string list>(["dotnet"; "logging"], result.Tags)
+    Assert.Equal<string list>(["dotnet"; "logging"], Frontmatter.tags result)
 
 [<Fact>]
 let ``tags block list`` () =
     let content = "---\ntags:\n  - dotnet\n  - logging\n---\n"
-    let result = Frontmatter.parse content
-    Assert.Equal<string list>(["dotnet"; "logging"], result.Tags)
+    let result = parse content
+    Assert.Equal<string list>(["dotnet"; "logging"], Frontmatter.tags result)
 
 [<Fact>]
 let ``tags block list with quoted items`` () =
     let content = "---\ntags:\n  - \"dotnet\"\n  - 'logging'\n---\n"
-    let result = Frontmatter.parse content
-    Assert.Equal<string list>(["dotnet"; "logging"], result.Tags)
+    let result = parse content
+    Assert.Equal<string list>(["dotnet"; "logging"], Frontmatter.tags result)
 
 [<Fact>]
 let ``both description and inline tags`` () =
     let content = "---\ndescription: Logging helpers\ntags: [dotnet, utils]\n---\n# Doc"
-    let result = Frontmatter.parse content
-    Assert.Equal(Some "Logging helpers", result.Description)
-    Assert.Equal<string list>(["dotnet"; "utils"], result.Tags)
+    let result = parse content
+    Assert.Equal(Some "Logging helpers", Frontmatter.description result)
+    Assert.Equal<string list>(["dotnet"; "utils"], Frontmatter.tags result)
 
 [<Fact>]
 let ``both description and block tags`` () =
     let content = "---\ndescription: Logging helpers\ntags:\n  - dotnet\n  - utils\n---\n"
-    let result = Frontmatter.parse content
-    Assert.Equal(Some "Logging helpers", result.Description)
-    Assert.Equal<string list>(["dotnet"; "utils"], result.Tags)
+    let result = parse content
+    Assert.Equal(Some "Logging helpers", Frontmatter.description result)
+    Assert.Equal<string list>(["dotnet"; "utils"], Frontmatter.tags result)
 
 [<Fact>]
 let ``CRLF line endings are handled`` () =
     let content = "---\r\ndescription: Windows style\r\ntags: [a, b]\r\n---\r\n"
-    let result = Frontmatter.parse content
-    Assert.Equal(Some "Windows style", result.Description)
-    Assert.Equal<string list>(["a"; "b"], result.Tags)
+    let result = parse content
+    Assert.Equal(Some "Windows style", Frontmatter.description result)
+    Assert.Equal<string list>(["a"; "b"], Frontmatter.tags result)
+
+// --- New OKF fields ---
+
+[<Fact>]
+let ``type title status and resource`` () =
+    let content = "---\ntype: BigQuery Table\ntitle: Customer Orders\nstatus: stable\nresource: https://example.com/orders\n---\n"
+    let result = parse content
+    Assert.Equal(Some "BigQuery Table", Frontmatter.type_ result)
+    Assert.Equal(Some "Customer Orders", Frontmatter.title result)
+    Assert.Equal(Some "stable", Frontmatter.status result)
+    Assert.Equal(Some "https://example.com/orders", Frontmatter.resource result)
+
+[<Fact>]
+let ``missing OKF fields are None`` () =
+    let result = parse "---\ndescription: just a description\n---\n"
+    Assert.Equal(None, Frontmatter.type_ result)
+    Assert.Equal(None, Frontmatter.title result)
+    Assert.Equal(None, Frontmatter.status result)
+    Assert.Equal(None, Frontmatter.resource result)
+    Assert.Equal(None, Frontmatter.generated result)
+    Assert.Empty(Frontmatter.verified result)
+    Assert.Equal(None, Frontmatter.staleAfter result)
+
+[<Fact>]
+let ``generated by and at`` () =
+    let content = "---\ngenerated: { by: reference_agent/gemini-2.5-pro, at: 2026-06-20T22:53:05Z }\n---\n"
+    let result = parse content
+    match Frontmatter.generated result with
+    | Some g ->
+        Assert.Equal("reference_agent/gemini-2.5-pro", g.By)
+        Assert.Equal(Some (System.DateTimeOffset.Parse "2026-06-20T22:53:05Z"), g.At)
+    | None -> Assert.Fail "expected Some generated"
+
+[<Fact>]
+let ``verified as bare mapping normalizes to single-element list`` () =
+    let content = "---\nverified: { by: human:ahormati, at: 2026-06-25T09:00:00Z }\n---\n"
+    let result = parse content
+    let verified = Frontmatter.verified result
+    Assert.Equal(1, verified.Length)
+    Assert.Equal("human:ahormati", verified.[0].By)
+
+[<Fact>]
+let ``verified as list keeps all entries`` () =
+    let content = "---\nverified:\n  - { by: human:ahormati, at: 2026-06-25T09:00:00Z }\n  - { by: process:finance-nightly, at: 2026-06-26T02:00:00Z }\n---\n"
+    let result = parse content
+    let verified = Frontmatter.verified result
+    Assert.Equal(2, verified.Length)
+    Assert.Equal("human:ahormati", verified.[0].By)
+    Assert.Equal("process:finance-nightly", verified.[1].By)
+
+[<Fact>]
+let ``stale_after parses to a datetime offset`` () =
+    let content = "---\nstale_after: 2026-09-23T00:00:00Z\n---\n"
+    let result = parse content
+    Assert.Equal(Some (System.DateTimeOffset.Parse "2026-09-23T00:00:00Z"), Frontmatter.staleAfter result)
+
+[<Fact>]
+let ``malformed date does not throw and yields None`` () =
+    let content = "---\nstale_after: not-a-date\n---\n"
+    let result = parse content
+    Assert.Equal(None, Frontmatter.staleAfter result)
+
+[<Fact>]
+let ``unknown extra keys are ignored and do not break other lenses`` () =
+    let content = "---\ndescription: still works\nsome_extension_field: whatever\nnested:\n  a: b\n---\n"
+    let result = parse content
+    Assert.Equal(Some "still works", Frontmatter.description result)
 
 // Merge rules (applied by callers, tested here for documentation)
 
 [<Fact>]
 let ``configured description takes precedence over frontmatter`` () =
-    let fm = Frontmatter.parse "---\ndescription: from file\n---\n"
+    let fm = parse "---\ndescription: from file\n---\n"
     let configuredDesc = Some "from config"
-    let effective = configuredDesc |> Option.orElse fm.Description
+    let effective = configuredDesc |> Option.orElse (Frontmatter.description fm)
     Assert.Equal(Some "from config", effective)
 
 [<Fact>]
 let ``frontmatter description used when no configured description`` () =
-    let fm = Frontmatter.parse "---\ndescription: from file\n---\n"
+    let fm = parse "---\ndescription: from file\n---\n"
     let configuredDesc : string option = None
-    let effective = configuredDesc |> Option.orElse fm.Description
+    let effective = configuredDesc |> Option.orElse (Frontmatter.description fm)
     Assert.Equal(Some "from file", effective)
 
 [<Fact>]
 let ``tags merge deduplicates`` () =
-    let fm = Frontmatter.parse "---\ntags: [dotnet, logging]\n---\n"
+    let fm = parse "---\ntags: [dotnet, logging]\n---\n"
     let configuredTags = ["logging"; "extra"]
-    let merged = (configuredTags @ fm.Tags) |> List.distinct
+    let merged = (configuredTags @ Frontmatter.tags fm) |> List.distinct
     Assert.Equal<string list>(["logging"; "extra"; "dotnet"], merged)

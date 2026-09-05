@@ -60,13 +60,19 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
                             Id          = $"{src.Name}:{remotePath}"
                             Source      = src.Name
                             RemotePath  = remotePath
-                            Title       = fileTitle remotePath
+                            Title       = entry.Title |> Option.defaultValue (fileTitle remotePath)
                             Extension   = ext
                             Tags        = entry.Tags
                             Description = entry.Description
-                            Status      = status
+                            SyncStatus  = status
                             Body        = body
                             PageUrl     = pageUrl src.Name remotePath status ext
+                            Type        = entry.Type
+                            Status      = entry.OkfStatus
+                            Generated   = entry.Generated
+                            Verified    = entry.Verified
+                            StaleAfter  = entry.StaleAfter
+                            Resource    = entry.Resource
                         })
 
                 Some {
@@ -87,7 +93,16 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
         |> List.sort
         |> List.map (fun tag ->
             let files = allDocs |> List.filter (fun d -> List.contains tag d.Tags)
-            { Name = tag; FileCount = files.Length; Files = files })
+            { SiteTag.Name = tag; FileCount = files.Length; Files = files })
+
+    let types =
+        allDocs
+        |> List.choose (fun d -> d.Type)
+        |> List.distinct
+        |> List.sort
+        |> List.map (fun t ->
+            let files = allDocs |> List.filter (fun d -> d.Type = Some t)
+            { SiteType.Name = t; FileCount = files.Length; Files = files })
 
     let extensions =
         allDocs
@@ -100,5 +115,6 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
         Documents     = allDocs
         Sources       = sources
         Tags          = tags
+        Types         = types
         AllExtensions = extensions
     }
