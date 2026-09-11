@@ -12,6 +12,8 @@
 ### Changed
 
 - `eru manifest verify` renamed to `eru manifest validate`; `verify` is kept as a backward-compatible alias
+- `eru add` gives a clearer error when passed a bare repo URL, suggesting `eru source add <url>` followed by `eru add <source>:<path>`
+- Unhandled exceptions now print a concise `eru: unexpected error: <message>` instead of a raw stack trace; pass `--debug` to see the full stack trace
 
 ### Fixed
 
