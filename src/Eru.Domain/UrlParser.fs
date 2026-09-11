@@ -56,3 +56,14 @@ module UrlParser =
                 |> List.tryPick (fun (host, parse) ->
                     if uri.Host = host then parse uri else None)
             with _ -> None
+
+    // True when the URL's host is a recognised provider but tryParse still failed
+    // (i.e. it's a bare repo URL rather than a link to a specific file).
+    let isBareRepoUrl (raw: string) : bool =
+        if not (raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) then
+            false
+        else
+            try
+                let uri = Uri(raw)
+                providers |> List.exists (fun (host, _) -> uri.Host = host)
+            with _ -> false

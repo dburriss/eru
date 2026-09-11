@@ -242,7 +242,10 @@ module Add =
                         pullOne deps updatedSources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries parsed.SourceName parsed.RemotePath)
                 | None ->
                     if rawPath.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase) then
-                        Error "unsupported URL provider; supported providers: GitHub (https://github.com/...), GitLab (https://gitlab.com/...)"
+                        if UrlParser.isBareRepoUrl rawPath then
+                            Error $"'{rawPath}' points to a repo, not a file. Register it with 'eru source add {rawPath}', then pull a file with 'eru add <source>:<path>'."
+                        else
+                            Error "unsupported URL provider; supported providers: GitHub (https://github.com/...), GitLab (https://gitlab.com/...)"
                     else
                         let embeddedSrc, remotePath = parseDiscriminator rawPath
                         let noSourceSpecified = embeddedSrc.IsNone && cmd.SourceName.IsNone
