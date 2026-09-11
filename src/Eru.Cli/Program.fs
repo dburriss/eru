@@ -75,3 +75,9 @@ let main argv =
     | :? ArguParseException as ex ->
         eprintfn "%s" ex.Message
         1
+    | ex ->
+        let isDebug = argv |> Array.contains "--debug"
+        eprintfn "eru: unexpected error: %s" ex.Message
+        if isDebug then eprintfn "%s" (ex.ToString())
+        else eprintfn "run with --debug for the full stack trace"
+        1
