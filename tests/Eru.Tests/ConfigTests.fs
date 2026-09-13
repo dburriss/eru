@@ -141,7 +141,7 @@ let ``resolveByTags returns files from matching collection`` () =
     let g = makeGlobal [] [ makeCollection "col" ["backend"] files ]
     let result = Config.resolveByTags ["backend"] g
     Assert.Equal(1, result.Length)
-    Assert.Equal(("src", "foo.md"), result[0])
+    Assert.Equal({ Source = "src"; RemotePath = "foo.md" }, result[0])
 
 [<Fact>]
 let ``resolveByTags AND semantics - all tags must match`` () =
@@ -169,7 +169,7 @@ let ``resolveByTags matches file-level tags even when collection does not`` () =
     let g = makeGlobal [] [ makeCollection "col" ["other"] files ]
     let result = Config.resolveByTags ["dotnet"] g
     Assert.Equal(1, result.Length)
-    Assert.Equal("matches.md", snd result[0])
+    Assert.Equal("matches.md", result[0].RemotePath)
 
 [<Fact>]
 let ``resolveByTags returns empty when no collections match`` () =

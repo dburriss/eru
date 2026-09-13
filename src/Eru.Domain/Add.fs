@@ -226,11 +226,12 @@ module Add =
                 match globalCfg with
                 | None -> Error "no global config found; tag-based pull requires collections in global config"
                 | Some gcfg ->
-                    let pairs = Config.resolveByTags cmd.Tags gcfg
-                    if pairs.IsEmpty then
+                    let ids = Config.resolveByTags cmd.Tags gcfg
+                    if ids.IsEmpty then
                         let tagList = cmd.Tags |> String.concat ", "
                         Error $"no files found matching tags: {tagList}"
                     else
+                        let pairs = ids |> List.map (fun id -> id.Source, id.RemotePath)
                         pullMany deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries pairs
 
             | _ ->

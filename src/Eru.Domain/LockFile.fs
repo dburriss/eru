@@ -9,6 +9,9 @@ type LockEntry = {
     Description : string option
 }
 
+module LockEntry =
+    let id (e: LockEntry) : EntryId = { Source = e.SourceName; RemotePath = e.RemotePath }
+
 module LockFile =
     let private versionComment = "# eru.lock v1"
 
@@ -29,10 +32,9 @@ module LockFile =
                     Error $"Malformed lock entry (expected at least 3 tab-separated fields): {line}"
                 else
                     let origin : string = parts.[1]
-                    let colonIdx = origin.IndexOf(':')
-                    if colonIdx < 0 then
-                        Error $"Malformed origin in lock entry (expected sourceName:remotePath): {origin}"
-                    else
+                    match EntryId.tryParse origin with
+                    | None -> Error $"Malformed origin in lock entry (expected sourceName:remotePath): {origin}"
+                    | Some id ->
                         let tags =
                             if parts.Length >= 4 && parts.[3].Trim() <> "" then
                                 parts.[3].Trim().Split(',')
@@ -45,8 +47,8 @@ module LockFile =
                             else None
                         Ok ({
                             LocalPath   = parts.[0].Trim()
-                            SourceName  = origin.[..colonIdx - 1]
-                            RemotePath  = origin.[colonIdx + 1..]
+                            SourceName  = id.Source
+                            RemotePath  = id.RemotePath
                             ContentHash = parts.[2].Trim()
                             Tags        = tags
                             Description = description
@@ -69,7 +71,7 @@ module LockFile =
         let lines =
             sorted
             |> List.map (fun e ->
-                let base_ = $"{e.LocalPath}\t{e.SourceName}:{e.RemotePath}\t{e.ContentHash}"
+                let base_ = $"{e.LocalPath}\t{EntryId.toString (LockEntry.id e)}\t{e.ContentHash}"
                 let tagsField = e.Tags |> String.concat ","
                 match e.Tags, e.Description with
                 | [], None     -> base_

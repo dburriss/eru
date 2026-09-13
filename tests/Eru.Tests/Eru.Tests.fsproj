@@ -19,6 +19,7 @@
   <ItemGroup>
     <Compile Include="FrontmatterTests.fs" />
     <Compile Include="PatternsTests.fs" />
+    <Compile Include="EntryIdTests.fs" />
     <Compile Include="ConfigTests.fs" />
     <Compile Include="SourceTests.fs" />
     <Compile Include="CollectionTests.fs" />

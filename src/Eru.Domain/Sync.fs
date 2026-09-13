@@ -156,14 +156,14 @@ module Sync =
         // Step 3: Fetch and cache lock-only entries (not covered by manifest or collection)
         let collectionPaths =
             eff.Collections
-            |> List.map (fun f -> (f.Source, f.RemotePath))
+            |> List.map CollectionFileRef.id
             |> Set.ofList
 
         match deps.ReadLockEntries eff.StateFile with
         | Error _ -> ()
         | Ok lockEntries ->
             lockEntries
-            |> List.filter (fun e -> not (Set.contains (e.SourceName, e.RemotePath) collectionPaths))
+            |> List.filter (fun e -> not (Set.contains (LockEntry.id e) collectionPaths))
             |> List.groupBy (fun e -> e.SourceName)
             |> List.iter (fun (sourceName, orphans) ->
                 match eff.Sources |> List.tryFind (fun s -> s.Name = sourceName) with

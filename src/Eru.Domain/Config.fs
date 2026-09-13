@@ -1,5 +1,17 @@
 namespace Eru
 
+// Identifies an entry within a source: the pair (Source, RemotePath).
+type EntryId = { Source: string; RemotePath: string }
+
+module EntryId =
+    let toString (id: EntryId) = $"{id.Source}:{id.RemotePath}"
+
+    // Splits on the first ':' only, matching the on-disk eru.lock origin format.
+    let tryParse (s: string) : EntryId option =
+        match s.IndexOf(':') with
+        | -1 -> None
+        | i -> Some { Source = s.Substring(0, i); RemotePath = s.Substring(i + 1) }
+
 // Declared by a source repo at .eru/manifest.json
 // Path supports glob patterns (same gitignore-style semantics as CollectionFileRef.RemotePath):
 //   "docs/*.md"      — all .md files in docs/
@@ -30,6 +42,9 @@ type CollectionFileRef = {
     Tags: string list
     Description: string option
 }
+
+module CollectionFileRef =
+    let id (f: CollectionFileRef) : EntryId = { Source = f.Source; RemotePath = f.RemotePath }
 
 type CollectionConfig = {
     Name: string
@@ -253,7 +268,7 @@ module Config =
         (cfg: EffectiveConfig) : EffectiveConfig =
         let existingKeys =
             cfg.Collections
-            |> List.map (fun f -> f.Source, f.RemotePath)
+            |> List.map CollectionFileRef.id
             |> Set.ofList
         let manifestFiles =
             cfg.Sources
@@ -267,11 +282,11 @@ module Config =
                           Tags        = f.Tags
                           Description = f.Description })
                     |> List.filter (fun f ->
-                        not (Set.contains (f.Source, f.RemotePath) existingKeys))
+                        not (Set.contains (CollectionFileRef.id f) existingKeys))
                 | _ -> [])
         { cfg with Collections = cfg.Collections @ manifestFiles }
 
-    let resolveByTags (tags: string list) (globalCfg: GlobalConfig) : (string * string) list =
+    let resolveByTags (tags: string list) (globalCfg: GlobalConfig) : EntryId list =
         let normalised = tags |> List.map (fun t -> t.ToLowerInvariant())
         let hasAllTags (itemTags: string list) =
             normalised |> List.forall (fun t -> itemTags |> List.exists (fun it -> it.ToLowerInvariant() = t))
@@ -281,6 +296,6 @@ module Config =
             let colMatches = hasAllTags col.Tags
             col.Files
             |> List.choose (fun f ->
-                if colMatches || hasAllTags f.Tags then Some (f.Source, f.RemotePath)
+                if colMatches || hasAllTags f.Tags then Some (CollectionFileRef.id f)
                 else None))
         |> List.distinct
