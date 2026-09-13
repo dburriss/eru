@@ -15,5 +15,12 @@
 - [x] TUI for browsing sources and lock file entries; maybe start with a `eru browse` command that lists all sources and their files in a navigable console UI using Spectre.Console's tree and table components, with details on selection. https://spectreconsole.net/console and https://gui-cs.github.io/Terminal.Gui/docs/index.html
 - [x] generate command that generates a html site for browsing the local cache, similar to how some static site generators work; could be a `eru site generate` command that outputs to a specified directory or defaults to `./cache-site/`. Should have search functionality and filtering based on source, file type, tags, and collections.
 - [x] `eru site serve` command to serve the generated site locally with live reload on changes to the cache
+- [x] Understand OKF when generating site
+- [x] OKF validation
+- [x] document identity
+- [x] Build graph from links and return in MCP
+- [ ] Show graph on site
+- [ ] Reserve OKF index.md and log.md semantics
+- [ ] Integrate OKF into idea of source and collection/OKF bundle
 - [ ] When running sync, make sure local file system is up-to-date with the lock file, check the cache for the file, and if same hash in cache, write it to the target path; if not in cache, fetch from git and then write to target path and cache
 - [ ] Add HTTP MCP
