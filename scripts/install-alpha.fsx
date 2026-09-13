@@ -89,6 +89,20 @@ printfn "alpha version  : %s" alphaVersion
 printfn ""
 
 let nupkgDir = Path.Combine(rootPath, "src/Eru.Cli/nupkg")
+let slnPath = Path.Combine(rootPath, "eru.slnx")
+
+// Clean first — a stale incremental build can leave Eru.Cli compiled against
+// dependency assemblies from a previous (differently-versioned) build, which
+// produces a tool that throws FileNotFoundException for its own dependencies
+// at runtime even though the correct files are right there on disk.
+if isDryRun then
+    printfn "[Dry Run] Would clean: dotnet clean %s -c Release" slnPath
+else
+    printfn "Cleaning solution..."
+    runProcess "dotnet" [ "clean"; slnPath; "-c"; "Release" ] rootPath |> ignore
+    printfn "Clean complete."
+
+printfn ""
 
 // Pack
 if isDryRun then
