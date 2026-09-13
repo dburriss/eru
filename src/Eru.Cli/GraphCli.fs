@@ -27,7 +27,7 @@ let private renderJson (result: BuildResult) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
     let payload =
         {| nodes = result.Nodes |> List.map nodeKey
-           edges = result.Edges |> List.map (fun e -> {| from = nodeKey e.From; ``to`` = nodeKey e.To |}) |}
+           edges = result.Edges |> List.map (fun e -> {| from = nodeKey e.From; ``to`` = nodeKey e.To; description = e.Description |}) |}
     printfn "%s" (JsonSerializer.Serialize(payload, opts))
 
 let private renderTable (result: BuildResult) =

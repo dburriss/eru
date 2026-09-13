@@ -1,5 +1,15 @@
 namespace Eru
 
+type LinkKind =
+    | MarkdownLink
+    | Wikilink
+
+type ExtractedLink = {
+    Target      : string
+    Description : string option
+    Kind        : LinkKind
+}
+
 type Deps = {
     ReadGlobalConfig         : unit   -> Result<GlobalConfig option, string>
     ReadLocalConfig          : unit   -> Result<LocalConfig option, string>
@@ -27,5 +37,5 @@ type Deps = {
     BuildSearchIndex         : string -> string -> unit
     ParseYamlBlock           : Yaml.Parse
     ListMarkdownFiles        : string -> Result<string list, string>
-    ExtractLinks             : string -> string list
+    ExtractLinks             : string -> ExtractedLink list
 }

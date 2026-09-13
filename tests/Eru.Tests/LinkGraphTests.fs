@@ -17,12 +17,27 @@ let private makeIndexEntry cacheRelPath : IndexEntry =
       ContentHash = None; Type = None; Title = None; OkfStatus = None
       Generated = None; Verified = []; StaleAfter = None; Resource = None }
 
-// Fixed stand-in for the real Markdig-based adapter: pulls "(...)" targets out of
-// "[text](target)" markdown link syntax, just enough to drive execute's tests.
-let private fakeExtractLinks (content: string) : string list =
-    System.Text.RegularExpressions.Regex.Matches(content, @"\]\(([^)]*)\)")
-    |> Seq.map (fun m -> m.Groups.[1].Value)
-    |> List.ofSeq
+let private makeIndexEntryWithTitle cacheRelPath title : IndexEntry =
+    { makeIndexEntry cacheRelPath with Title = Some title }
+
+// Fixed stand-in for the real Markdig-based adapter: pulls "[text](target)" markdown
+// links and "[[target]]" / "[[target|text]]" wikilinks out of raw content, just
+// enough to drive execute's tests.
+let private fakeExtractLinks (content: string) : ExtractedLink list =
+    let markdownLinks =
+        System.Text.RegularExpressions.Regex.Matches(content, @"\[([^\]]*)\]\(([^)]*)\)")
+        |> Seq.map (fun m ->
+            let text = m.Groups.[1].Value.Trim()
+            { Target = m.Groups.[2].Value; Description = (if text = "" then None else Some text); Kind = MarkdownLink })
+        |> List.ofSeq
+    let wikilinks =
+        System.Text.RegularExpressions.Regex.Matches(content, @"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
+        |> Seq.map (fun m ->
+            let target = m.Groups.[1].Value.Trim()
+            let description = if m.Groups.[2].Success then Some (m.Groups.[2].Value.Trim()) else None
+            { Target = target; Description = description; Kind = Wikilink })
+        |> List.ofSeq
+    markdownLinks @ wikilinks
 
 let private makeDeps
     (sourceIndex: Map<string, Map<string, IndexEntry>>)
@@ -129,8 +144,8 @@ let ``execute builds nodes and edges from cached content`` () =
         Assert.Equal(3, result.Nodes.Length)
         Assert.Equal(2, result.Edges.Length)
         let fromIndex = InternalNode { Source = "kb"; RemotePath = "docs/index.md" }
-        Assert.Contains(result.Edges, fun e -> e.From = fromIndex && e.To = InternalNode { Source = "kb"; RemotePath = "docs/guide.md" })
-        Assert.Contains(result.Edges, fun e -> e.From = fromIndex && e.To = ExternalNode "https://example.com")
+        Assert.Contains(result.Edges, fun e -> e.From = fromIndex && e.To = InternalNode { Source = "kb"; RemotePath = "docs/guide.md" } && e.Description = Some "guide")
+        Assert.Contains(result.Edges, fun e -> e.From = fromIndex && e.To = ExternalNode "https://example.com" && e.Description = Some "site")
 
 [<Fact>]
 let ``execute filters by source`` () =
@@ -151,3 +166,101 @@ let ``execute filters by source`` () =
     | Ok result ->
         Assert.Equal(1, result.Nodes.Length)
         Assert.Equal(InternalNode { Source = "kb"; RemotePath = "index.md" }, result.Nodes.[0])
+
+// ── resolveWikilink ───────────────────────────────────────────────────────────
+
+[<Fact>]
+let ``wikilink with path-shaped target resolves via step 1`` () =
+    let titleIndex = { KnownPaths = Set.ofList [ "docs/guide.md" ]; ByKey = Map.empty }
+    match resolveWikilink "kb" "docs/index.md" titleIndex "guide.md" with
+    | Some (InternalNode id) -> Assert.Equal({ Source = "kb"; RemotePath = "docs/guide.md" }, id)
+    | other -> Assert.Fail($"expected InternalNode, got %A{other}")
+
+[<Fact>]
+let ``wikilink with stem-only target falls back to filename stem match`` () =
+    let titleIndex = { KnownPaths = Set.ofList [ "docs/guide.md" ]; ByKey = Map.ofList [ "guide", "docs/guide.md" ] }
+    match resolveWikilink "kb" "docs/index.md" titleIndex "guide" with
+    | Some (InternalNode id) -> Assert.Equal({ Source = "kb"; RemotePath = "docs/guide.md" }, id)
+    | other -> Assert.Fail($"expected InternalNode, got %A{other}")
+
+[<Fact>]
+let ``wikilink target falls back to title match`` () =
+    let titleIndex = { KnownPaths = Set.ofList [ "docs/guide.md" ]; ByKey = Map.ofList [ "the guide", "docs/guide.md" ] }
+    match resolveWikilink "kb" "docs/index.md" titleIndex "The Guide" with
+    | Some (InternalNode id) -> Assert.Equal({ Source = "kb"; RemotePath = "docs/guide.md" }, id)
+    | other -> Assert.Fail($"expected InternalNode, got %A{other}")
+
+[<Fact>]
+let ``wikilink title match wins over stem match on collision`` () =
+    // "other.md" has title "guide", and "docs/guide.md" is a different file with filename stem "guide".
+    // Title-keyed entries are inserted after stem-keyed entries, so the title entry wins.
+    let titleIndex = { KnownPaths = Set.ofList [ "docs/guide.md"; "docs/other.md" ]; ByKey = Map.ofList [ "guide", "docs/other.md" ] }
+    match resolveWikilink "kb" "docs/index.md" titleIndex "guide" with
+    | Some (InternalNode id) -> Assert.Equal({ Source = "kb"; RemotePath = "docs/other.md" }, id)
+    | other -> Assert.Fail($"expected InternalNode, got %A{other}")
+
+[<Fact>]
+let ``wikilink with no path or title match falls back permissively to path resolution`` () =
+    let titleIndex = { KnownPaths = Set.empty; ByKey = Map.empty }
+    match resolveWikilink "kb" "docs/index.md" titleIndex "missing" with
+    | Some (InternalNode id) -> Assert.Equal({ Source = "kb"; RemotePath = "docs/missing" }, id)
+    | other -> Assert.Fail($"expected InternalNode, got %A{other}")
+
+// ── wikilinks via fake adapter / execute ──────────────────────────────────────
+
+[<Fact>]
+let ``fakeExtractLinks parses wikilinks with and without description`` () =
+    let links = fakeExtractLinks "see [[guide]] and [[guide|See the guide]]"
+    Assert.Equal(2, links.Length)
+    Assert.Contains(links, fun l -> l.Kind = Wikilink && l.Target = "guide" && l.Description = None)
+    Assert.Contains(links, fun l -> l.Kind = Wikilink && l.Target = "guide" && l.Description = Some "See the guide")
+
+[<Fact>]
+let ``execute resolves stem-only wikilink through title index built from IndexEntry`` () =
+    let sourceIndex =
+        Map.ofList [
+            "kb", Map.ofList [
+                "docs/index.md", makeIndexEntry (Some "files/hash1")
+                "docs/guide.md", makeIndexEntry (Some "files/hash2")
+            ]
+        ]
+    let content =
+        Map.ofList [
+            ("kb", "files/hash1"), "see [[guide]]"
+            ("kb", "files/hash2"), "no links here"
+        ]
+    let deps = makeDeps sourceIndex content
+
+    match LinkGraph.execute deps { SourceFilter = None } with
+    | Error e -> Assert.Fail(e)
+    | Ok result ->
+        let fromIndex = InternalNode { Source = "kb"; RemotePath = "docs/index.md" }
+        Assert.Contains(result.Edges, fun e ->
+            e.From = fromIndex
+            && e.To = InternalNode { Source = "kb"; RemotePath = "docs/guide.md" }
+            && e.Description = None)
+
+[<Fact>]
+let ``execute resolves wikilink via title from frontmatter`` () =
+    let sourceIndex =
+        Map.ofList [
+            "kb", Map.ofList [
+                "docs/index.md", makeIndexEntry (Some "files/hash1")
+                "docs/other.md", makeIndexEntryWithTitle (Some "files/hash2") "The Guide"
+            ]
+        ]
+    let content =
+        Map.ofList [
+            ("kb", "files/hash1"), "see [[The Guide|Read this]]"
+            ("kb", "files/hash2"), "no links here"
+        ]
+    let deps = makeDeps sourceIndex content
+
+    match LinkGraph.execute deps { SourceFilter = None } with
+    | Error e -> Assert.Fail(e)
+    | Ok result ->
+        let fromIndex = InternalNode { Source = "kb"; RemotePath = "docs/index.md" }
+        Assert.Contains(result.Edges, fun e ->
+            e.From = fromIndex
+            && e.To = InternalNode { Source = "kb"; RemotePath = "docs/other.md" }
+            && e.Description = Some "Read this")
