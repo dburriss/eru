@@ -32,5 +32,6 @@
     <Compile Include="Search.fs" />
     <Compile Include="Sync.fs" />
     <Compile Include="OkfValidate.fs" />
+    <Compile Include="LinkGraph.fs" />
   </ItemGroup>
 </Project>

@@ -27,4 +27,5 @@ type Deps = {
     BuildSearchIndex         : string -> string -> unit
     ParseYamlBlock           : Yaml.Parse
     ListMarkdownFiles        : string -> Result<string list, string>
+    ExtractLinks             : string -> string list
 }

@@ -361,6 +361,17 @@ type OkfArgs =
             match a with
             | Validate _ -> "Validate a directory tree for OKF conformance (§11)."
 
+type GraphArgs =
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    | [<Unique; AltCommandLine("-s")>] Source of sourceName: string
+    | [<Unique>]                       Dot
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _ -> "Output format: table (default), text, json."
+            | Source _ -> "Restrict the graph to a single source."
+            | Dot      -> "Emit Graphviz DOT format instead (takes precedence over --output)."
+
 [<CliPrefix(CliPrefix.None)>]
 type EruArgs =
     | [<Unique; CliPrefix(CliPrefix.DoubleDash)>] Debug
@@ -378,6 +389,7 @@ type EruArgs =
     | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
     | [<SubCommand>] Site       of ParseResults<SiteArgs>
     | [<SubCommand>] Okf        of ParseResults<OkfArgs>
+    | [<SubCommand>] Graph      of ParseResults<GraphArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -396,3 +408,4 @@ type EruArgs =
             | Browse _     -> "Interactively browse sources and tracked files."
             | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
             | Okf _        -> "Validate a knowledge bundle for OKF conformance."
+            | Graph _      -> "Show the link graph between cached documents and external URLs."

@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="SimpleExec" Version="13.*" />
     <PackageReference Include="YamlDotNet" Version="*" />
+    <PackageReference Include="Markdig" Version="0.*" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Paths.fs" />
@@ -23,6 +24,7 @@
     <Compile Include="OkfAdapter.fs" />
     <Compile Include="SourceIndexAdapter.fs" />
     <Compile Include="YamlAdapter.fs" />
+    <Compile Include="MarkdownLinkAdapter.fs" />
     <Compile Include="AdapterDeps.fs" />
   </ItemGroup>
 </Project>

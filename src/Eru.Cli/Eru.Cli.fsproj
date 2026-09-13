@@ -84,6 +84,7 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="SiteGenerateCli.fs" />
     <Compile Include="SiteServeCli.fs" />
     <Compile Include="OkfValidateCli.fs" />
+    <Compile Include="GraphCli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

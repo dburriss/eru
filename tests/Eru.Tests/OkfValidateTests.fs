@@ -34,6 +34,7 @@ let private makeDeps (files: Map<string, string>) : Deps =
         BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = YamlAdapter.parse
         ListMarkdownFiles       = fun _ -> Ok (files |> Map.toList |> List.map fst)
+        ExtractLinks            = fun _ -> []
     }
 
 let private run (files: (string * string) list) : OkfValidate.ValidateResult =

@@ -56,6 +56,7 @@ let private makeDeps
         BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
+        ExtractLinks            = fun _ -> []
     }
 
 let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }

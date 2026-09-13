@@ -79,4 +79,5 @@ module AdapterDeps =
                 SearchIndexAdapter.getOrBuild absPath |> ignore
             ParseYamlBlock           = YamlAdapter.parse
             ListMarkdownFiles        = OkfAdapter.listMarkdownFiles
+            ExtractLinks             = MarkdownLinkAdapter.extractLinks
         }

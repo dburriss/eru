@@ -40,6 +40,7 @@ let private makeDeps
         BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
+        ExtractLinks            = fun _ -> []
     }
 
 let private cmd target dryrun : Remove.Command = { Target = target; DryRun = dryrun }

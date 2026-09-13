@@ -61,6 +61,7 @@ let private makeDeps
         BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
+        ExtractLinks            = fun _ -> []
     }
 
 let private emptyQuery : LocalSearch.Query = { Terms = []; Tags = [] }

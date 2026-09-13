@@ -35,5 +35,6 @@
     <Compile Include="IndexBuilderTests.fs" />
     <Compile Include="HtmlTemplatesTests.fs" />
     <Compile Include="OkfValidateTests.fs" />
+    <Compile Include="LinkGraphTests.fs" />
   </ItemGroup>
 </Project>
