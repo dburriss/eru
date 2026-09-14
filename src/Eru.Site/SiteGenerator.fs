@@ -631,14 +631,42 @@ let private appJs = """
 
 (function () {
   if (window.location.protocol === 'file:') return;
-  fetch('/api/ping').then(function (r) {
-    if (!r.ok) { console.warn('[eru] Static mode — fallen back to JSON document search, live reload unavailable. Run "eru site serve" for full search and live reload.'); return; }
-    var es = new EventSource('/api/events');
-    es.onmessage = function (e) { if (e.data === 'rebuild') location.reload(); };
-    es.onerror   = function ()  { es.close(); };
-  }).catch(function () {
+  var POLL_MS = 3000;
+  var knownVersion = null;
+  var timer = null;
+
+  function checkVersion() {
+    fetch('/api/version', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (data) {
+        if (data.version !== knownVersion) location.reload();
+      })
+      .catch(function () {});
+  }
+
+  function startPolling() {
+    if (timer === null) timer = setInterval(checkVersion, POLL_MS);
+  }
+
+  function stopPolling() {
+    if (timer !== null) { clearInterval(timer); timer = null; }
+  }
+
+  function warnStaticMode() {
     console.warn('[eru] Static mode — fallen back to JSON document search, live reload unavailable. Run "eru site serve" for full search and live reload.');
-  });
+  }
+
+  fetch('/api/version', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function (data) {
+      knownVersion = data.version;
+      if (document.visibilityState === 'visible') startPolling();
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') startPolling();
+        else stopPolling();
+      });
+    })
+    .catch(warnStaticMode);
 })();
 """
 

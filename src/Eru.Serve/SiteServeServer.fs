@@ -30,12 +30,13 @@ module ServeOptions =
 
 let private jsonOpts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
 
-let private sseClients = System.Collections.Concurrent.ConcurrentDictionary<Guid, HttpResponse>()
+// Bumped on every successful regeneration; polled by the browser (js/app.js) to
+// trigger a page reload without holding a persistent per-tab connection open (an
+// EventSource-per-tab design exhausts the browser's ~6 connections-per-origin cap
+// once a few documents are open at once).
+let mutable private siteVersion = 1
 
-let private broadcast (msg: string) =
-    for kvp in sseClients do
-        try kvp.Value.WriteAsync($"data: {msg}\n\n") |> ignore
-        with _ -> ()
+let private bumpVersion () = Threading.Interlocked.Increment(&siteVersion) |> ignore
 
 // Wraps an HttpContext handler returning Task<unit> into a RequestDelegate (HttpContext -> Task).
 let private rd (f: HttpContext -> Task<unit>) : RequestDelegate =
@@ -98,26 +99,14 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
                 try
                     Sync.populateIndex deps |> ignore
                     match SiteGenerator.generate deps cfg genOpts with
-                    | Ok ()  -> broadcast "rebuild"
+                    | Ok ()  -> bumpVersion ()
                     | Error e -> eprintfn "[eru serve] Sync regeneration failed: %s" e
                 with ex -> eprintfn "[eru serve] Sync error: %s" ex.Message) |> ignore
             Task.CompletedTask)) |> ignore
 
-        app.MapGet("/api/ping", RequestDelegate(fun (ctx: HttpContext) ->
-            ctx.Response.StatusCode <- 204
-            Task.CompletedTask)) |> ignore
-
-        app.MapGet("/api/events", rd (fun ctx -> task {
-            ctx.Response.Headers["Content-Type"]      <- "text/event-stream"
-            ctx.Response.Headers["Cache-Control"]     <- "no-cache"
-            ctx.Response.Headers["X-Accel-Buffering"] <- "no"
-            do! ctx.Response.Body.FlushAsync()
-            let id = Guid.NewGuid()
-            sseClients.TryAdd(id, ctx.Response) |> ignore
-            try
-                do! Task.Delay(Timeout.Infinite, ctx.RequestAborted)
-            with :? OperationCanceledException -> ()
-            sseClients.TryRemove(id) |> ignore
+        app.MapGet("/api/version", rd (fun ctx -> task {
+            ctx.Response.ContentType <- "application/json"
+            do! ctx.Response.WriteAsync(JsonSerializer.Serialize({| version = siteVersion |}, jsonOpts))
         })) |> ignore
 
         // 3. Start background sync loop
@@ -133,7 +122,7 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
                             try
                                 Sync.populateIndex deps |> ignore
                                 match SiteGenerator.generate deps cfg genOpts with
-                                | Ok ()  -> broadcast "rebuild"
+                                | Ok ()  -> bumpVersion ()
                                 | Error e -> eprintfn "[eru serve] Background regen failed: %s" e
                             with ex -> eprintfn "[eru serve] Background sync error: %s" ex.Message
                         else
