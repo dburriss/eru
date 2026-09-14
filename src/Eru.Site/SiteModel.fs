@@ -49,3 +49,15 @@ type SiteModel = {
     Types         : SiteType list
     AllExtensions : string list
 }
+
+type RelatedDoc = {
+    Id         : string
+    Title      : string
+    PageUrl    : string option
+    IsExternal : bool
+}
+
+type RelatedLinks = {
+    Incoming : RelatedDoc list
+    Outgoing : RelatedDoc list
+}

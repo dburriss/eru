@@ -14,6 +14,7 @@ type SiteFeatures = {
     FilePages   : bool
     Search      : bool
     ThemeToggle : bool
+    Graph       : bool
 }
 
 type ThemeOverrides = {
@@ -33,7 +34,7 @@ module GenerateOptions =
     let defaults = {
         OutputDir   = "./cache-site/"
         OpenBrowser = false
-        Features    = { TagPages = true; SourcePages = true; FilePages = true; Search = true; ThemeToggle = true }
+        Features    = { TagPages = true; SourcePages = true; FilePages = true; Search = true; ThemeToggle = true; Graph = true }
         Theme       = { PrimaryColor = None; FontFamily = None; CustomCssPath = None }
     }
 
@@ -48,6 +49,9 @@ let private css = """
   --color-border: #e1e4e8;
   --color-badge-bg: #eef2ff;
   --color-badge-text: #3730a3;
+  --color-graph-incoming: #065f46;
+  --color-graph-outgoing: #92400e;
+  --color-graph-external: #6b7280;
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --radius: 6px;
@@ -61,17 +65,22 @@ let private css = """
     --color-primary: #58a6ff;
     --color-badge-bg: #1e2a3a;
     --color-badge-text: #79b8ff;
+    --color-graph-incoming: #6ee7b7;
+    --color-graph-outgoing: #fcd34d;
+    --color-graph-external: #9ca3af;
   }
 }
 body.theme-light {
   --color-text: #24292e; --color-bg: #ffffff; --color-surface: #f6f8fa;
   --color-border: #e1e4e8; --color-primary: #0366d6;
   --color-badge-bg: #eef2ff; --color-badge-text: #3730a3;
+  --color-graph-incoming: #065f46; --color-graph-outgoing: #92400e; --color-graph-external: #6b7280;
 }
 body.theme-dark {
   --color-text: #c9d1d9; --color-bg: #0d1117; --color-surface: #161b22;
   --color-border: #30363d; --color-primary: #58a6ff;
   --color-badge-bg: #1e2a3a; --color-badge-text: #79b8ff;
+  --color-graph-incoming: #6ee7b7; --color-graph-outgoing: #fcd34d; --color-graph-external: #9ca3af;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -390,6 +399,51 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 }
 .copy-btn:hover { opacity: 1; }
 .copy-btn.copied { background-color: #22c55e; opacity: 1; }
+
+/* document link graph */
+.doc-graph { max-width: 860px; margin-bottom: 1.25rem; position: relative; }
+.doc-graph h3 { margin-bottom: 0.5rem; }
+.doc-graph-fallback { display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; }
+.doc-graph-fallback-group ul { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
+.doc-graph-fallback .related-label {
+  display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+  opacity: 0.6; margin-bottom: 0.25rem;
+}
+.doc-graph-fallback .related-unresolved { opacity: 0.55; }
+.doc-graph-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.75rem; opacity: 0.75; margin-top: 0.5rem; }
+.legend-item { position: relative; padding-left: 1rem; }
+.legend-item::before {
+  content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 0.55rem; height: 0.55rem; border-radius: 50%;
+}
+.legend-focus::before { background: var(--color-primary); }
+.legend-incoming::before { background: var(--color-graph-incoming); }
+.legend-outgoing::before { background: var(--color-graph-outgoing); }
+.doc-graph-svg { width: 100%; height: auto; display: block; }
+.doc-graph-svg .graph-node-circle, .doc-graph-svg .graph-node-rect { cursor: pointer; }
+.doc-graph-svg a:focus .graph-node-circle,
+.doc-graph-svg a:focus .graph-node-rect,
+.doc-graph-svg .graph-hit:focus + .graph-node-circle,
+.doc-graph-svg .graph-hit:focus + .graph-node-rect {
+  outline: 2px solid var(--color-primary); outline-offset: 2px;
+}
+.doc-graph-svg .graph-edge { cursor: default; }
+.doc-graph-tooltip {
+  position: absolute;
+  z-index: 10;
+  max-width: 260px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  pointer-events: none;
+  display: none;
+}
+.doc-graph-tooltip.visible { display: block; }
+.doc-graph-tooltip strong { display: block; margin-bottom: 0.15rem; }
 """
 
 let private themeJs = """
@@ -588,6 +642,225 @@ let private appJs = """
 })();
 """
 
+let private graphJs = """
+(function () {
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS(SVGNS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    }
+    return el;
+  }
+
+  function truncate(s, n) {
+    if (!s) return '';
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  function rootPrefix() {
+    var root = window.ERU_DATA_ROOT || '';
+    return root.replace(/data\/$/, '');
+  }
+
+  function buildTooltip(container) {
+    var el = document.createElement('div');
+    el.className = 'doc-graph-tooltip';
+    container.appendChild(el);
+    return el;
+  }
+
+  function showTooltip(tooltip, container, target, title, description) {
+    var html = '<strong>' + escapeHtml(title) + '</strong>';
+    if (description) html += escapeHtml(description);
+    tooltip.innerHTML = html;
+    tooltip.classList.add('visible');
+    var cRect = container.getBoundingClientRect();
+    var tRect = target.getBoundingClientRect();
+    var x = tRect.left - cRect.left + tRect.width / 2;
+    var y = tRect.top - cRect.top;
+    tooltip.style.left = Math.max(0, x - 60) + 'px';
+    tooltip.style.top = Math.max(0, y - 8 - tooltip.offsetHeight) + 'px';
+  }
+
+  function hideTooltip(tooltip) {
+    tooltip.classList.remove('visible');
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function wireHover(el, tooltip, container, title, description) {
+    el.setAttribute('tabindex', '0');
+    el.addEventListener('mouseenter', function () { showTooltip(tooltip, container, el, title, description); });
+    el.addEventListener('focus', function () { showTooltip(tooltip, container, el, title, description); });
+    el.addEventListener('mouseleave', function () { hideTooltip(tooltip); });
+    el.addEventListener('blur', function () { hideTooltip(tooltip); });
+  }
+
+  function colorFor(kind) {
+    var style = getComputedStyle(document.documentElement);
+    return style.getPropertyValue(kind).trim();
+  }
+
+  function drawNode(svg, tooltip, container, colors, pos, node, cls, radius) {
+    var group = svgEl('g', { class: 'graph-node' });
+    var isExternal = node.kind === 'external';
+    var href = isExternal ? node.id : (node.pageUrl ? rootPrefix() + node.pageUrl : null);
+    var clickable = svgEl(href ? 'a' : 'g', {});
+    if (href) {
+      clickable.setAttribute('href', href);
+      if (isExternal) {
+        clickable.setAttribute('target', '_blank');
+        clickable.setAttribute('rel', 'noopener');
+      }
+    }
+    var shape;
+    if (isExternal) {
+      shape = svgEl('rect', {
+        class: 'graph-node-rect', x: pos.x - radius, y: pos.y - radius * 0.7,
+        width: radius * 2, height: radius * 1.4, rx: 6,
+        fill: 'var(--color-bg)', stroke: colors.external, 'stroke-dasharray': '4 3', 'stroke-width': 1.5
+      });
+    } else {
+      shape = svgEl('circle', {
+        class: 'graph-node-circle', cx: pos.x, cy: pos.y, r: radius,
+        fill: colors[cls], stroke: 'var(--color-bg)', 'stroke-width': 2
+      });
+    }
+    clickable.appendChild(shape);
+    var label = svgEl('text', {
+      x: pos.x, y: pos.y + radius + 14, 'text-anchor': 'middle',
+      fill: 'var(--color-text)', 'font-size': '11'
+    });
+    label.textContent = truncate(node.title, 20);
+    clickable.appendChild(label);
+    group.appendChild(clickable);
+    svg.appendChild(group);
+    wireHover(clickable, tooltip, container, node.title, node.description);
+    return clickable;
+  }
+
+  function drawEdge(svg, tooltip, container, colors, x1, y1, x2, y2, direction, description, neighborTitle) {
+    var color = direction === 'incoming' ? colors.incoming : colors.outgoing;
+    var markerId = 'graph-arrow-' + direction;
+    var visible = svgEl('line', {
+      x1: x1, y1: y1, x2: x2, y2: y2,
+      stroke: color, 'stroke-width': 1.5, 'marker-end': 'url(#' + markerId + ')'
+    });
+    var hit = svgEl('line', {
+      class: 'graph-edge', x1: x1, y1: y1, x2: x2, y2: y2,
+      stroke: 'transparent', 'stroke-width': 10
+    });
+    svg.appendChild(visible);
+    svg.appendChild(hit);
+    wireHover(hit, tooltip, container, neighborTitle, description);
+  }
+
+  function addArrowMarkers(svg, colors) {
+    var defs = svgEl('defs');
+    ['incoming', 'outgoing'].forEach(function (dir) {
+      var marker = svgEl('marker', {
+        id: 'graph-arrow-' + dir, viewBox: '0 0 10 10', refX: 9, refY: 5,
+        markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse'
+      });
+      var path = svgEl('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: dir === 'incoming' ? colors.incoming : colors.outgoing });
+      marker.appendChild(path);
+      defs.appendChild(marker);
+    });
+    svg.appendChild(defs);
+  }
+
+  function renderGraph(container, graph, nodeId) {
+    var nodesById = {};
+    (graph.nodes || []).forEach(function (n) { nodesById[n.id] = n; });
+
+    var neighbors = {}; // id -> { node, direction, description }
+    (graph.edges || []).forEach(function (e) {
+      if (e.from === nodeId && e.to !== nodeId) {
+        var n = nodesById[e.to] || { id: e.to, kind: 'internal', title: e.to };
+        if (!neighbors[n.id] || (!neighbors[n.id].description && e.description)) {
+          neighbors[n.id] = { node: n, direction: 'outgoing', description: e.description };
+        }
+      }
+      if (e.to === nodeId && e.from !== nodeId) {
+        var n2 = nodesById[e.from] || { id: e.from, kind: 'internal', title: e.from };
+        if (!neighbors[n2.id] || (!neighbors[n2.id].description && e.description)) {
+          neighbors[n2.id] = { node: n2, direction: 'incoming', description: e.description };
+        }
+      }
+    });
+
+    var incoming = [];
+    var outgoing = [];
+    Object.keys(neighbors).forEach(function (id) {
+      var entry = neighbors[id];
+      if (entry.direction === 'incoming') incoming.push(entry);
+      else outgoing.push(entry);
+    });
+
+    if (!incoming.length && !outgoing.length) return; // keep fallback list
+
+    var rowH = 46;
+    var rows = Math.max(incoming.length, outgoing.length, 1);
+    var W = 640;
+    var H = Math.max(140, rows * rowH + 60);
+    var cx = W / 2, cy = H / 2;
+
+    var colors = {
+      focus: colorFor('--color-primary'),
+      incoming: colorFor('--color-graph-incoming'),
+      outgoing: colorFor('--color-graph-outgoing'),
+      external: colorFor('--color-graph-external')
+    };
+
+    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'doc-graph-svg', role: 'img', 'aria-label': 'Document link graph' });
+    addArrowMarkers(svg, colors);
+
+    var tooltip = buildTooltip(container);
+
+    function place(list, x) {
+      var n = list.length;
+      var startY = cy - ((n - 1) * rowH) / 2;
+      return list.map(function (entry, i) { return { entry: entry, x: x, y: startY + i * rowH }; });
+    }
+
+    place(incoming, 90).forEach(function (p) {
+      drawEdge(svg, tooltip, container, colors, p.x, p.y, cx, cy, 'incoming', p.entry.description, p.entry.node.title);
+      drawNode(svg, tooltip, container, colors, p, p.entry.node, 'incoming', 16);
+    });
+    place(outgoing, W - 90).forEach(function (p) {
+      drawEdge(svg, tooltip, container, colors, cx, cy, p.x, p.y, 'outgoing', p.entry.description, p.entry.node.title);
+      drawNode(svg, tooltip, container, colors, p, p.entry.node, 'outgoing', 16);
+    });
+
+    var focusNode = nodesById[nodeId] || { id: nodeId, kind: 'internal', title: nodeId };
+    drawNode(svg, tooltip, container, colors, { x: cx, y: cy }, focusNode, 'focus', 20);
+
+    container.innerHTML = '';
+    container.appendChild(svg);
+    container.appendChild(tooltip);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var container = document.getElementById('doc-graph');
+    if (!container) return;
+    var nodeId = container.getAttribute('data-node-id');
+    if (!nodeId || !window.ERU_DATA_ROOT || window.location.protocol === 'file:') return;
+    fetch(window.ERU_DATA_ROOT + 'graph.json')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (graph) { renderGraph(container, graph, nodeId); })
+      .catch(function () {
+        console.warn('[eru] Could not load graph.json — showing plain-text linked document list.');
+      });
+  });
+})();
+"""
+
 // ── JSON serialisation ────────────────────────────────────────────────────────
 
 type DocDto = {
@@ -607,6 +880,25 @@ type SourceDto = {
     name        : string
     hasManifest : bool
     fileCount   : int
+}
+
+type GraphNodeDto = {
+    id          : string
+    kind        : string
+    title       : string
+    description : string option
+    pageUrl     : string option
+}
+
+type GraphEdgeDto = {
+    from        : string
+    ``to``      : string
+    description : string option
+}
+
+type GraphDto = {
+    nodes : GraphNodeDto array
+    edges : GraphEdgeDto array
 }
 
 let private jsonOpts =
@@ -651,6 +943,33 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     | Error e -> Error e
     | Ok model ->
 
+    // build link graph
+    let graphResult = LinkGraph.execute deps { SourceFilter = None }
+    match graphResult with
+    | Error e -> Error e
+    | Ok graph ->
+
+    let docsById = model.Documents |> List.map (fun d -> d.Id, d) |> Map.ofList
+
+    let nodeInfo (n: LinkGraph.NodeId) : {| Id: string; Kind: string; Title: string; Description: string option; PageUrl: string option |} =
+        match n with
+        | LinkGraph.ExternalNode url ->
+            {| Id = url; Kind = "external"; Title = url; Description = None; PageUrl = None |}
+        | LinkGraph.InternalNode entryId ->
+            let key = EntryId.toString entryId
+            match docsById.TryFind key with
+            | Some d -> {| Id = key; Kind = "internal"; Title = d.Title; Description = d.Description; PageUrl = d.PageUrl |}
+            | None -> {| Id = key; Kind = "internal"; Title = Path.GetFileName entryId.RemotePath; Description = None; PageUrl = None |}
+
+    let relatedFor (doc: SiteDocument) : RelatedLinks =
+        let selfNode = LinkGraph.InternalNode { Source = doc.Source; RemotePath = doc.RemotePath }
+        let edges = LinkGraph.edgesFor graph selfNode
+        let toRelated (n: LinkGraph.NodeId) : RelatedDoc =
+            let info = nodeInfo n
+            { Id = info.Id; Title = info.Title; PageUrl = info.PageUrl; IsExternal = info.Kind = "external" }
+        { Incoming = edges.Incoming |> List.map toRelated
+          Outgoing = edges.Outgoing |> List.map toRelated }
+
     // write CSS — style.css is always regenerated; custom.css is user-owned
     let customCssExtra =
         let overrides =
@@ -677,6 +996,8 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     if opts.Features.ThemeToggle then
         writeFileR (Path.Combine(out, "js/theme.js")) themeJs
     writeFileR (Path.Combine(out, "js/app.js")) appJs
+    if opts.Features.Graph then
+        writeFileR (Path.Combine(out, "js/graph.js")) graphJs
 
     // write data files
     if opts.Features.Search then
@@ -686,6 +1007,20 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
         writeFileR (Path.Combine(out, "data/sources.json")) (JsonSerializer.Serialize(srcs, jsonOpts))
         let manifest = $"""{{ "schemaVersion": 1, "documentCount": {model.Documents.Length} }}"""
         writeFileR (Path.Combine(out, "data/manifest.json")) manifest
+
+    if opts.Features.Graph then
+        let nodeDtos =
+            graph.Nodes
+            |> List.map (fun n ->
+                let info = nodeInfo n
+                { id = info.Id; kind = info.Kind; title = info.Title; description = info.Description; pageUrl = info.PageUrl })
+            |> List.toArray
+        let edgeDtos =
+            graph.Edges
+            |> List.map (fun e -> { from = LinkGraph.nodeKey e.From; ``to`` = LinkGraph.nodeKey e.To; description = e.Description })
+            |> List.toArray
+        let graphDto : GraphDto = { nodes = nodeDtos; edges = edgeDtos }
+        writeFileR (Path.Combine(out, "data/graph.json")) (JsonSerializer.Serialize(graphDto, jsonOpts))
 
     // index.html
     writeFileR (Path.Combine(out, "index.html")) (HtmlTemplates.indexPage model)
@@ -739,7 +1074,8 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     let sourceSlug = Uri.EscapeDataString doc.Source
                     let fileSlug = doc.RemotePath.Replace('/', '_').Replace('\\', '_').Replace(' ', '-')
                     let filePath = Path.Combine(out, $"files/{sourceSlug}/{fileSlug}.html")
-                    writeFileR filePath (HtmlTemplates.filePage doc htmlContent)
+                    let related = relatedFor doc
+                    writeFileR filePath (HtmlTemplates.filePage doc htmlContent related)
                 | None -> ()
             | _ -> ()
 

@@ -21,7 +21,7 @@
 - [x] Build graph from links and return in MCP
 - [ ] Skills
 - [ ] Prompts/commands
-- [ ] Show graph on site
+- [x] Show graph on site
 - [ ] Reserve OKF index.md and log.md semantics
 - [ ] Integrate OKF into idea of source and collection/OKF bundle
 - [ ] When running sync, make sure local file system is up-to-date with the lock file, check the cache for the file, and if same hash in cache, write it to the target path; if not in cache, fetch from git and then write to target path and cache

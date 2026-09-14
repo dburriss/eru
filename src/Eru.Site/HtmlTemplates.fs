@@ -111,6 +111,7 @@ let layout (depth: int) (title: string) (body: string) : string =
   <script defer src="{p}js/theme.js"></script>
   <script>window.ERU_DATA_ROOT = "{p}data/";</script>
   <script defer src="{p}js/app.js"></script>
+  <script defer src="{p}js/graph.js"></script>
 </body>
 </html>"""
 
@@ -273,7 +274,38 @@ let typeFilesPage (typ: SiteType) : string =
 <div id="file-list">{cards}</div>"""
     layout 2 typ.Name body
 
-let filePage (doc: SiteDocument) (contentHtml: string) : string =
+let private relatedLink (p: string) (r: RelatedDoc) =
+    match r.IsExternal, r.PageUrl with
+    | true, _ -> $"""<li><a href="{escapeHtml r.Id}" target="_blank" rel="noopener">{escapeHtml r.Title}</a></li>"""
+    | false, Some url -> $"""<li><a href="{p}{url}">{escapeHtml r.Title}</a></li>"""
+    | false, None -> $"""<li class="related-unresolved">{escapeHtml r.Title}</li>"""
+
+let private docGraphSection (p: string) (nodeId: string) (related: RelatedLinks) : string =
+    if related.Incoming.IsEmpty && related.Outgoing.IsEmpty then ""
+    else
+        let incomingHtml =
+            if related.Incoming.IsEmpty then ""
+            else
+                let items = related.Incoming |> List.map (relatedLink p) |> String.concat "\n"
+                $"""<div class="doc-graph-fallback-group"><span class="related-label">Links to this document</span><ul>{items}</ul></div>"""
+        let outgoingHtml =
+            if related.Outgoing.IsEmpty then ""
+            else
+                let items = related.Outgoing |> List.map (relatedLink p) |> String.concat "\n"
+                $"""<div class="doc-graph-fallback-group"><span class="related-label">Links from this document</span><ul>{items}</ul></div>"""
+        $"""<section class="doc-graph">
+  <h3>Linked documents</h3>
+  <div id="doc-graph" data-node-id="{escapeHtml nodeId}">
+    <div class="doc-graph-fallback">{incomingHtml}{outgoingHtml}</div>
+  </div>
+  <div class="doc-graph-legend">
+    <span class="legend-item legend-focus">This document</span>
+    <span class="legend-item legend-incoming">Links to this</span>
+    <span class="legend-item legend-outgoing">Linked from this</span>
+  </div>
+</section>"""
+
+let filePage (doc: SiteDocument) (contentHtml: string) (related: RelatedLinks) : string =
     let p = prefixFor 2
     let fileName = System.IO.Path.GetFileName doc.RemotePath
     let fileTip = cliTips ["pull this file", $"eru add {escapeHtml doc.Source}:{escapeHtml doc.RemotePath}"]
@@ -299,11 +331,13 @@ let filePage (doc: SiteDocument) (contentHtml: string) : string =
         if isStale doc.StaleAfter then """<p class="doc-stale-warning">Stale — this content is past its stale_after date.</p>"""
         else ""
     let metaBox = $"""<div class="doc-meta">{typeHtml}{trustHtml}{descHtml}{tagsHtml}{staleHtml}</div>"""
+    let graphSection = docGraphSection p doc.Id related
     let body = $"""<div class="page-header">
   {crumbs}
   <h1>{escapeHtml fileName}</h1>
 </div>
 {metaBox}
+{graphSection}
 {fileTip}
 <article class="markdown-body">{contentHtml}</article>"""
     layout 2 fileName body

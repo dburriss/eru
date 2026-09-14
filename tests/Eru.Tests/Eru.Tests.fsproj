@@ -37,5 +37,6 @@
     <Compile Include="OkfValidateTests.fs" />
     <Compile Include="MarkdownLinkAdapterTests.fs" />
     <Compile Include="LinkGraphTests.fs" />
+    <Compile Include="SiteGeneratorGraphTests.fs" />
   </ItemGroup>
 </Project>
