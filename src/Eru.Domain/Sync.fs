@@ -309,7 +309,24 @@ module Sync =
                             | Some url ->
                                 let branch = src.Branch |> Option.defaultValue "HEAD"
                                 match deps.FetchRemoteContent url branch uncachedPaths with
-                                | Ok files -> files |> Map.ofList
+                                | Ok files ->
+                                    // Persist freshly fetched content to the cache/index so subsequent
+                                    // syncs don't need to hit the network for these paths again.
+                                    let mutable idx = idxOpt |> Option.defaultValue Map.empty
+                                    for (resolvedPath, content) in files do
+                                        let contentHash = deps.HashContent content
+                                        let cacheRelPath =
+                                            match deps.CacheSourceContent sourceName contentHash content with
+                                            | Ok p    -> Some p
+                                            | Error _ -> None
+                                        let existing = Map.tryFind resolvedPath idx |> Option.defaultValue emptyIndexEntry
+                                        idx <- idx |> Map.add resolvedPath {
+                                            existing with
+                                                CacheRelPath = cacheRelPath
+                                                ContentHash  = Some contentHash
+                                        }
+                                    deps.WriteSourceIndex sourceName idx |> ignore
+                                    files |> Map.ofList
                                 | Error _  -> Map.empty
 
                     let allContent = Map.fold (fun acc k v -> Map.add k v acc) cachedContent fetchedContent

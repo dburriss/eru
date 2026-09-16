@@ -223,6 +223,31 @@ let ``local file missing restores content and leaves lock unchanged`` () =
     Assert.False(state.LockWritten)
 
 [<Fact>]
+let ``uncached entry fetched from git is written to target path and to cache`` () =
+    let state = newState ()
+    let source = makeSource "kb" "https://example.com/kb.git"
+    let local = makeLocal [ source ]
+    let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:content:docs/file.md"
+    let deps = makeDeps None (Some local) [entry] defaultFetch (fun path -> Ok (Some $"content:{path}")) (fun _ _ -> Ok ()) state
+    let cachedWrites = System.Collections.Generic.List<string * string * string>()
+    let indexWrites = System.Collections.Generic.List<string * Map<string, IndexEntry>>()
+    let deps =
+        { deps with
+            CacheSourceContent = fun sourceName hash content ->
+                cachedWrites.Add(sourceName, hash, content)
+                Ok "files/fakehex"
+            WriteSourceIndex = fun sourceName idx ->
+                indexWrites.Add(sourceName, idx)
+                Ok () }
+    assertOk (Sync.execute deps { DryRun = false })
+    Assert.Contains(cachedWrites, fun (sn, _, c) -> sn = "kb" && c = "content:docs/file.md")
+    Assert.Contains(indexWrites, fun (sn, idx) ->
+        sn = "kb" &&
+        match Map.tryFind "docs/file.md" idx with
+        | Some e -> e.ContentHash = Some "hash:content:docs/file.md" && e.CacheRelPath = Some "files/fakehex"
+        | None   -> false)
+
+[<Fact>]
 let ``local file matching lock hash stays current and nothing is written`` () =
     let state = newState ()
     let source = makeSource "kb" "https://example.com/kb.git"
