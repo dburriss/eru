@@ -84,6 +84,7 @@ let ``init --global creates empty global config when none exists`` () =
             Assert.Equal<string list>(Config.defaultBlockPatterns, d.BlockPatterns.Value)
             Assert.Equal<string list>(Config.defaultAllowPatterns, d.AllowPatterns.Value)
             Assert.Equal(Config.defaultAllowBinaries, d.AllowBinaries.Value)
+            Assert.Equal<string list>(Config.defaultSiteIgnorePatterns, d.SiteIgnorePatterns.Value)
 
 [<Fact>]
 let ``init --global errors when global config already exists without --force`` () =

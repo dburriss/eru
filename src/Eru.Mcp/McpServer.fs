@@ -30,7 +30,8 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   McpRefreshIntervalMinutes = 60
                   BlockPatterns             = Config.defaultBlockPatterns
                   AllowPatterns             = Config.defaultAllowPatterns
-                  AllowBinaries             = Config.defaultAllowBinaries })
+                  AllowBinaries             = Config.defaultAllowBinaries
+                  SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns })
             |> Config.withManifests deps.ReadCachedManifest
 
         for src in eff.Sources do

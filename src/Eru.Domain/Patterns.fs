@@ -31,7 +31,7 @@ module Patterns =
         let subject = if matchFullPath then path else Path.GetFileName(path)
         rx.IsMatch(subject)
 
-    let private matchesAny (patterns: string list) (path: string) : bool =
+    let matchesAny (patterns: string list) (path: string) : bool =
         patterns |> List.exists (fun p -> matchesGlob p path)
 
     // Path-only check (no content needed); used as a fast pre-filter

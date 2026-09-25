@@ -60,6 +60,7 @@ type GlobalDefaults = {
     BlockPatterns: string list option
     AllowPatterns: string list option
     AllowBinaries: bool option
+    SiteIgnorePatterns: string list option
 }
 
 type GlobalConfig = {
@@ -75,6 +76,7 @@ type LocalSettings = {
     BlockPatterns: string list option
     AllowPatterns: string list option
     AllowBinaries: bool option
+    SiteIgnorePatterns: string list option
 }
 
 type LocalConfig = {
@@ -93,6 +95,7 @@ type EffectiveConfig = {
     BlockPatterns             : string list
     AllowPatterns             : string list
     AllowBinaries             : bool
+    SiteIgnorePatterns        : string list
 }
 
 // Per-file metadata stored in sources/<name>/index.json, keyed by remotePath
@@ -115,6 +118,7 @@ module Config =
     let defaultBlockPatterns = ["*.exe"; "*.dll"; "*.so"; "*.dylib"; "*.bin"; "*.out"; "*.app"]
     let defaultAllowPatterns : string list = []
     let defaultAllowBinaries = false
+    let defaultSiteIgnorePatterns = ["index.md"; "log.md"]
 
     let private supportedVersion = 1
 
@@ -245,6 +249,15 @@ module Config =
                     |> Option.bind (fun d -> d.AllowBinaries)
                     |> Option.defaultValue defaultAllowBinaries
 
+            let siteIgnorePatterns =
+                match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.SiteIgnorePatterns) with
+                | Some ps -> ps
+                | None    ->
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.SiteIgnorePatterns)
+                    |> Option.defaultValue defaultSiteIgnorePatterns
+
             {
                 Sources      = mergedSources
                 CommitOnPull = localCommitOnPull |> Option.defaultValue globalCommitOnPull
@@ -261,6 +274,7 @@ module Config =
                 BlockPatterns = blockPatterns
                 AllowPatterns = allowPatterns
                 AllowBinaries = allowBinaries
+                SiteIgnorePatterns = siteIgnorePatterns
             })
 
     let withManifests

@@ -67,7 +67,8 @@ module Sync =
                            Collections = []; McpRefreshIntervalMinutes = 60
                            BlockPatterns = Config.defaultBlockPatterns
                            AllowPatterns = Config.defaultAllowPatterns
-                           AllowBinaries = Config.defaultAllowBinaries }
+                           AllowBinaries = Config.defaultAllowBinaries
+                           SiteIgnorePatterns = Config.defaultSiteIgnorePatterns }
 
         // Step 1a: Fetch and cache manifests
         for src in baseEff.Sources do

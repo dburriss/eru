@@ -68,6 +68,7 @@ let private cfg : EffectiveConfig = {
     BlockPatterns = []
     AllowPatterns = []
     AllowBinaries = false
+    SiteIgnorePatterns = []
 }
 
 [<Fact>]

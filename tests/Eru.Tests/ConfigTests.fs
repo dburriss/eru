@@ -33,14 +33,14 @@ let ``merge uses global sources when no local config`` () =
 
 [<Fact>]
 let ``merge prefers local CommitOnPull over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "commitOnPull"
     Assert.True result.CommitOnPull
 
 [<Fact>]
 let ``merge uses custom StateFile from local settings`` () =
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
     let result = Config.merge None (Some l) |> unwrapOk "stateFile"
     Assert.Equal("custom.lock", result.StateFile)
 
@@ -51,9 +51,29 @@ let ``merge defaults McpRefreshIntervalMinutes to 60`` () =
 
 [<Fact>]
 let ``merge uses McpRefreshIntervalMinutes from global defaults`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
     let result = Config.merge (Some g) None |> unwrapOk "mcp refresh custom"
     Assert.Equal(30, result.McpRefreshIntervalMinutes)
+
+// ── merge: SiteIgnorePatterns ────────────────────────────────────────────────
+
+[<Fact>]
+let ``merge defaults SiteIgnorePatterns to index.md and log.md`` () =
+    let result = Config.merge None None |> unwrapOk "site ignore default"
+    Assert.Equal<string list>([ "index.md"; "log.md" ], result.SiteIgnorePatterns)
+
+[<Fact>]
+let ``merge uses SiteIgnorePatterns from global defaults`` () =
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "draft-*.md" ] } }
+    let result = Config.merge (Some g) None |> unwrapOk "site ignore global"
+    Assert.Equal<string list>([ "draft-*.md" ], result.SiteIgnorePatterns)
+
+[<Fact>]
+let ``merge prefers local SiteIgnorePatterns over global default`` () =
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "index.md"; "log.md" ] } }
+    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [] } }
+    let result = Config.merge (Some g) (Some l) |> unwrapOk "site ignore local override"
+    Assert.Empty result.SiteIgnorePatterns
 
 // ── merge: source ordering ───────────────────────────────────────────────────
 

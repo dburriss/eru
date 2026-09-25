@@ -13,7 +13,8 @@ module Init =
     "stateFile": null,
     "blockPatterns": null,
     "allowPatterns": null,
-    "allowBinaries": null
+    "allowBinaries": null,
+    "siteIgnorePatterns": ["index.md", "log.md"]
   }
 }
 """
@@ -29,6 +30,7 @@ module Init =
               BlockPatterns = Some Config.defaultBlockPatterns
               AllowPatterns = Some Config.defaultAllowPatterns
               AllowBinaries = Some Config.defaultAllowBinaries
+              SiteIgnorePatterns = Some Config.defaultSiteIgnorePatterns
           }
         }
 

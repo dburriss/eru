@@ -59,6 +59,7 @@ let private cfg (sourceName: string) : EffectiveConfig = {
     BlockPatterns = []
     AllowPatterns = []
     AllowBinaries = false
+    SiteIgnorePatterns = []
 }
 
 [<Fact>]
@@ -119,4 +120,20 @@ let ``OKF fields pass through from IndexEntry to SiteDocument`` () =
         Assert.Equal(Some generated, doc.Generated)
         Assert.Equal<Frontmatter.ActorAt list>([ generated ], doc.Verified)
         Assert.Equal(Some "https://example.com/a", doc.Resource)
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``files matching SiteIgnorePatterns are excluded from the model`` () =
+    let index =
+        Map.ofList [
+            "index.md",   { emptyIndexEntry with LocalPath = Some "index.md" }
+            "log.md",     { emptyIndexEntry with LocalPath = Some "log.md" }
+            "content.md", { emptyIndexEntry with LocalPath = Some "content.md" }
+        ]
+    let deps = makeDeps index
+    let cfgWithIgnore = { cfg "src" with SiteIgnorePatterns = [ "index.md"; "log.md" ] }
+    match IndexBuilder.buildModel deps cfgWithIgnore with
+    | Ok model ->
+        Assert.Equal(1, model.Documents.Length)
+        Assert.Equal("content.md", model.Documents.[0].RemotePath)
     | Error e -> Assert.Fail e

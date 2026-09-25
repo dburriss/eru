@@ -8,6 +8,7 @@
 - Added `eru site serve` command to serve the generated static site locally with live reload on changes to the cache
 - `eru okf validate <path>` command to check a directory tree for OKF §11 conformance (parseable frontmatter with a non-empty `type`, valid `index.md`/`log.md` structure); never flags unknown types, unknown extra keys, broken cross-links, or missing optional fields
 - Generated site now surfaces OKF frontmatter: a trust-tier badge per file (`unverified`/`machine-confirmed`/`human-reviewed`, derived from `verified[].by`) and a new "Types" filter/browse page alongside the existing Sources and Tags
+- Added `SiteIgnorePattern` with default values of "index.md" and "log.md" to ignore OKF structure files when generating site pages 
 
 ### Changed
 
