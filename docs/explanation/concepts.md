@@ -49,6 +49,8 @@ Collections live in either:
 - **Local config** — `.eru/config.json` in the consuming repo
 - **Global config** — `~/.config/eru/config.json`
 
+See the [config file reference](../reference/config-file.md) for the full schema.
+
 Each file in a collection is fetched and recorded as its own lock entry when pulled. See
 [curate a collection](../how-to/curate-a-collection.md) for how to create and manage one.
 

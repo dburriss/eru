@@ -78,5 +78,6 @@ After fetching a manifest, `eru sync` also builds a search index at `~/.cache/er
 The index stores per-file tags (merged from manifest entries and file frontmatter) and is the primary data source
 for `eru search` and `eru source files`.
 
-See also: [explanation of concepts](../explanation/concepts.md) for how these pieces fit together, and
+See also: [config file reference](config-file.md) for the full `.eru/config.json` schema (sources, collections,
+settings), [explanation of concepts](../explanation/concepts.md) for how these pieces fit together, and
 [data freshness summary](inspecting-state-and-search.md#data-freshness-summary) for how stale each cache can get.
