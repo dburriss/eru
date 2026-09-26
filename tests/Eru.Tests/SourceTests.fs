@@ -40,6 +40,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private simpleCmd url : SourceAdd.Command = {
@@ -127,7 +128,7 @@ let ``detects KNOWLEDGE basePath from top-level listing`` () =
     SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal(Some "KNOWLEDGE", cfg.Sources[0].BasePath)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "KNOWLEDGE"; Kind = Manifest } ], cfg.Sources[0].Bundles)
 
 [<Fact>]
 let ``detects lowercase knowledge basePath`` () =
@@ -136,7 +137,7 @@ let ``detects lowercase knowledge basePath`` () =
     SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal(Some "knowledge", cfg.Sources[0].BasePath)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "knowledge"; Kind = Manifest } ], cfg.Sources[0].Bundles)
 
 [<Fact>]
 let ``no basePath when top-level listing returns empty`` () =
@@ -145,7 +146,7 @@ let ``no basePath when top-level listing returns empty`` () =
     SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal(None, cfg.Sources[0].BasePath)
+    | Some cfg -> Assert.Empty(cfg.Sources[0].Bundles)
 
 [<Fact>]
 let ``explicit --basepath overrides auto-detection and skips remote listing`` () =
@@ -159,20 +160,20 @@ let ``explicit --basepath overrides auto-detection and skips remote listing`` ()
     Assert.False(listingCalled.Value, "remote listing should not be called when --basepath is explicit")
     match written.Value with
     | None     -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal(Some "docs", cfg.Sources[0].BasePath)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], cfg.Sources[0].Bundles)
 
 // ── Duplicate name ───────────────────────────────────────────────────────────
 
 [<Fact>]
 let ``errors on duplicate source name in local config`` () =
-    let existing = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://x.com"; Branch = None; BasePath = None }] }
+    let existing = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://x.com"; Branch = None; Bundles = [] }] }
     let deps = makeDeps (Some existing) None [] (ref None) (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb" }
     assertError (SourceAdd.execute deps cmd)
 
 [<Fact>]
 let ``errors on duplicate source name in global config`` () =
-    let existing = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://x.com"; Branch = None; BasePath = None }] }
+    let existing = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://x.com"; Branch = None; Bundles = [] }] }
     let deps = makeDeps None (Some existing) [] (ref None) (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb"; IsGlobal = true }
     assertError (SourceAdd.execute deps cmd)
@@ -198,7 +199,7 @@ let ``list returns error on local config read error`` () =
 
 [<Fact>]
 let ``list shows local source with local scope`` () =
-    let local = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
+    let local = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }] }
     let deps  = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -209,8 +210,8 @@ let ``list shows local source with local scope`` () =
 
 [<Fact>]
 let ``list shows local alias source with alias scope`` () =
-    let localCfg  = { emptyLocal  with Sources        = [{ Name = "kb"; Url = None; Branch = None; BasePath = None }] }
-    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
+    let localCfg  = { emptyLocal  with Sources        = [{ Name = "kb"; Url = None; Branch = None; Bundles = [] }] }
+    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }] }
     let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -220,7 +221,7 @@ let ``list shows local alias source with alias scope`` () =
 
 [<Fact>]
 let ``list shows global-only source with global scope`` () =
-    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "shared"; Url = Some "https://example.com/shared.git"; Branch = None; BasePath = None }] }
+    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "shared"; Url = Some "https://example.com/shared.git"; Branch = None; Bundles = [] }] }
     let deps      = makeDeps (Some emptyLocal) (Some globalCfg) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -231,8 +232,8 @@ let ``list shows global-only source with global scope`` () =
 
 [<Fact>]
 let ``list shows local sources before global-only sources`` () =
-    let localCfg  = { emptyLocal  with Sources        = [{ Name = "local-src";  Url = Some "https://example.com/local.git";  Branch = None; BasePath = None }] }
-    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "global-src"; Url = Some "https://example.com/global.git"; Branch = None; BasePath = None }] }
+    let localCfg  = { emptyLocal  with Sources        = [{ Name = "local-src";  Url = Some "https://example.com/local.git";  Branch = None; Bundles = [] }] }
+    let globalCfg = { emptyGlobal with DefaultSources = [{ Name = "global-src"; Url = Some "https://example.com/global.git"; Branch = None; Bundles = [] }] }
     let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -243,7 +244,7 @@ let ``list shows local sources before global-only sources`` () =
 
 [<Fact>]
 let ``list includes branch and basepath when set`` () =
-    let src    = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = Some "main"; BasePath = Some "KNOWLEDGE" }
+    let src    = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = Some "main"; Bundles = [ { Path = "KNOWLEDGE"; Kind = Manifest } ] }
     let local  = { emptyLocal with Sources = [src] }
     let deps   = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
     match SourceList.execute deps with
@@ -251,11 +252,11 @@ let ``list includes branch and basepath when set`` () =
     | Ok rows ->
         let row = rows |> List.find (fun r -> r.Name = "kb")
         Assert.Equal(Some "main", row.Branch)
-        Assert.Equal(Some "KNOWLEDGE", row.BasePath)
+        Assert.Equal<Bundle list>([ { Path = "KNOWLEDGE"; Kind = Manifest } ], row.Bundles)
 
 [<Fact>]
 let ``list shows tags from cached manifest`` () =
-    let local    = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; BasePath = None }] }
+    let local    = { emptyLocal with Sources = [{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }] }
     let f1       = { Path = "a.md"; Tags = ["dotnet"; "adr"];          Description = None }
     let f2       = { Path = "b.md"; Tags = ["dotnet"; "architecture"]; Description = None }
     let manifest = { Version = 1; Description = None; Files = [f1; f2] }
@@ -274,7 +275,7 @@ let ``list shows tags from cached manifest`` () =
 let private removeCmd name isGlobal dryRun : SourceRemove.Command =
     { Name = name; IsGlobal = isGlobal; DryRun = dryRun }
 
-let private srcEntry name = { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; BasePath = None }
+let private srcEntry name : SourceConfig = { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = [] }
 
 [<Fact>]
 let ``remove removes source from local config`` () =

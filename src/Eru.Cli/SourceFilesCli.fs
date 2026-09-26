@@ -6,7 +6,7 @@ open System.Text.Json
 open Eru
 open Eru.Cli.OutputFormat
 
-type Cmd = { SourceName: string option; Refresh: bool; Format: OutputFormat }
+type Cmd = { SourceName: string option; Refresh: bool; BundleFilter: string option; Format: OutputFormat }
 
 let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -14,9 +14,10 @@ let (|SourceFilesCmd|_|) (r: ParseResults<EruArgs>) =
             args.TryGetSubCommand() |> Option.bind (function
                 | SourceArgs.Files filesArgs ->
                     Some {
-                        SourceName = filesArgs.TryGetResult SourceFilesArgs.Name
-                        Refresh    = filesArgs.Contains SourceFilesArgs.Refresh
-                        Format     = parseFormat (filesArgs.TryGetResult SourceFilesArgs.Output)
+                        SourceName   = filesArgs.TryGetResult SourceFilesArgs.Name
+                        Refresh      = filesArgs.Contains SourceFilesArgs.Refresh
+                        BundleFilter = filesArgs.TryGetResult SourceFilesArgs.Bundle
+                        Format       = parseFormat (filesArgs.TryGetResult SourceFilesArgs.Output)
                     }
                 | _ -> None)
         | _ -> None)
@@ -42,15 +43,16 @@ let private renderJson (results: (string * SourceFiles.SourceFileRow list) list)
     printfn "%s" (JsonSerializer.Serialize(payload, opts))
 
 let private renderTable (results: (string * SourceFiles.SourceFileRow list) list) =
-    let t = makeTable ["Hash"; "Source"; "Path"; "Tags"; "Description"]
+    let t = makeTable ["Hash"; "Source"; "Bundle"; "Path"; "Tags"; "Description"]
     for (sourceName, rows) in results do
         if rows.IsEmpty then
-            t.AddRow("", sourceName, "(no files found in index)", "", "") |> ignore
+            t.AddRow("", sourceName, "", "(no files found in index)", "", "") |> ignore
         else
             for row in rows do
-                let tags = row.Tags |> String.concat ", "
-                let desc = row.Description |> Option.defaultValue ""
-                t.AddRow(row.Hash, sourceName, row.Path, tags, desc) |> ignore
+                let tags   = row.Tags |> String.concat ", "
+                let desc   = row.Description |> Option.defaultValue ""
+                let bundle = row.Bundle |> Option.map (fun p -> if p = "" then "(root)" else p) |> Option.defaultValue "(unassigned)"
+                t.AddRow(row.Hash, sourceName, bundle, row.Path, tags, desc) |> ignore
     AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
@@ -62,10 +64,10 @@ let run (deps: Eru.Deps) (cmd: Cmd) : int =
             let label = if cmd.Refresh then "Refreshing source files..." else "Loading source files..."
             status.Start<Result<(string * SourceFiles.SourceFileRow list) list, string>>(label, fun _ ->
                 if cmd.Refresh then Sync.populateIndex deps |> ignore
-                SourceFiles.execute deps cmd.SourceName)
+                SourceFiles.execute deps cmd.SourceName cmd.BundleFilter)
         | _ ->
             if cmd.Refresh then Sync.populateIndex deps |> ignore
-            SourceFiles.execute deps cmd.SourceName
+            SourceFiles.execute deps cmd.SourceName cmd.BundleFilter
     match result with
     | Error e    -> renderError e; 1
     | Ok results ->

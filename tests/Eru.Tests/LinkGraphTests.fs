@@ -7,13 +7,13 @@ open Eru.LinkGraph
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = Some url; Branch = None; BasePath = None }
+    { Name = name; Url = Some url; Branch = None; Bundles = [] }
 
 let private makeGlobal sources : GlobalConfig =
     { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
 
 let private makeIndexEntry cacheRelPath : IndexEntry =
-    { Tags = []; Description = None; LocalPath = None; CacheRelPath = cacheRelPath
+    { Contributions = Map.empty; Tags = []; Description = None; LocalPath = None; CacheRelPath = cacheRelPath
       ContentHash = None; Type = None; Title = None; OkfStatus = None
       Generated = None; Verified = []; StaleAfter = None; Resource = None }
 
@@ -62,7 +62,9 @@ let private makeDeps
         ReadLocalManifest       = fun () -> Ok None
         WriteLocalManifest      = fun _ -> Ok ()
         ResolveLocalGlob        = fun _ -> []
-        ReadSourceIndex         = fun name -> Ok (sourceIndex |> Map.tryFind name)
+        ReadSourceIndex         = fun name ->
+            Ok (sourceIndex |> Map.tryFind name |> Option.map (fun entries ->
+                { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = entries }))
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun sourceName cacheRelPath -> Ok (content |> Map.tryFind (sourceName, cacheRelPath))
@@ -70,6 +72,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fakeExtractLinks
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 // ── resolveLink ───────────────────────────────────────────────────────────────

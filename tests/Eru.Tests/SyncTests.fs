@@ -6,7 +6,10 @@ open Eru
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = Some url; Branch = None; BasePath = None }
+    { Name = name; Url = Some url; Branch = None; Bundles = [] }
+
+let private makeSourceWithBundles name url bundles : SourceConfig =
+    { Name = name; Url = Some url; Branch = None; Bundles = bundles }
 
 let private makeLocal sources : LocalConfig =
     { Version = 1; Sources = sources; Collections = []; Settings = None }
@@ -65,6 +68,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private defaultFetch (_url: string) (_branch: string) (paths: string list) : Result<(string * string) list, string> =
@@ -230,7 +234,7 @@ let ``uncached entry fetched from git is written to target path and to cache`` (
     let entry = makeLockEntry "docs/file.md" "kb" "docs/file.md" "hash:content:docs/file.md"
     let deps = makeDeps None (Some local) [entry] defaultFetch (fun path -> Ok (Some $"content:{path}")) (fun _ _ -> Ok ()) state
     let cachedWrites = System.Collections.Generic.List<string * string * string>()
-    let indexWrites = System.Collections.Generic.List<string * Map<string, IndexEntry>>()
+    let indexWrites = System.Collections.Generic.List<string * SourceIndex>()
     let deps =
         { deps with
             CacheSourceContent = fun sourceName hash content ->
@@ -243,7 +247,7 @@ let ``uncached entry fetched from git is written to target path and to cache`` (
     Assert.Contains(cachedWrites, fun (sn, _, c) -> sn = "kb" && c = "content:docs/file.md")
     Assert.Contains(indexWrites, fun (sn, idx) ->
         sn = "kb" &&
-        match Map.tryFind "docs/file.md" idx with
+        match Map.tryFind "docs/file.md" idx.Entries with
         | Some e -> e.ContentHash = Some "hash:content:docs/file.md" && e.CacheRelPath = Some "files/fakehex"
         | None   -> false)
 
@@ -257,3 +261,196 @@ let ``local file matching lock hash stays current and nothing is written`` () =
     assertOk (Sync.execute deps { DryRun = false })
     Assert.Empty(state.WrittenFiles)
     Assert.False(state.LockWritten)
+
+// ── populateIndex: contributions, discovery SHA cache, 3-strikes escalation ────
+
+// A persistent (in-memory, across calls) fake for the sources/<name>/index.json
+// store, so tests can call populateIndex more than once and observe carried-over
+// state (SourceHeadSha, ConsecutiveShaCheckFailures) the way the real filesystem
+// adapter would.
+type private PersistentIndexStore() =
+    let store = System.Collections.Generic.Dictionary<string, SourceIndex>()
+    member _.Read (name: string) : Result<SourceIndex option, string> =
+        match store.TryGetValue name with
+        | true, idx -> Ok (Some idx)
+        | false, _  -> Ok None
+    member _.Write (name: string) (idx: SourceIndex) : Result<unit, string> =
+        store[name] <- idx
+        Ok ()
+    member _.TryGet (name: string) : SourceIndex option =
+        match store.TryGetValue name with
+        | true, idx -> Some idx
+        | false, _  -> None
+
+let private makePopulateDeps
+    (globalCfg: GlobalConfig option)
+    (fetch: string -> string -> string list -> Result<(string * string) list, string>)
+    (listFiles: string -> string option -> string option -> Result<string list, string>)
+    (getRemoteHeadSha: string -> string option -> Result<string, string>)
+    (store: PersistentIndexStore) : Deps =
+    {
+        ReadGlobalConfig        = fun () -> Ok globalCfg
+        ReadLocalConfig         = fun () -> Ok None
+        WriteLocalConfig        = fun _ -> Ok ()
+        WriteGlobalConfig       = fun _ -> Ok ()
+        ReadLockEntries         = fun _ -> Ok []
+        WriteLockEntries        = fun _ _ -> Ok ()
+        FetchRemoteContent      = fetch
+        ListRemoteTopLevel      = fun _ _ -> Ok []
+        ListRemoteFiles         = listFiles
+        WriteLocalFile          = fun _ _ -> Ok ()
+        ReadLocalFile           = fun _ -> Ok None
+        DeleteLocalFile         = fun _ -> Ok ()
+        HashContent             = fun s -> $"hash:{s}"
+        GetCwd                  = fun () -> "/tmp"
+        ReadCachedManifest      = fun _ -> Ok None
+        CacheSourceManifest     = fun _ _ -> Ok ()
+        ReadLocalManifest       = fun () -> Ok None
+        WriteLocalManifest      = fun _ -> Ok ()
+        ResolveLocalGlob        = fun _ -> []
+        ReadSourceIndex         = store.Read
+        WriteSourceIndex        = store.Write
+        CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
+        ReadCachedSourceContent = fun _ _ -> Ok None
+        BuildSearchIndex        = fun _ _ -> ()
+        ParseYamlBlock          = Eru.Adapters.YamlAdapter.parse
+        ListMarkdownFiles       = fun _ -> Ok []
+        ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = getRemoteHeadSha
+    }
+
+[<Fact>]
+let ``populateIndex staleness regression - a dropped frontmatter tag does not survive a sync`` () =
+    // The source publishes one collection file. First sync sees tags [a; b];
+    // second sync sees the same file with tag "b" dropped from its frontmatter.
+    let source = makeSource "kb" "https://example.com/kb.git"
+    let file : CollectionFileRef = { Source = "kb"; RemotePath = "adr.md"; Tags = []; Description = None }
+    let col : CollectionConfig = { Name = "col"; Tags = []; Files = [ file ]; Description = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = [ col ]; Defaults = None }
+
+    let currentTags = ref "[a, b]"
+    let fetch _ _ (paths: string list) =
+        Ok (paths |> List.map (fun p -> p, $"---\ntags: {currentTags.Value}\n---\n"))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch (fun _ _ _ -> Ok []) (fun _ _ -> Error "no okf bundles") store
+
+    Sync.populateIndex deps |> ignore
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx ->
+        Assert.Equal<string list>(["a"; "b"], (Map.find "adr.md" idx.Entries).Tags)
+
+    currentTags.Value <- "[a]"
+    Sync.populateIndex deps |> ignore
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx ->
+        Assert.Equal<string list>(["a"], (Map.find "adr.md" idx.Entries).Tags)
+
+[<Fact>]
+let ``populateIndex preserves SourceHeadSha across a collection-file-only write`` () =
+    // A source with one Okf bundle (discovery sets SourceHeadSha) and one collection
+    // file (Step 2 must not clobber SourceHeadSha when it rewrites the index).
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let file : CollectionFileRef = { Source = "kb"; RemotePath = "notes.md"; Tags = []; Description = None }
+    let col : CollectionConfig = { Name = "col"; Tags = []; Files = [ file ]; Description = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = [ col ]; Defaults = None }
+
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let listFiles _ _ _ = Ok [ "adr.md" ]
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    Sync.populateIndex deps |> ignore
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx -> Assert.Equal(Some "sha-1", idx.SourceHeadSha)
+
+[<Fact>]
+let ``populateIndex skips re-walking an Okf bundle when the remote SHA is unchanged`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+
+    let listCalls = ref 0
+    let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(1, listCalls.Value)
+
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(1, listCalls.Value)
+
+[<Fact>]
+let ``populateIndex re-walks an Okf bundle when the remote SHA changes`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+
+    let listCalls = ref 0
+    let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let currentSha = ref "sha-1"
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok currentSha.Value) store
+
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(1, listCalls.Value)
+
+    currentSha.Value <- "sha-2"
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(2, listCalls.Value)
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx -> Assert.Equal(Some "sha-2", idx.SourceHeadSha)
+
+[<Fact>]
+let ``populateIndex fails open on a SHA check failure and only escalates after 3 in a row`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+
+    let listFiles _ _ _ = Ok [ "adr.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Error "network down") store
+
+    let errors1 = Sync.populateIndex deps
+    Assert.DoesNotContain(errors1, fun e -> e.Contains "3 times in a row")
+    match store.TryGet "kb" with
+    | Some idx -> Assert.Equal(1, idx.ConsecutiveShaCheckFailures)
+    | None -> Assert.Fail "expected an index to have been written"
+
+    let errors2 = Sync.populateIndex deps
+    Assert.DoesNotContain(errors2, fun e -> e.Contains "3 times in a row")
+    match store.TryGet "kb" with
+    | Some idx -> Assert.Equal(2, idx.ConsecutiveShaCheckFailures)
+    | None -> Assert.Fail "expected an index to have been written"
+
+    let errors3 = Sync.populateIndex deps
+    Assert.Contains(errors3, fun e -> e.Contains "kb" && e.Contains "3 times in a row")
+    match store.TryGet "kb" with
+    | Some idx -> Assert.Equal(3, idx.ConsecutiveShaCheckFailures)
+    | None -> Assert.Fail "expected an index to have been written"
+
+[<Fact>]
+let ``populateIndex resets the failure counter after a subsequent successful SHA check`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+
+    let listFiles _ _ _ = Ok [ "adr.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let shaResult = ref (Error "network down" : Result<string, string>)
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> shaResult.Value) store
+
+    Sync.populateIndex deps |> ignore
+    match store.TryGet "kb" with
+    | Some idx -> Assert.Equal(1, idx.ConsecutiveShaCheckFailures)
+    | None -> Assert.Fail "expected an index to have been written"
+
+    shaResult.Value <- Ok "sha-1"
+    Sync.populateIndex deps |> ignore
+    match store.TryGet "kb" with
+    | Some idx -> Assert.Equal(0, idx.ConsecutiveShaCheckFailures)
+    | None -> Assert.Fail "expected an index to have been written"

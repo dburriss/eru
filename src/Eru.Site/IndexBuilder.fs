@@ -40,7 +40,7 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
                 let manifestDescription = cachedManifest |> Option.bind (fun m -> m.Description)
 
                 let docs =
-                    index
+                    index.Entries
                     |> Map.toList
                     |> List.filter (fun (remotePath, _) -> not (isGlob remotePath))
                     |> List.filter (fun (remotePath, _) -> not (Patterns.matchesAny cfg.SiteIgnorePatterns remotePath))

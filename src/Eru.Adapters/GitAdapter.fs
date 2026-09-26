@@ -60,6 +60,20 @@ module GitAdapter =
         with ex ->
             Error ex.Message
 
+    let getRemoteHeadSha (url: string) (branch: string option) : Result<string, string> =
+        let refName = branch |> Option.defaultValue "HEAD"
+        try
+            let struct (stdout, _) : struct (string * string) =
+                Command.ReadAsync("git", $"ls-remote {url} {refName}", configureEnvironment = noPromptEnv).Result
+            let firstLine =
+                stdout.Split([| '\n'; '\r' |], StringSplitOptions.RemoveEmptyEntries)
+                |> Array.tryHead
+            match firstLine |> Option.map (fun l -> l.Split('\t').[0].Trim()) with
+            | Some sha when sha <> "" -> Ok sha
+            | _ -> Error $"no ref '{refName}' found for {url}"
+        with ex ->
+            Error ex.Message
+
     let listRemoteTopLevel (verbose: bool) (url: string) (branch: string option) : Result<string list, string> =
         let bFlag = branch |> Option.map (fun b -> $"--branch {b} ") |> Option.defaultValue ""
         withTempDir (fun tmpDir ->

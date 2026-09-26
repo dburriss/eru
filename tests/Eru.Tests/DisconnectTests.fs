@@ -39,6 +39,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private cmd target dryrun : Disconnect.Command = { Target = target; DryRun = dryrun }

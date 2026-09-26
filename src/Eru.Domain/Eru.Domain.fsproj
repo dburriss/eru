@@ -12,6 +12,7 @@
     <Compile Include="Patterns.fs" />
     <Compile Include="LockFile.fs" />
     <Compile Include="Deps.fs" />
+    <Compile Include="BundleDiscovery.fs" />
     <Compile Include="UrlParser.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="SourceList.fs" />
@@ -19,6 +20,9 @@
     <Compile Include="SourceFiles.fs" />
     <Compile Include="SourceAdd.fs" />
     <Compile Include="SourceRemove.fs" />
+    <Compile Include="SourceBundleAdd.fs" />
+    <Compile Include="SourceBundleList.fs" />
+    <Compile Include="SourceBundleRemove.fs" />
     <Compile Include="CollectionCreate.fs" />
     <Compile Include="CollectionAddFile.fs" />
     <Compile Include="CollectionRemoveFile.fs" />

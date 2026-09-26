@@ -17,20 +17,28 @@ let (|SourceListCmd|_|) (r: ParseResults<EruArgs>) =
                 | _ -> None)
         | _ -> None)
 
+let private bundlesText (bundles: Bundle list) =
+    bundles
+    |> List.map (fun b ->
+        let p = if b.Path = "" then "(root)" else b.Path
+        let k = match b.Kind with Manifest -> "manifest" | Okf -> "okf"
+        $"{p}:{k}")
+    |> String.concat ", "
+
 let private renderText (rows: SourceList.SourceRow list) =
     if rows.IsEmpty then
         printfn "No sources configured."
     else
         for row in rows do
-            let url      = row.Url      |> Option.defaultValue "(inherits from global)"
-            let branch   = row.Branch   |> Option.map (fun b -> $" [branch: {b}]")   |> Option.defaultValue ""
-            let basePath = row.BasePath |> Option.map (fun p -> $" [basepath: {p}]") |> Option.defaultValue ""
+            let url     = row.Url    |> Option.defaultValue "(inherits from global)"
+            let branch  = row.Branch |> Option.map (fun b -> $" [branch: {b}]") |> Option.defaultValue ""
+            let bundles = if row.Bundles.IsEmpty then "" else $" [bundles: {bundlesText row.Bundles}]"
             let tags     =
                 if row.Tags.IsEmpty then ""
                 else
                     let t = row.Tags |> String.concat ", "
                     $" [tags: {t}]"
-            printfn $"  {row.Name}  {url}{branch}{basePath}  [{row.Scope}]{tags}"
+            printfn $"  {row.Name}  {url}{branch}{bundles}  [{row.Scope}]{tags}"
 
 let private renderJson (rows: SourceList.SourceRow list) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
@@ -40,13 +48,13 @@ let private renderTable (rows: SourceList.SourceRow list) =
     if rows.IsEmpty then
         printfn "No sources configured."
     else
-        let t = makeTable ["Name"; "URL"; "Branch"; "BasePath"; "Scope"; "Tags"]
+        let t = makeTable ["Name"; "URL"; "Branch"; "Bundles"; "Scope"; "Tags"]
         for row in rows do
-            let url      = row.Url      |> Option.defaultValue ""
-            let branch   = row.Branch   |> Option.defaultValue ""
-            let basePath = row.BasePath |> Option.defaultValue ""
-            let tags     = row.Tags |> String.concat ", "
-            t.AddRow(row.Name, url, branch, basePath, row.Scope, tags) |> ignore
+            let url     = row.Url    |> Option.defaultValue ""
+            let branch  = row.Branch |> Option.defaultValue ""
+            let bundles = bundlesText row.Bundles
+            let tags    = row.Tags |> String.concat ", "
+            t.AddRow(row.Name, url, branch, bundles, row.Scope, tags) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

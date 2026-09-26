@@ -10,8 +10,11 @@ module ConfigAdapter =
         if not (File.Exists path) then Ok None
         else
             try
-                File.ReadAllText path
-                |> Serialization.deserialize<GlobalConfig>
+                let json = File.ReadAllText path
+                Config.readAndMigrateGlobalJson
+                    Serialization.deserialize<GlobalConfig>
+                    Serialization.deserialize<GlobalConfigV1>
+                    json
                 |> Result.map Some
             with ex -> Error ex.Message
 
@@ -20,8 +23,11 @@ module ConfigAdapter =
         if not (File.Exists path) then Ok None
         else
             try
-                File.ReadAllText path
-                |> Serialization.deserialize<LocalConfig>
+                let json = File.ReadAllText path
+                Config.readAndMigrateLocalJson
+                    Serialization.deserialize<LocalConfig>
+                    Serialization.deserialize<LocalConfigV1>
+                    json
                 |> Result.map (fun cfg ->
                     let cfg =
                         if cfg.Collections |> box |> isNull

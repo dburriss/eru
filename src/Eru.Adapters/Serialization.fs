@@ -3,6 +3,19 @@ namespace Eru.Adapters
 open System
 open System.Text.Json
 open System.Text.Json.Serialization
+open Eru
+
+type BundleKindConverter() =
+    inherit JsonConverter<BundleKind>()
+
+    override _.Read(reader, _t, _options) =
+        match reader.GetString() with
+        | "okf" -> Okf
+        | _     -> Manifest
+
+    override _.Write(writer, value, _options) =
+        let s = match value with Manifest -> "manifest" | Okf -> "okf"
+        writer.WriteStringValue(s: string)
 
 type OptionConverterFactory() =
     inherit JsonConverterFactory()
@@ -35,6 +48,7 @@ module Serialization =
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 WriteIndented        = true)
         opts.Converters.Add(OptionConverterFactory())
+        opts.Converters.Add(BundleKindConverter())
         opts
 
     let deserialize<'T> (json: string) : Result<'T, string> =

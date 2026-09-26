@@ -29,7 +29,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                 match deps.ReadSourceIndex sourceName with
                 | Ok (Some idx) ->
                     let matchingPaths =
-                        idx
+                        idx.Entries
                         |> Map.toSeq
                         |> Seq.map fst
                         |> Seq.filter (fun k -> not (k.Contains('*') || k.Contains('?')))
@@ -46,19 +46,19 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
     let loadGlobChildren (gn: GlobNode) : SourceTreeNode seq =
         match deps.ReadSourceIndex gn.SourceName with
         | Ok (Some idx) ->
-            idx
+            idx.Entries
             |> Map.toSeq
             |> Seq.filter (fun (k, _) -> not (k.Contains('*') || k.Contains('?')))
             |> Seq.filter (fun (k, _) -> Patterns.matchesGlob gn.FileNode.Row.Path k)
             |> Seq.sortBy fst
             |> Seq.map (fun (path, entry) ->
-                let row: SourceFiles.SourceFileRow = { Hash = Patterns.pathShortHash path; Path = path; Tags = entry.Tags; Description = entry.Description }
+                let row: SourceFiles.SourceFileRow = { Hash = Patterns.pathShortHash path; Path = path; Tags = entry.Tags; Description = entry.Description; Bundle = None }
                 makeFileNode gn.SourceName row :> SourceTreeNode)
         | _ -> Seq.empty
 
     let loadSourceFiles (sourceName: string) : SourceTreeNode seq =
         if not (fileCache.ContainsKey(sourceName)) then
-            match SourceFiles.execute deps (Some sourceName) with
+            match SourceFiles.execute deps (Some sourceName) None with
             | Ok results ->
                 fileCache.[sourceName] <-
                     results
@@ -177,12 +177,12 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
     let showSourceDetail (src: SourceList.SourceRow) =
         let url  = src.Url    |> Option.defaultValue "(none)"
         let br   = src.Branch |> Option.defaultValue "HEAD"
-        let bp   = src.BasePath |> Option.defaultValue ""
+        let bp   = if src.Bundles.IsEmpty then "" else src.Bundles |> List.map (fun b -> if b.Path = "" then "(root)" else b.Path) |> String.concat ", "
         let tags = tagsText src.Tags
         setDetail
             src.Name
             tags
-            $"URL {url}\nBranch {br}\nBase path {bp}\nScope {src.Scope}"
+            $"URL {url}\nBranch {br}\nBundles {bp}\nScope {src.Scope}"
 
     let showFileDetail (fn: FileNode) =
         let tags    = tagsText fn.Row.Tags
@@ -207,7 +207,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             match deps.ReadSourceIndex fn.SourceName with
             | Ok (Some idx) ->
                 let matches =
-                    idx
+                    idx.Entries
                     |> Map.toSeq
                     |> Seq.map fst
                     |> Seq.filter (fun k -> not (k.Contains('*') || k.Contains('?')))
@@ -223,7 +223,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             previewLabel.Text <- "Preview"
             match deps.ReadSourceIndex fn.SourceName with
             | Ok (Some idx) ->
-                match Map.tryFind path idx with
+                match Map.tryFind path idx.Entries with
                 | Some entry when entry.CacheRelPath.IsSome ->
                     match deps.ReadCachedSourceContent fn.SourceName entry.CacheRelPath.Value with
                     | Ok (Some content) -> previewText.Text <- content

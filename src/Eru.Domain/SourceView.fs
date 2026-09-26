@@ -6,6 +6,7 @@ module SourceView =
         Path        : string
         Tags        : string list
         Description : string option
+        Bundle      : string option   // owning bundle's Path (Some "" for the repo-root bundle); None = unassigned
     }
 
     type ManifestState =
@@ -18,11 +19,15 @@ module SourceView =
         Scope    : string
         Url      : string option
         Branch   : string option
-        BasePath : string option
+        Bundles  : Bundle list
         Manifest : ManifestState
     }
 
-    let execute (deps: Deps) (sourceName: string) (showFull: bool) : Result<SourceDetail, string> =
+    // Normalizes the CLI's "." / "/" repo-root sentinel to the internal "" bundle path.
+    let normalizeBundlePathFilter (raw: string) : string =
+        if raw = "." || raw = "/" then "" else raw
+
+    let execute (deps: Deps) (sourceName: string) (showFull: bool) (bundleFilter: string option) : Result<SourceDetail, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
@@ -39,21 +44,32 @@ module SourceView =
         | None -> Error $"source '{sourceName}' not found."
         | Some (src, origin) ->
 
+        let bundleFilter = bundleFilter |> Option.map normalizeBundlePathFilter
+
         let manifest =
             match deps.ReadCachedManifest src.Name with
             | Error e -> LoadError e
             | Ok None -> NotCached
             | Ok (Some m) ->
+                let withBundle =
+                    m.Files
+                    |> List.map (fun f ->
+                        let owner = Bundle.owningBundleForDisplay src.Bundles f.Path |> Option.map (fun b -> b.Path)
+                        f, owner)
+                let filtered =
+                    match bundleFilter with
+                    | None -> withBundle
+                    | Some bp -> withBundle |> List.filter (fun (_, owner) -> owner = Some bp)
                 let cap = 20
-                let files = m.Files
-                let display = if showFull then files else files |> List.truncate cap
-                let total = files.Length
+                let display = if showFull then filtered else filtered |> List.truncate cap
+                let total = filtered.Length
                 let capped = not showFull && total > cap
                 let entries =
-                    display |> List.map (fun f -> {
+                    display |> List.map (fun (f, owner) -> {
                         Path        = f.Path
                         Tags        = f.Tags
                         Description = f.Description
+                        Bundle      = owner
                     })
                 Files (entries, total, capped)
 
@@ -62,6 +78,6 @@ module SourceView =
             Scope    = origin
             Url      = src.Url
             Branch   = src.Branch
-            BasePath = src.BasePath
+            Bundles  = src.Bundles
             Manifest = manifest
         }

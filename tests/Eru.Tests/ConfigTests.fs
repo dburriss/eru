@@ -11,11 +11,11 @@ let private assertError (expected: string) = function
     | Ok _ -> failwith $"Expected Error \"{expected}\" but got Ok"
     | Error e -> Assert.Contains(expected, e)
 
-let private makeGlobal sources collections =
+let private makeGlobal (sources: SourceConfig list) (collections: CollectionConfig list) : GlobalConfig =
     { Version = 1; DefaultSources = sources; Collections = collections; Defaults = None }
 
-let private makeSource name url =
-    { Name = name; Url = url; Branch = None; BasePath = None }
+let private makeSource name url : SourceConfig =
+    { Name = name; Url = url; Branch = None; Bundles = [] }
 
 // ── merge: basic cases ──────────────────────────────────────────────────────
 
@@ -34,13 +34,13 @@ let ``merge uses global sources when no local config`` () =
 [<Fact>]
 let ``merge prefers local CommitOnPull over global default`` () =
     let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "commitOnPull"
     Assert.True result.CommitOnPull
 
 [<Fact>]
 let ``merge uses custom StateFile from local settings`` () =
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
     let result = Config.merge None (Some l) |> unwrapOk "stateFile"
     Assert.Equal("custom.lock", result.StateFile)
 
@@ -71,7 +71,7 @@ let ``merge uses SiteIgnorePatterns from global defaults`` () =
 [<Fact>]
 let ``merge prefers local SiteIgnorePatterns over global default`` () =
     let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "index.md"; "log.md" ] } }
-    let l = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [] } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [] } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "site ignore local override"
     Assert.Empty result.SiteIgnorePatterns
 
@@ -80,7 +80,7 @@ let ``merge prefers local SiteIgnorePatterns over global default`` () =
 [<Fact>]
 let ``merge preserves local source declaration order`` () =
     let g = makeGlobal [ makeSource "b" (Some "https://b.com"); makeSource "a" (Some "https://a.com") ] []
-    let l = {
+    let l : LocalConfig = {
         Version = 1
         Sources = [ makeSource "b" None; makeSource "a" (Some "https://a-override.com") ]
         Collections = []
@@ -94,7 +94,7 @@ let ``merge preserves local source declaration order`` () =
 [<Fact>]
 let ``merge appends global-only sources after local sources`` () =
     let g = makeGlobal [ makeSource "local-one" (Some "https://l.com"); makeSource "global-only" (Some "https://g.com") ] []
-    let l = { Version = 1; Sources = [ makeSource "local-one" None ]; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 1; Sources = [ makeSource "local-one" None ]; Collections = []; Settings = None }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "global-only appended"
     Assert.Equal(2, result.Sources.Length)
     Assert.Equal("local-one", result.Sources[0].Name)
@@ -105,7 +105,7 @@ let ``merge appends global-only sources after local sources`` () =
 [<Fact>]
 let ``merge errors when inherited local source not found in global config`` () =
     let g = makeGlobal [ makeSource "other" (Some "https://other.com") ] []
-    let l = { Version = 1; Sources = [ makeSource "missing" None ]; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 1; Sources = [ makeSource "missing" None ]; Collections = []; Settings = None }
     Config.merge (Some g) (Some l)
     |> assertError "missing"
 
@@ -117,7 +117,7 @@ let ``merge errors when global config version too high`` () =
 
 [<Fact>]
 let ``merge errors when local config version too high`` () =
-    let l = { Version = 99; Sources = []; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 99; Sources = []; Collections = []; Settings = None }
     Config.merge None (Some l)
     |> assertError "please upgrade eru"
 
@@ -129,7 +129,7 @@ let ``merge errors on duplicate source name in global config`` () =
 
 [<Fact>]
 let ``merge errors on duplicate source name in local config`` () =
-    let l = { Version = 1; Sources = [ makeSource "dup" None; makeSource "dup" None ]; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 1; Sources = [ makeSource "dup" None; makeSource "dup" None ]; Collections = []; Settings = None }
     Config.merge None (Some l)
     |> assertError "Duplicate source name 'dup'"
 
@@ -312,3 +312,69 @@ let ``withManifests silently ignores manifest read error`` () =
     let eff = Config.merge (Some (makeGlobal [ src ] [])) None |> unwrapOk "base"
     let result = Config.withManifests (fun _ -> Error "disk error") eff
     Assert.Empty result.Collections
+
+// ── v1 -> v2 migration (BasePath -> Bundles) ─────────────────────────────────
+
+[<Fact>]
+let ``readAndMigrateGlobalJson passes through a current-shape config unchanged`` () =
+    let cfg : GlobalConfig = makeGlobal [ makeSource "kb" (Some "https://kb.com") ] []
+    let result =
+        Config.readAndMigrateGlobalJson (fun _ -> Ok cfg) (fun _ -> Error "should not be used") "{}"
+        |> unwrapOk "current shape"
+    Assert.Equal(1, result.DefaultSources.Length)
+    Assert.Empty result.DefaultSources[0].Bundles
+
+[<Fact>]
+let ``readAndMigrateGlobalJson maps BasePath to a single Manifest bundle on fallback`` () =
+    let v1 : GlobalConfigV1 = {
+        Version = 1
+        DefaultSources = [ { Name = "kb"; Url = Some "https://kb.com"; Branch = None; BasePath = Some "KNOWLEDGE" } ]
+        Collections = []
+        Defaults = None
+    }
+    let result =
+        Config.readAndMigrateGlobalJson (fun _ -> Error "old shape") (fun _ -> Ok v1) "{}"
+        |> unwrapOk "v1 fallback"
+    Assert.Equal(2, result.Version)
+    Assert.Equal(1, result.DefaultSources.Length)
+    Assert.Equal<Bundle list>([ { Path = "KNOWLEDGE"; Kind = Manifest } ], result.DefaultSources[0].Bundles)
+
+[<Fact>]
+let ``readAndMigrateGlobalJson maps a None BasePath to zero bundles on fallback`` () =
+    let v1 : GlobalConfigV1 = {
+        Version = 1
+        DefaultSources = [ { Name = "kb"; Url = Some "https://kb.com"; Branch = None; BasePath = None } ]
+        Collections = []
+        Defaults = None
+    }
+    let result =
+        Config.readAndMigrateGlobalJson (fun _ -> Error "old shape") (fun _ -> Ok v1) "{}"
+        |> unwrapOk "v1 fallback, no basePath"
+    Assert.Empty result.DefaultSources[0].Bundles
+
+[<Fact>]
+let ``readAndMigrateLocalJson maps BasePath to a single Manifest bundle on fallback`` () =
+    let v1 : LocalConfigV1 = {
+        Version = 1
+        Sources = [ { Name = "kb"; Url = Some "https://kb.com"; Branch = None; BasePath = Some "docs" } ]
+        Collections = []
+        Settings = None
+    }
+    let result =
+        Config.readAndMigrateLocalJson (fun _ -> Error "old shape") (fun _ -> Ok v1) "{}"
+        |> unwrapOk "v1 fallback"
+    Assert.Equal(2, result.Version)
+    Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], result.Sources[0].Bundles)
+
+[<Fact>]
+let ``checkVersion (via merge) rejects a v3 global config`` () =
+    let g = { makeGlobal [] [] with Version = 3 }
+    Config.merge (Some g) None
+    |> assertError "please upgrade eru"
+
+[<Fact>]
+let ``checkVersion (via merge) accepts a v2 global config`` () =
+    let g = { makeGlobal [] [] with Version = 2 }
+    Config.merge (Some g) None
+    |> unwrapOk "v2 accepted"
+    |> ignore

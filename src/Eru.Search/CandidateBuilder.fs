@@ -35,7 +35,7 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
     for src in eff.Sources do
         match SourceIndexAdapter.readIndex src.Name with
         | Ok (Some idx) ->
-            for KeyValue(remotePath, entry) in idx do
+            for KeyValue(remotePath, entry) in idx.Entries do
                 if not (isGlob remotePath) && isPathAllowed remotePath then
                     let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
                     let colTags =

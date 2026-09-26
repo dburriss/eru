@@ -5,6 +5,7 @@ open Eru
 open Eru.Site
 
 let private emptyIndexEntry : IndexEntry = {
+    Contributions = Map.empty
     Tags         = []
     Description  = None
     LocalPath    = None
@@ -40,7 +41,7 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
         ReadLocalManifest       = fun () -> Ok None
         WriteLocalManifest      = fun _ -> Ok ()
         ResolveLocalGlob        = fun _ -> []
-        ReadSourceIndex         = fun _ -> Ok (Some index)
+        ReadSourceIndex         = fun _ -> Ok (Some { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = index })
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ _ -> Ok None
@@ -48,10 +49,11 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private cfg (sourceName: string) : EffectiveConfig = {
-    Sources = [ { Name = sourceName; Url = None; Branch = None; BasePath = None } ]
+    Sources = [ { Name = sourceName; Url = None; Branch = None; Bundles = [] } ]
     CommitOnPull = false
     StateFile = "eru.lock"
     Collections = []

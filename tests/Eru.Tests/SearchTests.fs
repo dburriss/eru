@@ -6,7 +6,7 @@ open Eru
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = Some url; Branch = None; BasePath = None }
+    { Name = name; Url = Some url; Branch = None; Bundles = [] }
 
 let private makeLocal sources : LocalConfig =
     { Version = 1; Sources = sources; Collections = []; Settings = None }
@@ -62,6 +62,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private emptyQuery : LocalSearch.Query = { Terms = []; Tags = [] }

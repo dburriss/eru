@@ -96,7 +96,7 @@ module LinkGraph =
             sources
             |> List.collect (fun src ->
                 match deps.ReadSourceIndex src.Name with
-                | Ok (Some idx) -> idx |> Map.toList |> List.map (fun (remotePath, entry) -> src.Name, remotePath, entry)
+                | Ok (Some idx) -> idx.Entries |> Map.toList |> List.map (fun (remotePath, entry) -> src.Name, remotePath, entry)
                 | _ -> [])
 
         let titleIndexBySource =

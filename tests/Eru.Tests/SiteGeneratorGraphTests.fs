@@ -8,13 +8,13 @@ open Eru.Site
 open Eru.Site.SiteGenerator
 
 let private makeSource name : SourceConfig =
-    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; BasePath = None }
+    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = [] }
 
 let private makeGlobal sources : GlobalConfig =
     { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
 
 let private makeIndexEntry cacheRelPath title : IndexEntry =
-    { Tags = []; Description = None; LocalPath = Some "unused"; CacheRelPath = cacheRelPath
+    { Contributions = Map.empty; Tags = []; Description = None; LocalPath = Some "unused"; CacheRelPath = cacheRelPath
       ContentHash = None; Type = None; Title = title; OkfStatus = None
       Generated = None; Verified = []; StaleAfter = None; Resource = None }
 
@@ -49,7 +49,7 @@ let private makeDeps
         ReadLocalManifest       = fun () -> Ok None
         WriteLocalManifest      = fun _ -> Ok ()
         ResolveLocalGlob        = fun _ -> []
-        ReadSourceIndex         = fun _ -> Ok (Some sourceIndex)
+        ReadSourceIndex         = fun _ -> Ok (Some { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = sourceIndex })
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ relPath -> Ok (content |> Map.tryFind relPath)
@@ -57,6 +57,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fakeExtractLinks
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private cfg : EffectiveConfig = {

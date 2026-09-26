@@ -80,4 +80,5 @@ module AdapterDeps =
             ParseYamlBlock           = YamlAdapter.parse
             ListMarkdownFiles        = OkfAdapter.listMarkdownFiles
             ExtractLinks             = MarkdownLinkAdapter.extractLinks
+            GetRemoteHeadSha         = GitAdapter.getRemoteHeadSha
         }

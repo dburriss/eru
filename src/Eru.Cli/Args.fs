@@ -85,23 +85,27 @@ type SourceListArgs =
 type SourceViewArgs =
     | [<MainCommand; ExactlyOnce>] Name of sourceName: string
     | [<Unique>]                   Full
+    | [<Unique; AltCommandLine("-b")>] Bundle of path: string
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Name _   -> "Name of the source to view."
             | Full     -> "Show all files without the 20-entry cap."
+            | Bundle _ -> "Restrict output to one bundle's group (path, or '.'/'/' for the repo root)."
             | Output _ -> "Output format: table (default), text, json."
 
 type SourceFilesArgs =
     | [<MainCommand>]              Name    of sourceName: string
     | [<Unique>]                   Refresh
+    | [<Unique; AltCommandLine("-b")>] Bundle of path: string
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Name _    -> "Name of the source. Omit to list files for all configured sources."
             | Refresh   -> "Fetch fresh metadata from the source before displaying."
+            | Bundle _  -> "Restrict output to one bundle's group (path, or '.'/'/' for the repo root)."
             | Output _  -> "Output format: table (default), text, json."
 
 type SourceRemoveArgs =
@@ -117,6 +121,51 @@ type SourceRemoveArgs =
             | Dryrun   -> "Show what would be removed without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
+type SourceBundleAddArgs =
+    | [<MainCommand; ExactlyOnce>] Source_And_Path of source: string * path: string
+    | [<AltCommandLine("-k")>]     Kind            of kind: string
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output      of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Source_And_Path _ -> "Source name and bundle path (e.g. mysource docs/knowledge; '.' or '/' for the repo root)."
+            | Kind _            -> "Bundle kind: manifest (default) or okf. Auto-detected from index.md when omitted."
+            | Dryrun            -> "Show what would be added without writing anything."
+            | Output _          -> "Output format: table (default), text, json."
+
+type SourceBundleListArgs =
+    | [<MainCommand; ExactlyOnce>] Source of source: string
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Source _ -> "Name of the source."
+            | Output _ -> "Output format: table (default), text, json."
+
+type SourceBundleRemoveArgs =
+    | [<MainCommand; ExactlyOnce>] Source_And_Path of source: string * path: string
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output      of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Source_And_Path _ -> "Source name and bundle path to remove (e.g. mysource docs/knowledge; '.' or '/' for the repo root)."
+            | Dryrun            -> "Show what would be removed without writing anything."
+            | Output _          -> "Output format: table (default), text, json."
+
+[<CliPrefix(CliPrefix.None)>]
+type SourceBundleArgs =
+    | [<SubCommand>] Add    of ParseResults<SourceBundleAddArgs>
+    | [<SubCommand>] List   of ParseResults<SourceBundleListArgs>
+    | [<SubCommand>] Remove of ParseResults<SourceBundleRemoveArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Add    _ -> "Register a bundle (a directory a source publishes from) on an existing source."
+            | List   _ -> "List a source's registered bundles."
+            | Remove _ -> "Remove a bundle from a source."
+
 [<CliPrefix(CliPrefix.None)>]
 type SourceArgs =
     | [<SubCommand>] Add    of ParseResults<SourceAddArgs>
@@ -124,6 +173,7 @@ type SourceArgs =
     | [<SubCommand>] View   of ParseResults<SourceViewArgs>
     | [<SubCommand>] Files  of ParseResults<SourceFilesArgs>
     | [<SubCommand>] Remove of ParseResults<SourceRemoveArgs>
+    | [<SubCommand>] Bundle of ParseResults<SourceBundleArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -132,6 +182,7 @@ type SourceArgs =
             | View   _ -> "Show details and available files for a source."
             | Files  _ -> "List all concrete files exposed by a source, resolving any manifest glob patterns."
             | Remove _ -> "Remove a knowledge source."
+            | Bundle _ -> "Manage a source's bundles."
 
 type CollectionCreateArgs =
     | [<MainCommand; ExactlyOnce>] Name        of name: string

@@ -6,7 +6,7 @@ module SourceList =
         Name     : string
         Url      : string option
         Branch   : string option
-        BasePath : string option
+        Bundles  : Bundle list
         Scope    : string
         Tags     : string list
     }
@@ -33,7 +33,7 @@ module SourceList =
             Name     = src.Name
             Url      = src.Url
             Branch   = src.Branch
-            BasePath = src.BasePath
+            Bundles  = src.Bundles
             Scope    = scope
             Tags     = rowTags deps src
         }

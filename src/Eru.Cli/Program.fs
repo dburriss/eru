@@ -12,6 +12,9 @@ open Eru.Cli.SourceViewCli
 open Eru.Cli.SourceFilesCli
 open Eru.Cli.SourceAddCli
 open Eru.Cli.SourceRemoveCli
+open Eru.Cli.SourceBundleAddCli
+open Eru.Cli.SourceBundleListCli
+open Eru.Cli.SourceBundleRemoveCli
 open Eru.Cli.CollectionCreateCli
 open Eru.Cli.CollectionAddFileCli
 open Eru.Cli.CollectionRemoveFileCli
@@ -53,6 +56,9 @@ let main argv =
         | SourceFilesCmd cmd          -> SourceFilesCli.run deps cmd
         | SourceAddCmd cmd            -> SourceAddCli.run deps cmd
         | SourceRemoveCmd cmd         -> SourceRemoveCli.run deps cmd
+        | SourceBundleAddCmd cmd      -> SourceBundleAddCli.run deps cmd
+        | SourceBundleListCmd cmd     -> SourceBundleListCli.run deps cmd
+        | SourceBundleRemoveCmd cmd   -> SourceBundleRemoveCli.run deps cmd
         | CollectionCreateCmd cmd     -> CollectionCreateCli.run deps cmd
         | CollectionAddFileCmd cmd    -> CollectionAddFileCli.run deps cmd
         | CollectionRemoveFileCmd cmd -> CollectionRemoveFileCli.run deps cmd

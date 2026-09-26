@@ -46,10 +46,10 @@ type SourcesPane(initialSources: SourceList.SourceRow list) as this =
     let showSource (src: SourceList.SourceRow) =
         let url  = src.Url    |> Option.defaultValue "(none)"
         let br   = src.Branch |> Option.defaultValue "HEAD"
-        let bp   = src.BasePath |> Option.defaultValue ""
+        let bp   = if src.Bundles.IsEmpty then "" else src.Bundles |> List.map (fun b -> if b.Path = "" then "(root)" else b.Path) |> String.concat ", "
         detailTitle.Text <- src.Name
         detailTags.Text <- tagsText src.Tags
-        detailMeta.Text <- $"URL {url}\nBranch {br}\nBase path {bp}\nScope {src.Scope}"
+        detailMeta.Text <- $"URL {url}\nBranch {br}\nBundles {bp}\nScope {src.Scope}"
         previewLabel.Text <- "Info"
         previewText.Text <- ""
 

@@ -40,6 +40,7 @@ module Sync =
         | EBlocked e            -> { Status = Blocked;       LocalPath = e.LocalPath }
 
     let private emptyIndexEntry = {
+        Contributions = Map.empty
         Tags         = []
         Description  = None
         LocalPath    = None
@@ -53,6 +54,64 @@ module Sync =
         StaleAfter   = None
         Resource     = None
     }
+
+    let private emptySourceIndex = {
+        Version                     = 1
+        SourceHeadSha               = None
+        ConsecutiveShaCheckFailures = 0
+        Entries                     = Map.empty
+    }
+
+    let private isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
+
+    // A distinct cache key (not a real source name) for a non-root Manifest bundle's
+    // own .eru/manifest.json, kept separate from the source's root-level manifest cache.
+    let private bundleManifestCacheKey (sourceName: string) (bundlePath: string) : string =
+        $"{sourceName}/_bundles/{bundlePath}"
+
+    let private normalizeTags (tags: string list) : string list =
+        tags |> List.map (fun t -> t.ToLowerInvariant()) |> List.distinct
+
+    let private readIndexOrEmpty (deps: Deps) (sourceName: string) : SourceIndex =
+        match deps.ReadSourceIndex sourceName with
+        | Ok (Some idx) -> idx
+        | _             -> emptySourceIndex
+
+    // Per (remotePath, manifestBundlePath, Contribution) — the same remotePath may
+    // appear once per covering Manifest bundle, folded into one Contributions map keyed
+    // by ContributionKey.manifest bundlePath before it reaches the index.
+    let private resolveManifestContributions (deps: Deps) (src: SourceConfig) : (string * string * Contribution) list =
+        let manifestBundles = src.Bundles |> List.filter (fun b -> b.Kind = Manifest)
+        if manifestBundles.IsEmpty then []
+        else
+            let rootManifest = match deps.ReadCachedManifest src.Name with Ok (Some m) -> Some m | _ -> None
+            let toContribution (f: ManifestFileRef) : Contribution =
+                { Tags = normalizeTags f.Tags; Description = f.Description }
+            manifestBundles
+            |> List.collect (fun b ->
+                if b.Path = "" then
+                    match rootManifest with
+                    | None -> []
+                    | Some m ->
+                        m.Files
+                        |> List.filter (fun f -> not (isGlob f.Path))
+                        |> List.map (fun f -> f.Path, b.Path, toContribution f)
+                else
+                    match deps.ReadCachedManifest (bundleManifestCacheKey src.Name b.Path) with
+                    | Ok (Some m) ->
+                        m.Files
+                        |> List.filter (fun f -> not (isGlob f.Path))
+                        |> List.map (fun f -> (b.Path + "/" + f.Path), b.Path, toContribution f)
+                    | _ ->
+                        // No bundle-local manifest — fall back to partitioning the
+                        // shared root manifest's entries by longest-matching prefix.
+                        match rootManifest with
+                        | None -> []
+                        | Some m ->
+                            m.Files
+                            |> List.filter (fun f -> not (isGlob f.Path))
+                            |> List.filter (fun f -> Bundle.mostSpecificManifestBundle manifestBundles f.Path = Some b)
+                            |> List.map (fun f -> f.Path, b.Path, toContribution f))
 
     // Populate sources/<name>/index.json and sources/<name>/files/ cache.
     // Called by execute and by KnowledgeSyncService. Non-fatal errors are returned in the result list.
@@ -70,7 +129,10 @@ module Sync =
                            AllowBinaries = Config.defaultAllowBinaries
                            SiteIgnorePatterns = Config.defaultSiteIgnorePatterns }
 
-        // Step 1a: Fetch and cache manifests
+        let errors = System.Collections.Generic.List<string>()
+
+        // Step 1a: Fetch and cache manifests — the shared root manifest, plus each
+        // non-root Manifest bundle's own .eru/manifest.json (decision #1).
         for src in baseEff.Sources do
             match src.Url with
             | None -> ()
@@ -79,30 +141,99 @@ module Sync =
                 match deps.FetchRemoteContent url branch [".eru/manifest.json"] with
                 | Ok ((_, raw) :: _) -> deps.CacheSourceManifest src.Name raw |> ignore
                 | _ -> ()
+                for b in src.Bundles do
+                    if b.Kind = Manifest && b.Path <> "" then
+                        let bundleManifestPath = $"{b.Path}/.eru/manifest.json"
+                        match deps.FetchRemoteContent url branch [bundleManifestPath] with
+                        | Ok ((_, raw) :: _) -> deps.CacheSourceManifest (bundleManifestCacheKey src.Name b.Path) raw |> ignore
+                        | _ -> ()
 
         // Step 1b: Reload eff with fresh manifests
         let eff = Config.withManifests deps.ReadCachedManifest baseEff
 
-        let errors = System.Collections.Generic.List<string>()
-
         // Step 1c: Rebuild index.json for each source from manifest metadata (no content fetch).
         // Glob patterns are excluded — they are replaced by resolved paths in Step 2.
-        let isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
+        // This wipes and reseeds Entries every sync, but preserves SourceHeadSha /
+        // ConsecutiveShaCheckFailures — the discovery SHA cache must survive a
+        // manifest-only sync.
         for src in eff.Sources do
-            let initialIndex =
-                match deps.ReadCachedManifest src.Name with
-                | Ok (Some manifest) ->
-                    manifest.Files
-                    |> List.filter (fun f -> not (isGlob f.Path))
-                    |> List.map (fun f ->
-                        f.Path, { emptyIndexEntry with
-                                    Tags        = f.Tags |> List.map (fun t -> t.ToLowerInvariant()) |> List.distinct
-                                    Description = f.Description })
-                    |> Map.ofList
-                | _ -> Map.empty
-            deps.WriteSourceIndex src.Name initialIndex |> ignore
+            let existingIdx = readIndexOrEmpty deps src.Name
+            let contribs = resolveManifestContributions deps src
+            let initialEntries =
+                contribs
+                |> List.groupBy (fun (remotePath, _, _) -> remotePath)
+                |> List.map (fun (remotePath, group) ->
+                    let contributions =
+                        group |> List.fold (fun acc (_, bundlePath, c) -> Map.add (ContributionKey.manifest bundlePath) c acc) Map.empty
+                    let blended = IndexBlend.blend src.Bundles remotePath contributions
+                    remotePath, { emptyIndexEntry with
+                                    Contributions = contributions
+                                    Tags          = blended.Tags
+                                    Description   = blended.Description })
+                |> Map.ofList
+            deps.WriteSourceIndex src.Name { existingIdx with Entries = initialEntries } |> ignore
 
-        // Step 2: Fetch and cache collection files; merge frontmatter tags into index
+        // Step 1d: OKF bundle discovery — SHA-gated, fails open, escalates after 3
+        // consecutive GetRemoteHeadSha failures (decision #3).
+        for src in eff.Sources do
+            let okfBundles = src.Bundles |> List.filter (fun b -> b.Kind = Okf)
+            if not okfBundles.IsEmpty then
+                match src.Url with
+                | None -> ()
+                | Some url ->
+                    let branch = src.Branch |> Option.defaultValue "HEAD"
+                    let existingIdx = readIndexOrEmpty deps src.Name
+                    match deps.GetRemoteHeadSha url src.Branch with
+                    | Error e ->
+                        let failures = existingIdx.ConsecutiveShaCheckFailures + 1
+                        if failures >= 3 then
+                            errors.Add($"source '{src.Name}': discovery SHA check failed {failures} times in a row: {e}")
+                        deps.WriteSourceIndex src.Name { existingIdx with ConsecutiveShaCheckFailures = failures } |> ignore
+                    | Ok headSha ->
+                        if existingIdx.SourceHeadSha = Some headSha then
+                            if existingIdx.ConsecutiveShaCheckFailures <> 0 then
+                                deps.WriteSourceIndex src.Name { existingIdx with ConsecutiveShaCheckFailures = 0 } |> ignore
+                        else
+                            let mutable idx = existingIdx
+                            for bundle in okfBundles do
+                                match BundleDiscovery.walkBundle deps src.Name url branch bundle with
+                                | Error e -> errors.Add($"source '{src.Name}': bundle discovery for '{bundle.Path}' failed: {e}")
+                                | Ok discovered ->
+                                    for d in discovered do
+                                        let contentHash = deps.HashContent d.Content
+                                        let cacheRelPath =
+                                            match deps.CacheSourceContent src.Name contentHash d.Content with
+                                            | Ok p -> Some p
+                                            | Error _ -> None
+                                        let existing = Map.tryFind d.RemotePath idx.Entries |> Option.defaultValue emptyIndexEntry
+                                        let contributions = existing.Contributions |> Map.add ContributionKey.frontmatter d.Contribution
+                                        let blended = IndexBlend.blend src.Bundles d.RemotePath contributions
+                                        idx <- { idx with
+                                                    Entries =
+                                                        idx.Entries
+                                                        |> Map.add d.RemotePath {
+                                                            existing with
+                                                                Contributions = contributions
+                                                                Tags          = blended.Tags
+                                                                Description   = blended.Description
+                                                                CacheRelPath  = cacheRelPath
+                                                                ContentHash   = Some contentHash
+                                                                Type          = d.Type
+                                                                Title         = d.Title
+                                                                OkfStatus     = d.OkfStatus
+                                                                Generated     = d.Generated
+                                                                Verified      = d.Verified
+                                                                StaleAfter    = d.StaleAfter
+                                                                Resource      = d.Resource
+                                                        } }
+                                        match cacheRelPath with
+                                        | Some relPath -> deps.BuildSearchIndex src.Name relPath
+                                        | None         -> ()
+                            deps.WriteSourceIndex src.Name { idx with SourceHeadSha = Some headSha; ConsecutiveShaCheckFailures = 0 } |> ignore
+
+        // Step 2: Fetch and cache collection files; merge frontmatter into the
+        // "frontmatter" contribution (a full overwrite of that one key every sync —
+        // fixes the staleness bug where a dropped tag used to never disappear).
         eff.Collections
         |> List.groupBy (fun f -> f.Source)
         |> List.iter (fun (sourceName, sourceFiles) ->
@@ -120,10 +251,8 @@ module Sync =
                     | Error e ->
                         errors.Add($"fetch failed for source '{sourceName}': {e}")
                     | Ok files ->
-                        let mutable idx =
-                            match deps.ReadSourceIndex sourceName with
-                            | Ok (Some m) -> m
-                            | _ -> Map.empty
+                        let existingIdx = readIndexOrEmpty deps sourceName
+                        let mutable entries = existingIdx.Entries
                         for (resolvedPath, content) in files do
                             let contentHash = deps.HashContent content
                             let cacheRelPath =
@@ -131,28 +260,30 @@ module Sync =
                                 | Ok p  -> Some p
                                 | Error _ -> None
                             let fm = Frontmatter.parse deps.ParseYamlBlock content
-                            let existing = Map.tryFind resolvedPath idx |> Option.defaultValue emptyIndexEntry
-                            let mergedTags =
-                                (existing.Tags @ (Frontmatter.tags fm |> List.map (fun t -> t.ToLowerInvariant())))
-                                |> List.distinct
-                            idx <- idx |> Map.add resolvedPath {
+                            let existing = Map.tryFind resolvedPath entries |> Option.defaultValue emptyIndexEntry
+                            let contributions =
+                                existing.Contributions
+                                |> Map.add ContributionKey.frontmatter { Tags = normalizeTags (Frontmatter.tags fm); Description = Frontmatter.description fm }
+                            let blended = IndexBlend.blend src.Bundles resolvedPath contributions
+                            entries <- entries |> Map.add resolvedPath {
                                 existing with
-                                    Tags         = mergedTags
-                                    Description  = existing.Description |> Option.orElse (Frontmatter.description fm)
-                                    CacheRelPath = cacheRelPath
-                                    ContentHash  = Some contentHash
-                                    Type         = Frontmatter.type_ fm
-                                    Title        = Frontmatter.title fm
-                                    OkfStatus    = Frontmatter.status fm
-                                    Generated    = Frontmatter.generated fm
-                                    Verified     = Frontmatter.verified fm
-                                    StaleAfter   = Frontmatter.staleAfter fm
-                                    Resource     = Frontmatter.resource fm
+                                    Contributions = contributions
+                                    Tags          = blended.Tags
+                                    Description   = blended.Description
+                                    CacheRelPath  = cacheRelPath
+                                    ContentHash   = Some contentHash
+                                    Type          = Frontmatter.type_ fm
+                                    Title         = Frontmatter.title fm
+                                    OkfStatus     = Frontmatter.status fm
+                                    Generated     = Frontmatter.generated fm
+                                    Verified      = Frontmatter.verified fm
+                                    StaleAfter    = Frontmatter.staleAfter fm
+                                    Resource      = Frontmatter.resource fm
                             }
                             match cacheRelPath with
                             | Some relPath -> deps.BuildSearchIndex sourceName relPath
                             | None         -> ()
-                        deps.WriteSourceIndex sourceName idx |> ignore)
+                        deps.WriteSourceIndex sourceName { existingIdx with Entries = entries } |> ignore)
 
         // Step 3: Fetch and cache lock-only entries (not covered by manifest or collection)
         let collectionPaths =
@@ -178,10 +309,8 @@ module Sync =
                         match deps.FetchRemoteContent url branch remotePaths with
                         | Error _ -> ()
                         | Ok files ->
-                            let mutable idx =
-                                match deps.ReadSourceIndex sourceName with
-                                | Ok (Some m) -> m
-                                | _ -> Map.empty
+                            let existingIdx = readIndexOrEmpty deps sourceName
+                            let mutable entries = existingIdx.Entries
                             for (resolvedPath, content) in files do
                                 let contentHash = deps.HashContent content
                                 let cacheRelPath =
@@ -189,59 +318,55 @@ module Sync =
                                     | Ok p  -> Some p
                                     | Error _ -> None
                                 let fm = Frontmatter.parse deps.ParseYamlBlock content
-                                let existing = Map.tryFind resolvedPath idx |> Option.defaultValue emptyIndexEntry
-                                idx <- idx |> Map.add resolvedPath {
+                                let existing = Map.tryFind resolvedPath entries |> Option.defaultValue emptyIndexEntry
+                                let contributions =
+                                    existing.Contributions
+                                    |> Map.add ContributionKey.frontmatter { Tags = normalizeTags (Frontmatter.tags fm); Description = Frontmatter.description fm }
+                                let blended = IndexBlend.blend src.Bundles resolvedPath contributions
+                                entries <- entries |> Map.add resolvedPath {
                                     existing with
-                                        Tags = (existing.Tags @ (Frontmatter.tags fm |> List.map (fun t -> t.ToLowerInvariant()))) |> List.distinct
-                                        Description = existing.Description |> Option.orElse (Frontmatter.description fm)
-                                        CacheRelPath = cacheRelPath
-                                        ContentHash  = Some contentHash
-                                        Type         = Frontmatter.type_ fm
-                                        Title        = Frontmatter.title fm
-                                        OkfStatus    = Frontmatter.status fm
-                                        Generated    = Frontmatter.generated fm
-                                        Verified     = Frontmatter.verified fm
-                                        StaleAfter   = Frontmatter.staleAfter fm
-                                        Resource     = Frontmatter.resource fm
+                                        Contributions = contributions
+                                        Tags          = blended.Tags
+                                        Description   = blended.Description
+                                        CacheRelPath  = cacheRelPath
+                                        ContentHash   = Some contentHash
+                                        Type          = Frontmatter.type_ fm
+                                        Title         = Frontmatter.title fm
+                                        OkfStatus     = Frontmatter.status fm
+                                        Generated     = Frontmatter.generated fm
+                                        Verified      = Frontmatter.verified fm
+                                        StaleAfter    = Frontmatter.staleAfter fm
+                                        Resource      = Frontmatter.resource fm
                                 }
                                 match cacheRelPath with
                                 | Some relPath -> deps.BuildSearchIndex sourceName relPath
                                 | None         -> ()
-                            deps.WriteSourceIndex sourceName idx |> ignore)
+                            deps.WriteSourceIndex sourceName { existingIdx with Entries = entries } |> ignore)
 
             // Step 4: Set LocalPath on index entries from lock file
             lockEntries
             |> List.groupBy (fun e -> e.SourceName)
             |> List.iter (fun (sourceName, entries) ->
-                let mutable idx =
-                    match deps.ReadSourceIndex sourceName with
-                    | Ok (Some m) -> m
-                    | _ -> Map.empty
+                let existingIdx = readIndexOrEmpty deps sourceName
+                let mutable idxEntries = existingIdx.Entries
                 let mutable changed = false
                 for entry in entries do
-                    match Map.tryFind entry.RemotePath idx with
+                    match Map.tryFind entry.RemotePath idxEntries with
                     | Some existing when existing.LocalPath <> Some entry.LocalPath ->
-                        idx <- idx |> Map.add entry.RemotePath { existing with LocalPath = Some entry.LocalPath }
+                        idxEntries <- idxEntries |> Map.add entry.RemotePath { existing with LocalPath = Some entry.LocalPath }
                         changed <- true
                     | None ->
-                        idx <- idx |> Map.add entry.RemotePath {
-                            Tags        = entry.Tags |> List.map (fun t -> t.ToLowerInvariant())
-                            Description = entry.Description
-                            LocalPath   = Some entry.LocalPath
-                            CacheRelPath = None
-                            ContentHash  = None
-                            Type         = None
-                            Title        = None
-                            OkfStatus    = None
-                            Generated    = None
-                            Verified     = []
-                            StaleAfter   = None
-                            Resource     = None
+                        idxEntries <- idxEntries |> Map.add entry.RemotePath {
+                            emptyIndexEntry with
+                                Contributions = Map.ofList [ ContributionKey.frontmatter, { Tags = normalizeTags entry.Tags; Description = entry.Description } ]
+                                Tags        = normalizeTags entry.Tags
+                                Description = entry.Description
+                                LocalPath   = Some entry.LocalPath
                         }
                         changed <- true
                     | _ -> ()
                 if changed then
-                    deps.WriteSourceIndex sourceName idx |> ignore)
+                    deps.WriteSourceIndex sourceName { existingIdx with Entries = idxEntries } |> ignore)
 
         errors |> Seq.toList
 
@@ -289,7 +414,7 @@ module Sync =
                         | Some idx ->
                             sourceEntries
                             |> List.choose (fun e ->
-                                match Map.tryFind e.RemotePath idx with
+                                match Map.tryFind e.RemotePath idx.Entries with
                                 | Some entry when entry.CacheRelPath.IsSome ->
                                     match deps.ReadCachedSourceContent sourceName entry.CacheRelPath.Value with
                                     | Ok (Some content) -> Some (e.RemotePath, content)
@@ -313,20 +438,23 @@ module Sync =
                                 | Ok files ->
                                     // Persist freshly fetched content to the cache/index so subsequent
                                     // syncs don't need to hit the network for these paths again.
-                                    let mutable idx = idxOpt |> Option.defaultValue Map.empty
+                                    // Read-and-preserve: never clobber SourceHeadSha /
+                                    // ConsecutiveShaCheckFailures with defaults here.
+                                    let baseIdx = idxOpt |> Option.defaultValue emptySourceIndex
+                                    let mutable idxEntries = baseIdx.Entries
                                     for (resolvedPath, content) in files do
                                         let contentHash = deps.HashContent content
                                         let cacheRelPath =
                                             match deps.CacheSourceContent sourceName contentHash content with
                                             | Ok p    -> Some p
                                             | Error _ -> None
-                                        let existing = Map.tryFind resolvedPath idx |> Option.defaultValue emptyIndexEntry
-                                        idx <- idx |> Map.add resolvedPath {
+                                        let existing = Map.tryFind resolvedPath idxEntries |> Option.defaultValue emptyIndexEntry
+                                        idxEntries <- idxEntries |> Map.add resolvedPath {
                                             existing with
                                                 CacheRelPath = cacheRelPath
                                                 ContentHash  = Some contentHash
                                         }
-                                    deps.WriteSourceIndex sourceName idx |> ignore
+                                    deps.WriteSourceIndex sourceName { baseIdx with Entries = idxEntries } |> ignore
                                     files |> Map.ofList
                                 | Error _  -> Map.empty
 

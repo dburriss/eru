@@ -1087,7 +1087,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                         // find the IndexEntry to get the cacheRelPath
                         match deps.ReadSourceIndex doc.Source with
                         | Ok (Some idx) ->
-                            idx
+                            idx.Entries
                             |> Map.tryFind doc.RemotePath
                             |> Option.bind (fun e -> e.CacheRelPath)
                             |> Option.bind (fun rel ->

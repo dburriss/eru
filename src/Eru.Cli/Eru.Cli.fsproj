@@ -69,6 +69,9 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="SourceFilesCli.fs" />
     <Compile Include="SourceAddCli.fs" />
     <Compile Include="SourceRemoveCli.fs" />
+    <Compile Include="SourceBundleAddCli.fs" />
+    <Compile Include="SourceBundleListCli.fs" />
+    <Compile Include="SourceBundleRemoveCli.fs" />
     <Compile Include="CollectionCreateCli.fs" />
     <Compile Include="CollectionAddFileCli.fs" />
     <Compile Include="CollectionRemoveFileCli.fs" />

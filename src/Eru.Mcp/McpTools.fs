@@ -73,7 +73,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         for src in eff.Sources do
             match SourceIndexAdapter.readIndex src.Name with
             | Ok (Some idx) ->
-                for KeyValue(remotePath, entry) in idx do
+                for KeyValue(remotePath, entry) in idx.Entries do
                     if not (isGlob remotePath) && isPathAllowed remotePath then
                         let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
                         let colTags =
@@ -190,9 +190,9 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
                         if path.StartsWith prefix then Some (path.[prefix.Length..])
                         else
                             // Try direct remotePath match
-                            if Map.containsKey path idx then Some path else None
+                            if Map.containsKey path idx.Entries then Some path else None
                     remotePath |> Option.bind (fun rp ->
-                        match Map.tryFind rp idx with
+                        match Map.tryFind rp idx.Entries with
                         | Some entry when entry.CacheRelPath.IsSome ->
                             let absPath = Path.Combine(Paths.sourceCacheDir src.Name, entry.CacheRelPath.Value)
                             if File.Exists absPath then Some (File.ReadAllText absPath)

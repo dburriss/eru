@@ -16,27 +16,36 @@ module SourceAdd =
         if segment.EndsWith(".git") then segment.[..segment.Length - 5]
         else segment
 
-    let private detectBasePath (topLevel: string list) : string option =
-        topLevel |> List.tryFind (fun e -> e = "KNOWLEDGE" || e = "knowledge")
+    let private detectBundles (deps: Deps) (url: string) (branch: string option) : Bundle list =
+        let candidate =
+            match deps.ListRemoteTopLevel url branch with
+            | Ok entries -> BundleDetect.candidatePath entries
+            | Error _    -> None
+        match candidate with
+        | None -> []
+        | Some cp ->
+            let actualBranch = branch |> Option.defaultValue "HEAD"
+            let indexPath = if cp = "" then "index.md" else $"{cp}/index.md"
+            let hasOkf =
+                match deps.FetchRemoteContent url actualBranch [indexPath] with
+                | Ok ((_, content) :: _) ->
+                    Frontmatter.parse deps.ParseYamlBlock content |> Frontmatter.okfVersion |> Option.isSome
+                | _ -> false
+            [ { Path = cp; Kind = BundleDetect.detectKind hasOkf } ]
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
         let name = cmd.Name |> Option.defaultWith (fun () -> deriveNameFromUrl cmd.Url)
 
-        let basePath =
+        let bundles =
             match cmd.BasePath with
-            | Some _ -> cmd.BasePath
-            | None   ->
-                let topLevel =
-                    match deps.ListRemoteTopLevel cmd.Url cmd.Branch with
-                    | Ok entries -> entries
-                    | Error _    -> []
-                detectBasePath topLevel
+            | Some bp -> [ { Path = bp; Kind = Manifest } ]
+            | None    -> detectBundles deps cmd.Url cmd.Branch
 
         let newSource : SourceConfig = {
             Name     = name
             Url      = Some cmd.Url
             Branch   = cmd.Branch
-            BasePath = basePath
+            Bundles  = bundles
         }
 
         let cacheManifest () =
@@ -46,9 +55,11 @@ module SourceAdd =
             | _ -> ()
 
         let detectionNote =
-            if basePath.IsSome && cmd.BasePath.IsNone then
-                $"\nDetected KNOWLEDGE/ convention — basePath set to \"{basePath.Value}\""
-            else ""
+            match bundles, cmd.BasePath with
+            | [ b ], None ->
+                let kindStr = match b.Kind with Manifest -> "manifest" | Okf -> "okf"
+                $"\nDetected KNOWLEDGE/ convention — bundle at \"{b.Path}\" (kind: {kindStr})"
+            | _ -> ""
 
         if cmd.IsGlobal then
             let globalCfg =

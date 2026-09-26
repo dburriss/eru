@@ -5,8 +5,9 @@ open Eru
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
-let private makeSource name url branch basePath : SourceConfig =
-    { Name = name; Url = url; Branch = branch; BasePath = basePath }
+let private makeSource name url branch (basePath: string option) : SourceConfig =
+    let bundles = basePath |> Option.map (fun p -> [ { Path = p; Kind = Manifest } ]) |> Option.defaultValue []
+    { Name = name; Url = url; Branch = branch; Bundles = bundles }
 
 let private emptyCmd : Add.Command = {
     RemotePath     = None
@@ -57,6 +58,7 @@ let private makeDeps
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }

@@ -29,11 +29,18 @@ type SourceManifest = {
     Files       : ManifestFileRef list
 }
 
+// A directory a source publishes from. Path = "" means the repo root.
+// Manifest: membership declared by .eru/manifest.json. Okf: membership discovered
+// by walking the tree and reading frontmatter (see BundleDiscovery).
+type BundleKind = Manifest | Okf
+
+type Bundle = { Path: string; Kind: BundleKind }
+
 type SourceConfig = {
     Name: string
     Url: string option
     Branch: string option
-    BasePath: string option
+    Bundles: Bundle list
 }
 
 type CollectionFileRef = {
@@ -98,8 +105,22 @@ type EffectiveConfig = {
     SiteIgnorePatterns        : string list
 }
 
-// Per-file metadata stored in sources/<name>/index.json, keyed by remotePath
+// A single bundle's contribution of metadata for one file: either a manifest entry
+// (keyed by ContributionKey.manifest bundlePath) or discovered frontmatter
+// (keyed by ContributionKey.frontmatter). Stored per-key so a re-sync can fully
+// replace one contribution without ever needing to "subtract" stale data from
+// an accumulated total.
+type Contribution = {
+    Tags        : string list
+    Description : string option
+}
+
+// Per-file metadata stored in sources/<name>/index.json, keyed by remotePath.
+// Tags/Description are blended from Contributions via IndexBlend.blend and
+// stored here so existing consumers (Search, SourceFiles, McpTools, LinkGraph,
+// SourceView) keep reading them unchanged.
 type IndexEntry = {
+    Contributions : Map<string, Contribution>
     Tags         : string list
     Description  : string option
     LocalPath    : string option    // set if the file is in .eru/eru.lock
@@ -114,13 +135,133 @@ type IndexEntry = {
     Resource     : string option              // OKF: resource
 }
 
+// sources/<name>/index.json's top-level shape. Version mismatch or malformed
+// JSON forces a full rebuild — the index is fully disposable/reconstructible.
+// SourceHeadSha/ConsecutiveShaCheckFailures cache OKF-bundle discovery's
+// git-ls-remote check so a re-sync can skip re-walking unchanged sources.
+type SourceIndex = {
+    Version                     : int
+    SourceHeadSha               : string option
+    ConsecutiveShaCheckFailures : int
+    Entries                     : Map<string, IndexEntry>
+}
+
+// Version-1 shapes, kept only to migrate old on-disk config.json files (BasePath -> Bundles).
+type SourceConfigV1 = {
+    Name: string
+    Url: string option
+    Branch: string option
+    BasePath: string option
+}
+
+type GlobalConfigV1 = {
+    Version: int
+    DefaultSources: SourceConfigV1 list
+    Collections: CollectionConfig list
+    Defaults: GlobalDefaults option
+}
+
+type LocalConfigV1 = {
+    Version: int
+    Sources: SourceConfigV1 list
+    Collections: CollectionConfig list
+    Settings: LocalSettings option
+}
+
+module IndexEntry =
+    let empty : IndexEntry = {
+        Contributions = Map.empty
+        Tags          = []
+        Description   = None
+        LocalPath     = None
+        CacheRelPath  = None
+        ContentHash   = None
+        Type          = None
+        Title         = None
+        OkfStatus     = None
+        Generated     = None
+        Verified      = []
+        StaleAfter    = None
+        Resource      = None
+    }
+
+module Bundle =
+    // Does `bundle` cover `path`? Root bundles (Path = "") cover everything.
+    let covers (bundle: Bundle) (path: string) : bool =
+        if bundle.Path = "" then true
+        else
+            let prefix = if bundle.Path.EndsWith('/') then bundle.Path else bundle.Path + "/"
+            path = bundle.Path || path.StartsWith(prefix)
+
+    let coveringBundles (bundles: Bundle list) (path: string) : Bundle list =
+        bundles |> List.filter (fun b -> covers b path)
+
+    // The most specific (longest Path) Manifest-kind bundle covering `path`, if any.
+    let mostSpecificManifestBundle (bundles: Bundle list) (path: string) : Bundle option =
+        bundles
+        |> List.filter (fun b -> b.Kind = Manifest && covers b path)
+        |> List.sortByDescending (fun b -> b.Path.Length)
+        |> List.tryHead
+
+    // The bundle that "owns" `path` for display/grouping purposes: prefer the most
+    // specific covering Manifest bundle, else fall back to the most specific
+    // covering bundle of any kind.
+    let owningBundleForDisplay (bundles: Bundle list) (path: string) : Bundle option =
+        match mostSpecificManifestBundle bundles path with
+        | Some b -> Some b
+        | None ->
+            bundles
+            |> List.filter (fun b -> covers b path)
+            |> List.sortByDescending (fun b -> b.Path.Length)
+            |> List.tryHead
+
+module ContributionKey =
+    let manifest (bundlePath: string) = $"manifest:{bundlePath}"
+    let frontmatter = "frontmatter"
+
+module BundleDetect =
+    // Existing KNOWLEDGE/knowledge top-level convention match, unchanged.
+    let candidatePath (topLevel: string list) : string option =
+        topLevel |> List.tryFind (fun e -> e = "KNOWLEDGE" || e = "knowledge")
+
+    let detectKind (indexMdHasOkfVersion: bool) : BundleKind =
+        if indexMdHasOkfVersion then Okf else Manifest
+
+// Result of blending a file's per-bundle Contributions into the flat Tags/Description
+// shape every other module reads.
+type BlendResult = { Tags: string list; Description: string option }
+
+module IndexBlend =
+    // Tags: union of every contribution's tags (always additive, never lossy).
+    // Description: the most-specific covering Manifest bundle's own contribution if
+    // present, else the "frontmatter" contribution.
+    let blend (bundles: Bundle list) (remotePath: string) (contributions: Map<string, Contribution>) : BlendResult =
+        let tags =
+            contributions
+            |> Map.toList
+            |> List.collect (fun (_, c) -> c.Tags)
+            |> List.distinct
+
+        let frontmatterDescription =
+            contributions |> Map.tryFind ContributionKey.frontmatter |> Option.bind (fun c -> c.Description)
+
+        let description =
+            match Bundle.mostSpecificManifestBundle bundles remotePath with
+            | Some b ->
+                match contributions |> Map.tryFind (ContributionKey.manifest b.Path) with
+                | Some c when c.Description.IsSome -> c.Description
+                | _ -> frontmatterDescription
+            | None -> frontmatterDescription
+
+        { Tags = tags; Description = description }
+
 module Config =
     let defaultBlockPatterns = ["*.exe"; "*.dll"; "*.so"; "*.dylib"; "*.bin"; "*.out"; "*.app"]
     let defaultAllowPatterns : string list = []
     let defaultAllowBinaries = false
     let defaultSiteIgnorePatterns = ["index.md"; "log.md"]
 
-    let private supportedVersion = 1
+    let private supportedVersion = 2
 
     let private checkVersion label version =
         if version > supportedVersion then
@@ -313,3 +454,53 @@ module Config =
                 if colMatches || hasAllTags f.Tags then Some (CollectionFileRef.id f)
                 else None))
         |> List.distinct
+
+    // --- Config v1 -> v2 migration (BasePath -> Bundles) ---
+    // Migration happens at the adapter boundary (ConfigAdapter.readGlobalConfig /
+    // readLocalConfig), not here in merge — merge stays pure and version-agnostic
+    // beyond checkVersion's upper-bound guard. The migrated result is not written
+    // back to disk until the next explicit save ("refresh in place").
+
+    let private migrateSourceV1 (v1: SourceConfigV1) : SourceConfig =
+        { Name    = v1.Name
+          Url     = v1.Url
+          Branch  = v1.Branch
+          Bundles =
+            match v1.BasePath with
+            | None    -> []
+            | Some "" -> []
+            | Some p  -> [ { Path = p; Kind = Manifest } ] }
+
+    // Defends against System.Text.Json silently leaving a missing list field null
+    // rather than throwing, regardless of exactly which failure mode a given
+    // deserializer surfaces for old-format JSON.
+    let private normalizeBundles (s: SourceConfig) : SourceConfig =
+        if isNull (box s.Bundles) then { s with Bundles = [] } else s
+
+    let migrateGlobalV1 (v1: GlobalConfigV1) : GlobalConfig =
+        { Version        = 2
+          DefaultSources = v1.DefaultSources |> List.map migrateSourceV1
+          Collections    = v1.Collections
+          Defaults       = v1.Defaults }
+
+    let migrateLocalV1 (v1: LocalConfigV1) : LocalConfig =
+        { Version     = 2
+          Sources     = v1.Sources |> List.map migrateSourceV1
+          Collections = v1.Collections
+          Settings    = v1.Settings }
+
+    let readAndMigrateGlobalJson
+        (deserializeCurrent: string -> Result<GlobalConfig, string>)
+        (deserializeV1: string -> Result<GlobalConfigV1, string>)
+        (json: string) : Result<GlobalConfig, string> =
+        match deserializeCurrent json with
+        | Ok cfg -> Ok { cfg with DefaultSources = cfg.DefaultSources |> List.map normalizeBundles }
+        | Error _ -> deserializeV1 json |> Result.map migrateGlobalV1
+
+    let readAndMigrateLocalJson
+        (deserializeCurrent: string -> Result<LocalConfig, string>)
+        (deserializeV1: string -> Result<LocalConfigV1, string>)
+        (json: string) : Result<LocalConfig, string> =
+        match deserializeCurrent json with
+        | Ok cfg -> Ok { cfg with Sources = cfg.Sources |> List.map normalizeBundles }
+        | Error _ -> deserializeV1 json |> Result.map migrateLocalV1

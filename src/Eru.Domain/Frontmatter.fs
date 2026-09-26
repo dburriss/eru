@@ -58,6 +58,7 @@ module Frontmatter =
     let title       (fm: FrontmatterMap) = scalar "title" fm
     let status      (fm: FrontmatterMap) = scalar "status" fm
     let resource    (fm: FrontmatterMap) = scalar "resource" fm
+    let okfVersion  (fm: FrontmatterMap) = scalar "okf_version" fm
 
     let tags (fm: FrontmatterMap) : string list =
         match Map.tryFind "tags" fm with
@@ -95,3 +96,15 @@ module Frontmatter =
 
     let staleAfter (fm: FrontmatterMap) : System.DateTimeOffset option =
         scalar "stale_after" fm |> Option.bind parseDate
+
+    type FileClass =
+        | IndexFile
+        | LogFile
+        | ConceptFile
+
+    // Classifies a bundle-relative path by its filename, per OKF §11 conventions.
+    let classifyFile (relPath: string) : FileClass =
+        match System.IO.Path.GetFileName(relPath: string) with
+        | "index.md" -> IndexFile
+        | "log.md"   -> LogFile
+        | _          -> ConceptFile

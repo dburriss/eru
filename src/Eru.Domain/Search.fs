@@ -65,7 +65,7 @@ module LocalSearch =
             |> List.collect (fun src ->
                 match deps.ReadSourceIndex src.Name with
                 | Ok (Some idx) ->
-                    idx |> Map.toList |> List.map (fun (remotePath, entry) ->
+                    idx.Entries |> Map.toList |> List.map (fun (remotePath, entry) ->
                         let (colTags, colDesc) =
                             collectionTagsMap
                             |> Map.tryFind (src.Name, remotePath)

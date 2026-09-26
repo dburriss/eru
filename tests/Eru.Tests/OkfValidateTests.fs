@@ -35,6 +35,7 @@ let private makeDeps (files: Map<string, string>) : Deps =
         ParseYamlBlock          = YamlAdapter.parse
         ListMarkdownFiles       = fun _ -> Ok (files |> Map.toList |> List.map fst)
         ExtractLinks            = fun _ -> []
+        GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
     }
 
 let private run (files: (string * string) list) : OkfValidate.ValidateResult =

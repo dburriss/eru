@@ -21,7 +21,10 @@
     <Compile Include="PatternsTests.fs" />
     <Compile Include="EntryIdTests.fs" />
     <Compile Include="ConfigTests.fs" />
+    <Compile Include="IndexBlendTests.fs" />
+    <Compile Include="BundleDiscoveryTests.fs" />
     <Compile Include="SourceTests.fs" />
+    <Compile Include="SourceBundleTests.fs" />
     <Compile Include="CollectionTests.fs" />
     <Compile Include="UrlParserTests.fs" />
     <Compile Include="AddTests.fs" />

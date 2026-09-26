@@ -6,7 +6,7 @@ open System.Text.Json
 open Eru
 open Eru.Cli.OutputFormat
 
-type Cmd = { Name: string; ShowFull: bool; Format: OutputFormat }
+type Cmd = { Name: string; ShowFull: bool; BundleFilter: string option; Format: OutputFormat }
 
 let (|SourceViewCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -14,21 +14,36 @@ let (|SourceViewCmd|_|) (r: ParseResults<EruArgs>) =
             args.TryGetSubCommand() |> Option.bind (function
                 | SourceArgs.View viewArgs ->
                     Some {
-                        Name     = viewArgs.GetResult SourceViewArgs.Name
-                        ShowFull = viewArgs.Contains SourceViewArgs.Full
-                        Format   = parseFormat (viewArgs.TryGetResult SourceViewArgs.Output)
+                        Name         = viewArgs.GetResult SourceViewArgs.Name
+                        ShowFull     = viewArgs.Contains SourceViewArgs.Full
+                        BundleFilter = viewArgs.TryGetResult SourceViewArgs.Bundle
+                        Format       = parseFormat (viewArgs.TryGetResult SourceViewArgs.Output)
                     }
                 | _ -> None)
         | _ -> None)
 
 let private printKv label (value: string) = printfn "%-9s %s" (label + ":") value
 
+let private bundleLabel (path: string) = if path = "" then "(root)" else path
+
+let private bundlesText (bundles: Bundle list) =
+    bundles
+    |> List.map (fun b ->
+        let k = match b.Kind with Manifest -> "manifest" | Okf -> "okf"
+        $"{bundleLabel b.Path}:{k}")
+    |> String.concat ", "
+
+let private groupByBundle (entries: SourceView.SourceFileEntry list) =
+    entries
+    |> List.groupBy (fun e -> e.Bundle)
+    |> List.sortBy (fun (bundle, _) -> bundle |> Option.defaultValue "￿")
+
 let private renderText (detail: SourceView.SourceDetail) =
     printKv "Name"  detail.Name
     printKv "Scope" detail.Scope
-    detail.Url      |> Option.iter (printKv "URL")
-    detail.Branch   |> Option.iter (printKv "Branch")
-    detail.BasePath |> Option.iter (printKv "BasePath")
+    detail.Url    |> Option.iter (printKv "URL")
+    detail.Branch |> Option.iter (printKv "Branch")
+    if not detail.Bundles.IsEmpty then printKv "Bundles" (bundlesText detail.Bundles)
     match detail.Manifest with
     | SourceView.NotCached   ->
         printfn "\nNo manifest cached. Run 'eru sync' to fetch source metadata."
@@ -37,13 +52,16 @@ let private renderText (detail: SourceView.SourceDetail) =
     | SourceView.Files (entries, total, capped) ->
         let capNote = if capped then $", showing {entries.Length}" else ""
         printfn $"\nItems ({total} total{capNote}):"
-        for f in entries do
-            let hash = Patterns.pathShortHash f.Path
-            let tags = if f.Tags.IsEmpty then "" else $"""  [{f.Tags |> String.concat ", "}]"""
-            let desc = f.Description |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
-            printfn $"  [{hash}]  {f.Path}{tags}{desc}"
+        for (bundle, group) in groupByBundle entries do
+            let label = bundle |> Option.map bundleLabel |> Option.defaultValue "(unassigned)"
+            printfn $"\n  [{label}]"
+            for f in group do
+                let hash = Patterns.pathShortHash f.Path
+                let tags = if f.Tags.IsEmpty then "" else $"""  [{f.Tags |> String.concat ", "}]"""
+                let desc = f.Description |> Option.map (fun d -> $"  — {d}") |> Option.defaultValue ""
+                printfn $"    [{hash}]  {f.Path}{tags}{desc}"
         if capped then
-            printfn $"  ... and {total - entries.Length} more (pass --full to see all)"
+            printfn $"\n  ... and {total - entries.Length} more (pass --full to see all)"
 
 let private renderJson (detail: SourceView.SourceDetail) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
@@ -53,9 +71,9 @@ let private renderTable (detail: SourceView.SourceDetail) =
     let meta = makeTable ["Field"; "Value"]
     meta.AddRow("Name",  detail.Name)  |> ignore
     meta.AddRow("Scope", detail.Scope) |> ignore
-    detail.Url      |> Option.iter (fun v -> meta.AddRow("URL",      v) |> ignore)
-    detail.Branch   |> Option.iter (fun v -> meta.AddRow("Branch",   v) |> ignore)
-    detail.BasePath |> Option.iter (fun v -> meta.AddRow("BasePath", v) |> ignore)
+    detail.Url    |> Option.iter (fun v -> meta.AddRow("URL",    v) |> ignore)
+    detail.Branch |> Option.iter (fun v -> meta.AddRow("Branch", v) |> ignore)
+    if not detail.Bundles.IsEmpty then meta.AddRow("Bundles", bundlesText detail.Bundles) |> ignore
     AnsiConsole.Write(meta)
     match detail.Manifest with
     | SourceView.NotCached ->
@@ -65,18 +83,20 @@ let private renderTable (detail: SourceView.SourceDetail) =
     | SourceView.Files (entries, total, capped) ->
         let capNote = if capped then $", showing {entries.Length}" else ""
         printfn $"\nItems ({total} total{capNote}):"
-        let ft = makeTable ["Hash"; "Path"; "Tags"; "Description"]
-        for f in entries do
-            let hash = Patterns.pathShortHash f.Path
-            let tags = f.Tags |> String.concat ", "
-            let desc = f.Description |> Option.defaultValue ""
-            ft.AddRow(hash, f.Path, tags, desc) |> ignore
+        let ft = makeTable ["Bundle"; "Hash"; "Path"; "Tags"; "Description"]
+        for (bundle, group) in groupByBundle entries do
+            let label = bundle |> Option.map bundleLabel |> Option.defaultValue "(unassigned)"
+            for f in group do
+                let hash = Patterns.pathShortHash f.Path
+                let tags = f.Tags |> String.concat ", "
+                let desc = f.Description |> Option.defaultValue ""
+                ft.AddRow(label, hash, f.Path, tags, desc) |> ignore
         AnsiConsole.Write(ft)
         if capped then
             printfn $"  ... and {total - entries.Length} more (pass --full to see all)"
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match SourceView.execute deps cmd.Name cmd.ShowFull with
+    match SourceView.execute deps cmd.Name cmd.ShowFull cmd.BundleFilter with
     | Error e    -> renderError e; 1
     | Ok detail ->
         match cmd.Format with

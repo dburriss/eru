@@ -180,3 +180,35 @@ let ``tags merge deduplicates`` () =
     let configuredTags = ["logging"; "extra"]
     let merged = (configuredTags @ Frontmatter.tags fm) |> List.distinct
     Assert.Equal<string list>(["logging"; "extra"; "dotnet"], merged)
+
+// --- okf_version lens ---
+
+[<Fact>]
+let ``okfVersion reads the okf_version field`` () =
+    let result = parse "---\nokf_version: \"1.0\"\n---\n"
+    Assert.Equal(Some "1.0", Frontmatter.okfVersion result)
+
+[<Fact>]
+let ``okfVersion is None when the field is absent`` () =
+    let result = parse "---\ndescription: no version here\n---\n"
+    Assert.Equal(None, Frontmatter.okfVersion result)
+
+// --- classifyFile ---
+
+[<Fact>]
+let ``classifyFile recognizes root index_md`` () =
+    Assert.Equal(Frontmatter.IndexFile, Frontmatter.classifyFile "index.md")
+
+[<Fact>]
+let ``classifyFile recognizes nested index_md by filename`` () =
+    Assert.Equal(Frontmatter.IndexFile, Frontmatter.classifyFile "docs/knowledge/index.md")
+
+[<Fact>]
+let ``classifyFile recognizes log_md`` () =
+    Assert.Equal(Frontmatter.LogFile, Frontmatter.classifyFile "docs/knowledge/log.md")
+
+[<Fact>]
+let ``classifyFile treats every other filename as a concept file`` () =
+    Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "docs/knowledge/adr-001.md")
+    Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "readme.md")
+    Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "Index.md")

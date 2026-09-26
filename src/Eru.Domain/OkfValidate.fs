@@ -65,14 +65,14 @@ module OkfValidate =
                 | Error e -> violations.Add { Path = rel; Rule = "read-error"; Message = e }
                 | Ok None -> ()
                 | Ok (Some content) ->
-                    match Path.GetFileName(rel: string) with
-                    | "index.md" ->
+                    match Frontmatter.classifyFile rel with
+                    | Frontmatter.IndexFile ->
                         Frontmatter.tryParse deps.ParseYamlBlock content
                         |> validateIndex rel
                         |> Option.iter violations.Add
-                    | "log.md" ->
+                    | Frontmatter.LogFile ->
                         validateLog rel content |> List.iter violations.Add
-                    | _ ->
+                    | Frontmatter.ConceptFile ->
                         let violation, isConformant =
                             Frontmatter.tryParse deps.ParseYamlBlock content
                             |> validateConcept rel

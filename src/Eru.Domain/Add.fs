@@ -40,9 +40,13 @@ module Add =
         let isBare = not (remotePath.Contains('/'))
         let withPrefix =
             if isBare then
-                match source.BasePath with
-                | None -> remotePath
-                | Some bp ->
+                // Bare (non-prefixed) paths resolve against the first bundle in
+                // declaration order; single-bundle sources are unchanged.
+                match source.Bundles with
+                | [] -> remotePath
+                | b :: _ when b.Path = "" -> remotePath
+                | b :: _ ->
+                    let bp = b.Path
                     let prefix = if bp.EndsWith('/') then bp else bp + "/"
                     if remotePath.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase) then remotePath
                     else prefix + remotePath
@@ -59,12 +63,29 @@ module Add =
     let private isShortHash (s: string) =
         s.Length >= 3 && s.Length <= 8 && s |> Seq.forall (fun c -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
 
+    let private listRemoteFilesAcrossBundles
+        (deps: Deps) (url: string) (branch: string option) (bundles: Bundle list) : Result<string list, string> =
+        let bundlePaths = match bundles with [] -> [None] | bs -> bs |> List.map (fun b -> if b.Path = "" then None else Some b.Path)
+        let results = bundlePaths |> List.map (fun bp -> bp, deps.ListRemoteFiles url branch bp)
+        let errs = results |> List.choose (fun (_, r) -> match r with Error e -> Some e | Ok _ -> None)
+        let oks =
+            results
+            |> List.collect (fun (bp, r) ->
+                match r with
+                | Error _ -> []
+                | Ok paths ->
+                    match bp with
+                    | None -> paths
+                    | Some p -> paths |> List.map (fun rp -> p + "/" + rp))
+        if oks.IsEmpty && not errs.IsEmpty then Error (errs |> List.head)
+        else Ok oks
+
     let private resolveShortHash
         (deps: Deps) (source: SourceConfig) (prefix: string) : Result<string, string> =
         match source.Url with
         | None -> Error $"source '{source.Name}' has no URL"
         | Some url ->
-            match deps.ListRemoteFiles url source.Branch source.BasePath with
+            match listRemoteFilesAcrossBundles deps url source.Branch source.Bundles with
             | Error e -> Error e
             | Ok paths ->
                 let matches = paths |> List.filter (fun p -> (Patterns.pathShortHash p).StartsWith prefix)
@@ -116,7 +137,9 @@ module Add =
                     allowed
                     |> List.fold (fun acc (resolvedPath, content) ->
                         acc |> Result.bind (fun entries ->
-                            let localPath = deriveLocalPath source.BasePath target resolvedPath
+                            let owningBundle = Bundle.owningBundleForDisplay source.Bundles resolvedPath
+                            let basePath = owningBundle |> Option.map (fun b -> b.Path) |> Option.filter (fun p -> p <> "")
+                            let localPath = deriveLocalPath basePath target resolvedPath
                             let hash = deps.HashContent content
                             if dryRun then
                                 Ok (entries @ [Pulled { LocalPath = localPath; SourceName = sourceName; RemotePath = resolvedPath; ContentHash = hash; Tags = []; Description = None }])
@@ -147,8 +170,21 @@ module Add =
         let kept = existing |> List.filter (fun e -> not (Set.contains e.LocalPath newPaths))
         kept @ newEntries
 
-    let private detectBasePath (topLevel: string list) : string option =
-        topLevel |> List.tryFind (fun e -> e = "KNOWLEDGE" || e = "knowledge")
+    let private detectBundles (deps: Deps) (url: string) (branch: string) : Bundle list =
+        let candidate =
+            match deps.ListRemoteTopLevel url (Some branch) with
+            | Ok entries -> BundleDetect.candidatePath entries
+            | Error _    -> None
+        match candidate with
+        | None -> []
+        | Some cp ->
+            let indexPath = if cp = "" then "index.md" else $"{cp}/index.md"
+            let hasOkf =
+                match deps.FetchRemoteContent url branch [indexPath] with
+                | Ok ((_, content) :: _) ->
+                    Frontmatter.parse deps.ParseYamlBlock content |> Frontmatter.okfVersion |> Option.isSome
+                | _ -> false
+            [ { Path = cp; Kind = BundleDetect.detectKind hasOkf } ]
 
     let private ensureSource
         (deps: Deps)
@@ -165,15 +201,12 @@ module Add =
             | Some url -> Error $"source '{parsed.SourceName}' already exists pointing to '{url}', not '{parsed.RepoUrl}'"
             | None -> Error $"source '{parsed.SourceName}' already exists without a URL"
         | None ->
-            let basePath =
-                match deps.ListRemoteTopLevel parsed.RepoUrl (Some parsed.Branch) with
-                | Ok entries -> detectBasePath entries
-                | Error _    -> None
+            let bundles = detectBundles deps parsed.RepoUrl parsed.Branch
             let newSource : SourceConfig = {
                 Name     = parsed.SourceName
                 Url      = Some parsed.RepoUrl
                 Branch   = Some parsed.Branch
-                BasePath = basePath
+                Bundles  = bundles
             }
             if isGlobal then
                 let g = globalCfg |> Option.defaultValue { Version = 1; DefaultSources = []; Collections = []; Defaults = None }

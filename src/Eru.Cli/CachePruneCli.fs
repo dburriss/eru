@@ -30,7 +30,7 @@ let runPrune (pruneArgs: ParseResults<CachePruneArgs>) : int =
                 let referencedHexes =
                     match SourceIndexAdapter.readIndex sourceName with
                     | Ok (Some idx) ->
-                        idx |> Map.toSeq
+                        idx.Entries |> Map.toSeq
                         |> Seq.choose (fun (_, entry) ->
                             entry.CacheRelPath |> Option.map (fun rp ->
                                 // CacheRelPath = "files/<hex>"; extract the hex filename
