@@ -11,7 +11,7 @@ let private makeSource name : SourceConfig =
     { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = [] }
 
 let private makeGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
+    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeIndexEntry cacheRelPath title : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = Some "unused"; CacheRelPath = cacheRelPath
@@ -58,6 +58,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fakeExtractLinks
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private cfg : EffectiveConfig = {
@@ -70,6 +72,8 @@ let private cfg : EffectiveConfig = {
     AllowPatterns = []
     AllowBinaries = false
     SiteIgnorePatterns = []
+    Inboxes = Map.empty
+    DefaultInbox = None
 }
 
 [<Fact>]

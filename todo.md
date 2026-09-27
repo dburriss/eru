@@ -22,8 +22,9 @@
 - [ ] Skills
 - [ ] Prompts/commands
 - [x] Show graph on site
-- [ ] Reserve OKF index.md and log.md semantics
-- [ ] Integrate OKF into idea of source and collection/OKF bundle
+- [x] Reserve OKF index.md and log.md semantics
+- [x] Integrate OKF into idea of source and collection/OKF bundle. bundle and manifest now combined.
 - [x] When running sync, make sure local file system is up-to-date with the lock file, check the cache for the file, and if same hash in cache, write it to the target path; if not in cache, fetch from git and then write to target path and cache
 - [ ] Add HTTP MCP
-- [ ] TUI
+- [x] TUI
+- [x] Send to local inbox

@@ -229,6 +229,120 @@ eru source remove shared-knowledge -g --dryrun
 
 ---
 
+## `eru inbox`
+
+Configure inboxes — local filesystem directories `eru inbox send` writes captured messages, files, and
+URLs into — and send content into them. An inbox is unrelated to eru's `source` concept: a source is
+somewhere eru *pulls from*; an inbox is somewhere eru *writes to*. Because the typical workflow is
+running `eru inbox send` while working in some other project, `-g`/`--global` (writing to
+`~/.config/eru/config.json`) is the flag you'll reach for most — `inbox send` itself needs no local
+`.eru/config.json` and works purely off the global config.
+
+### `eru inbox add`
+
+Register a local directory as an inbox.
+
+```
+eru inbox add <name> <path> [--raw-path <path>] [--default-channel <channel>] [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name for the inbox (required) |
+| `<path>` | Local filesystem directory to write into (required) |
+| `--raw-path <path>` | Path within the directory to the raw capture folder (default: `inbox/raw`) |
+| `--default-channel <channel>` | Channel `inbox send` falls back to when `-c` is omitted (default: `default`) |
+| `-g` | Write to global config (`~/.config/eru/config.json`) |
+| `--dryrun` | Preview without writing |
+
+**Examples**
+
+```bash
+eru inbox add knowledge ~/code/knowledge -g
+eru inbox add knowledge ~/code/knowledge --default-channel eru -g --dryrun
+```
+
+### `eru inbox list`
+
+List all configured inboxes (merged from global and local config).
+
+```
+eru inbox list
+```
+
+### `eru inbox remove`
+
+```
+eru inbox remove <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the inbox to remove (required) |
+| `-g` | Remove from global config |
+| `--dryrun` | Preview without writing |
+
+### `eru inbox channel add`
+
+Register a channel on an existing inbox — only needed for a channel that wants extra config (currently
+just a reserved `--agent`); sending to an unregistered channel name works regardless.
+
+```
+eru inbox channel add <inbox> <channel> [--agent <agent>] [-d <description>] [--dryrun]
+```
+
+**Examples**
+
+```bash
+eru inbox channel add knowledge eru --agent ingestor
+```
+
+### `eru inbox channel list`
+
+```
+eru inbox channel list <inbox>
+```
+
+### `eru inbox channel remove`
+
+```
+eru inbox channel remove <inbox> <channel> [--dryrun]
+```
+
+### `eru inbox send`
+
+Send a message, a local file, or a URL into a configured inbox.
+
+```
+eru inbox send [<content>] [-i <inbox>] [-c <channel>] [-t <title>] [-n <note>] [--as message|file|url] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<content>` | Message text, a local file path, or a URL. Reads stdin if omitted |
+| `-i <inbox>` | Inbox to send into — auto-resolved when only one is configured |
+| `-c <channel>` | Channel within the inbox (default: the inbox's default channel, or `default`) |
+| `-t <title>` | Explicit filename slug, overriding the auto-derived one |
+| `-n <note>` | Extra context text folded into a message/url capture's body |
+| `--as` | Force content-type classification: `message`, `file`, or `url` |
+| `--dryrun` | Preview the resolved target path without writing |
+
+A message or URL capture is written as a `.md` file with YAML frontmatter (`type: raw`, `resource`,
+`generated`); a file capture is copied verbatim alongside a `<name>.meta.json` sidecar
+(`captured_at`, `original_url`) so an existing file's own content is never modified.
+
+**Examples**
+
+```bash
+eru inbox send "ripgrep --hidden still respects .gitignore"
+eru inbox send https://example.com/some-article -n "why this matters"
+eru inbox send ./notes.md -c eru
+pbpaste | eru inbox send
+eru inbox send "quick note" --dryrun
+```
+
+---
+
 ## `eru collection`
 
 Manage collections — curated groups of file references that can be pulled as a unit.

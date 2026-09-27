@@ -3,8 +3,8 @@ module Eru.Tests.SourceTests
 open Xunit
 open Eru
 
-let private emptyLocal : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = None }
-let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
+let private emptyLocal : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeDeps
     (localCfg: LocalConfig option)
@@ -41,6 +41,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private simpleCmd url : SourceAdd.Command = {

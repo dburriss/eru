@@ -12,7 +12,7 @@ let private assertError (expected: string) = function
     | Error e -> Assert.Contains(expected, e)
 
 let private makeGlobal (sources: SourceConfig list) (collections: CollectionConfig list) : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = collections; Defaults = None }
+    { Version = 1; DefaultSources = sources; Collections = collections; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeSource name url : SourceConfig =
     { Name = name; Url = url; Branch = None; Bundles = [] }
@@ -33,14 +33,14 @@ let ``merge uses global sources when no local config`` () =
 
 [<Fact>]
 let ``merge prefers local CommitOnPull over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "commitOnPull"
     Assert.True result.CommitOnPull
 
 [<Fact>]
 let ``merge uses custom StateFile from local settings`` () =
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
     let result = Config.merge None (Some l) |> unwrapOk "stateFile"
     Assert.Equal("custom.lock", result.StateFile)
 
@@ -51,7 +51,7 @@ let ``merge defaults McpRefreshIntervalMinutes to 60`` () =
 
 [<Fact>]
 let ``merge uses McpRefreshIntervalMinutes from global defaults`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
     let result = Config.merge (Some g) None |> unwrapOk "mcp refresh custom"
     Assert.Equal(30, result.McpRefreshIntervalMinutes)
 
@@ -64,14 +64,14 @@ let ``merge defaults SiteIgnorePatterns to index.md and log.md`` () =
 
 [<Fact>]
 let ``merge uses SiteIgnorePatterns from global defaults`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "draft-*.md" ] } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "draft-*.md" ]; DefaultInbox = None } }
     let result = Config.merge (Some g) None |> unwrapOk "site ignore global"
     Assert.Equal<string list>([ "draft-*.md" ], result.SiteIgnorePatterns)
 
 [<Fact>]
 let ``merge prefers local SiteIgnorePatterns over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "index.md"; "log.md" ] } }
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [] } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "index.md"; "log.md" ]; DefaultInbox = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some []; DefaultInbox = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "site ignore local override"
     Assert.Empty result.SiteIgnorePatterns
 
@@ -84,6 +84,7 @@ let ``merge preserves local source declaration order`` () =
         Version = 1
         Sources = [ makeSource "b" None; makeSource "a" (Some "https://a-override.com") ]
         Collections = []
+        Inboxes = Map.empty
         Settings = None
     }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "ordering"
@@ -94,7 +95,7 @@ let ``merge preserves local source declaration order`` () =
 [<Fact>]
 let ``merge appends global-only sources after local sources`` () =
     let g = makeGlobal [ makeSource "local-one" (Some "https://l.com"); makeSource "global-only" (Some "https://g.com") ] []
-    let l : LocalConfig = { Version = 1; Sources = [ makeSource "local-one" None ]; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 1; Sources = [ makeSource "local-one" None ]; Collections = []; Inboxes = Map.empty; Settings = None }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "global-only appended"
     Assert.Equal(2, result.Sources.Length)
     Assert.Equal("local-one", result.Sources[0].Name)
@@ -105,7 +106,7 @@ let ``merge appends global-only sources after local sources`` () =
 [<Fact>]
 let ``merge errors when inherited local source not found in global config`` () =
     let g = makeGlobal [ makeSource "other" (Some "https://other.com") ] []
-    let l : LocalConfig = { Version = 1; Sources = [ makeSource "missing" None ]; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 1; Sources = [ makeSource "missing" None ]; Collections = []; Inboxes = Map.empty; Settings = None }
     Config.merge (Some g) (Some l)
     |> assertError "missing"
 
@@ -117,7 +118,7 @@ let ``merge errors when global config version too high`` () =
 
 [<Fact>]
 let ``merge errors when local config version too high`` () =
-    let l : LocalConfig = { Version = 99; Sources = []; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 99; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
     Config.merge None (Some l)
     |> assertError "please upgrade eru"
 
@@ -129,7 +130,7 @@ let ``merge errors on duplicate source name in global config`` () =
 
 [<Fact>]
 let ``merge errors on duplicate source name in local config`` () =
-    let l : LocalConfig = { Version = 1; Sources = [ makeSource "dup" None; makeSource "dup" None ]; Collections = []; Settings = None }
+    let l : LocalConfig = { Version = 1; Sources = [ makeSource "dup" None; makeSource "dup" None ]; Collections = []; Inboxes = Map.empty; Settings = None }
     Config.merge None (Some l)
     |> assertError "Duplicate source name 'dup'"
 
@@ -378,3 +379,53 @@ let ``checkVersion (via merge) accepts a v2 global config`` () =
     Config.merge (Some g) None
     |> unwrapOk "v2 accepted"
     |> ignore
+
+// ── merge: Inboxes ───────────────────────────────────────────────────────────
+
+let private makeInbox path : InboxConfig =
+    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty }
+
+[<Fact>]
+let ``merge returns empty Inboxes when both configs absent`` () =
+    let result = Config.merge None None |> unwrapOk "no inboxes"
+    Assert.Empty result.Inboxes
+
+[<Fact>]
+let ``merge local inbox of a given name wins over global inbox of the same name`` () =
+    let g = { makeGlobal [] [] with DefaultInboxes = Map.ofList [ "kb", makeInbox "/global/path" ] }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/local/path" ]; Settings = None }
+    let result = Config.merge (Some g) (Some l) |> unwrapOk "local wins"
+    Assert.Equal(1, result.Inboxes.Count)
+    Assert.Equal("/local/path", result.Inboxes["kb"].Path)
+
+[<Fact>]
+let ``merge appends global-only inboxes not present locally`` () =
+    let g = { makeGlobal [] [] with DefaultInboxes = Map.ofList [ "global-only", makeInbox "/g" ] }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "local-one", makeInbox "/l" ]; Settings = None }
+    let result = Config.merge (Some g) (Some l) |> unwrapOk "global appended"
+    Assert.Equal(2, result.Inboxes.Count)
+    Assert.True(result.Inboxes.ContainsKey "local-one")
+    Assert.True(result.Inboxes.ContainsKey "global-only")
+
+[<Fact>]
+let ``merge resolves DefaultInbox from local settings over global default`` () =
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "global-default" } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "local-default" } }
+    let result = Config.merge (Some g) (Some l) |> unwrapOk "default inbox"
+    Assert.Equal(Some "local-default", result.DefaultInbox)
+
+[<Fact>]
+let ``merge falls back to global DefaultInbox when local settings do not set one`` () =
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "global-default" } }
+    let result = Config.merge (Some g) None |> unwrapOk "global fallback"
+    Assert.Equal(Some "global-default", result.DefaultInbox)
+
+[<Fact>]
+let ``readAndMigrateLocalJson normalizes a null Inboxes map to empty`` () =
+    // Simulates an old on-disk config that predates the Inboxes field: System.Text.Json
+    // leaves it null rather than {} when absent from the JSON.
+    let cfgWithNullInboxes : LocalConfig = { Version = 2; Sources = []; Collections = []; Inboxes = Unchecked.defaultof<_>; Settings = None }
+    let result =
+        Config.readAndMigrateLocalJson (fun _ -> Ok cfgWithNullInboxes) (fun _ -> Error "should not be used") "{}"
+        |> unwrapOk "null inboxes normalized"
+    Assert.Empty result.Inboxes

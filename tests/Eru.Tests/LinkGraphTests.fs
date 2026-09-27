@@ -10,7 +10,7 @@ let private makeSource name url : SourceConfig =
     { Name = name; Url = Some url; Branch = None; Bundles = [] }
 
 let private makeGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
+    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeIndexEntry cacheRelPath : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = None; CacheRelPath = cacheRelPath
@@ -73,6 +73,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fakeExtractLinks
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 // ── resolveLink ───────────────────────────────────────────────────────────────

@@ -31,7 +31,9 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   BlockPatterns             = Config.defaultBlockPatterns
                   AllowPatterns             = Config.defaultAllowPatterns
                   AllowBinaries             = Config.defaultAllowBinaries
-                  SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns })
+                  SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns
+                  Inboxes                   = Map.empty
+                  DefaultInbox              = None })
             |> Config.withManifests deps.ReadCachedManifest
 
         for src in eff.Sources do

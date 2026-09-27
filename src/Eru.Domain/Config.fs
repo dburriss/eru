@@ -60,6 +60,23 @@ type CollectionConfig = {
     Description: string option
 }
 
+// An inbox is a local filesystem write-target (e.g. a knowledge repo checkout) that
+// `eru inbox send` drops captured messages/files/URLs into. Entirely unrelated to
+// SourceConfig/Sources — a source is somewhere eru *pulls from*, an inbox is somewhere
+// eru *writes to*. Channels are a map (not a list) and left mostly empty by design: an
+// entry is only needed for a channel that wants extra config (e.g. a future `Agent`).
+type InboxChannelConfig = {
+    Description : string option
+    Agent       : string option
+}
+
+type InboxConfig = {
+    Path           : string
+    RawPath        : string option
+    DefaultChannel : string option
+    Channels       : Map<string, InboxChannelConfig>
+}
+
 type GlobalDefaults = {
     Branch: string option
     CommitOnPull: bool option
@@ -68,12 +85,14 @@ type GlobalDefaults = {
     AllowPatterns: string list option
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
+    DefaultInbox: string option
 }
 
 type GlobalConfig = {
     Version: int
     DefaultSources: SourceConfig list
     Collections: CollectionConfig list
+    DefaultInboxes: Map<string, InboxConfig>
     Defaults: GlobalDefaults option
 }
 
@@ -84,12 +103,14 @@ type LocalSettings = {
     AllowPatterns: string list option
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
+    DefaultInbox: string option
 }
 
 type LocalConfig = {
     Version: int
     Sources: SourceConfig list
     Collections: CollectionConfig list
+    Inboxes: Map<string, InboxConfig>
     Settings: LocalSettings option
 }
 
@@ -103,6 +124,8 @@ type EffectiveConfig = {
     AllowPatterns             : string list
     AllowBinaries             : bool
     SiteIgnorePatterns        : string list
+    Inboxes                   : Map<string, InboxConfig>
+    DefaultInbox              : string option
 }
 
 // A single bundle's contribution of metadata for one file: either a manifest entry
@@ -399,6 +422,20 @@ module Config =
                     |> Option.bind (fun d -> d.SiteIgnorePatterns)
                     |> Option.defaultValue defaultSiteIgnorePatterns
 
+            // Inboxes merge by key: a local inbox of a given name wins outright; any
+            // global inbox whose name isn't used locally is appended. No cross-reference
+            // validation (unlike Sources/Collections) — an inbox's Path is just a plain
+            // directory, checked against the filesystem where it's used, not here.
+            let globalInboxes = globalCfg |> Option.map (fun g -> g.DefaultInboxes) |> Option.defaultValue Map.empty
+            let localInboxes  = localCfg  |> Option.map (fun l -> l.Inboxes)        |> Option.defaultValue Map.empty
+            let mergedInboxes =
+                globalInboxes
+                |> Map.fold (fun acc name inbox -> if Map.containsKey name acc then acc else Map.add name inbox acc) localInboxes
+
+            let defaultInbox =
+                localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.DefaultInbox)
+                |> Option.orElse (globalCfg |> Option.bind (fun g -> g.Defaults) |> Option.bind (fun d -> d.DefaultInbox))
+
             {
                 Sources      = mergedSources
                 CommitOnPull = localCommitOnPull |> Option.defaultValue globalCommitOnPull
@@ -416,6 +453,8 @@ module Config =
                 AllowPatterns = allowPatterns
                 AllowBinaries = allowBinaries
                 SiteIgnorePatterns = siteIgnorePatterns
+                Inboxes = mergedInboxes
+                DefaultInbox = defaultInbox
             })
 
     let withManifests
@@ -477,16 +516,28 @@ module Config =
     let private normalizeBundles (s: SourceConfig) : SourceConfig =
         if isNull (box s.Bundles) then { s with Bundles = [] } else s
 
+    // Same defence as normalizeBundles, for the Inboxes/DefaultInboxes maps added
+    // after Bundles — old config files (or ones that just never set them) leave
+    // these fields null rather than an empty map.
+    let private normalizeInboxConfig (i: InboxConfig) : InboxConfig =
+        if isNull (box i.Channels) then { i with Channels = Map.empty } else i
+
+    let private normalizeInboxMap (m: Map<string, InboxConfig>) : Map<string, InboxConfig> =
+        if isNull (box m) then Map.empty
+        else m |> Map.map (fun _ v -> normalizeInboxConfig v)
+
     let migrateGlobalV1 (v1: GlobalConfigV1) : GlobalConfig =
         { Version        = 2
           DefaultSources = v1.DefaultSources |> List.map migrateSourceV1
           Collections    = v1.Collections
+          DefaultInboxes = Map.empty
           Defaults       = v1.Defaults }
 
     let migrateLocalV1 (v1: LocalConfigV1) : LocalConfig =
         { Version     = 2
           Sources     = v1.Sources |> List.map migrateSourceV1
           Collections = v1.Collections
+          Inboxes     = Map.empty
           Settings    = v1.Settings }
 
     let readAndMigrateGlobalJson
@@ -494,7 +545,10 @@ module Config =
         (deserializeV1: string -> Result<GlobalConfigV1, string>)
         (json: string) : Result<GlobalConfig, string> =
         match deserializeCurrent json with
-        | Ok cfg -> Ok { cfg with DefaultSources = cfg.DefaultSources |> List.map normalizeBundles }
+        | Ok cfg ->
+            Ok { cfg with
+                    DefaultSources = cfg.DefaultSources |> List.map normalizeBundles
+                    DefaultInboxes = normalizeInboxMap cfg.DefaultInboxes }
         | Error _ -> deserializeV1 json |> Result.map migrateGlobalV1
 
     let readAndMigrateLocalJson
@@ -502,5 +556,8 @@ module Config =
         (deserializeV1: string -> Result<LocalConfigV1, string>)
         (json: string) : Result<LocalConfig, string> =
         match deserializeCurrent json with
-        | Ok cfg -> Ok { cfg with Sources = cfg.Sources |> List.map normalizeBundles }
+        | Ok cfg ->
+            Ok { cfg with
+                    Sources = cfg.Sources |> List.map normalizeBundles
+                    Inboxes = normalizeInboxMap cfg.Inboxes }
         | Error _ -> deserializeV1 json |> Result.map migrateLocalV1

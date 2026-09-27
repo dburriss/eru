@@ -8,13 +8,15 @@ module Init =
   "version": 1,
   "sources": [],
   "collections": [],
+  "inboxes": {},
   "settings": {
     "commitOnPull": null,
     "stateFile": null,
     "blockPatterns": null,
     "allowPatterns": null,
     "allowBinaries": null,
-    "siteIgnorePatterns": ["index.md", "log.md"]
+    "siteIgnorePatterns": ["index.md", "log.md"],
+    "defaultInbox": null
   }
 }
 """
@@ -23,6 +25,7 @@ module Init =
         { Version = 1
           DefaultSources = []
           Collections = []
+          DefaultInboxes = Map.empty
           Defaults = Some {
               Branch = None
               CommitOnPull = None
@@ -31,6 +34,7 @@ module Init =
               AllowPatterns = Some Config.defaultAllowPatterns
               AllowBinaries = Some Config.defaultAllowBinaries
               SiteIgnorePatterns = Some Config.defaultSiteIgnorePatterns
+              DefaultInbox = None
           }
         }
 

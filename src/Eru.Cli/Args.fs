@@ -184,6 +184,127 @@ type SourceArgs =
             | Remove _ -> "Remove a knowledge source."
             | Bundle _ -> "Manage a source's bundles."
 
+type InboxAddArgs =
+    | [<MainCommand; ExactlyOnce>] Name_And_Path   of name: string * path: string
+    | Raw_Path        of path: string
+    | Default_Channel of channel: string
+    | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name_And_Path _   -> "Inbox name and local directory path (e.g. knowledge /path/to/knowledge)."
+            | Raw_Path _        -> "Path within the inbox directory to the raw capture folder (default: inbox/raw)."
+            | Default_Channel _ -> "Channel 'inbox send' falls back to when -c is omitted (default: default)."
+            | Global            -> "Write to global config (~/.config/eru/config.json)."
+            | Dryrun            -> "Show what would be added without writing anything."
+            | Output _          -> "Output format: table (default), text, json."
+
+type InboxListArgs =
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _ -> "Output format: table (default), text, json."
+
+type InboxRemoveArgs =
+    | [<MainCommand; ExactlyOnce>] Name of name: string
+    | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name _   -> "Name of the inbox to remove."
+            | Global   -> "Remove from global config (~/.config/eru/config.json)."
+            | Dryrun   -> "Show what would be removed without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
+type InboxChannelAddArgs =
+    | [<MainCommand; ExactlyOnce>] Inbox_And_Channel of inbox: string * channel: string
+    | Agent                         of agent: string
+    | [<AltCommandLine("-d")>]      Description of desc: string
+    | [<Unique>]                    Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output   of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Inbox_And_Channel _ -> "Inbox name and channel name (e.g. knowledge eru)."
+            | Agent _             -> "Reserved: agent that processes this channel (e.g. ingestor)."
+            | Description _       -> "Short description of the channel."
+            | Dryrun               -> "Show what would be added without writing anything."
+            | Output _             -> "Output format: table (default), text, json."
+
+type InboxChannelListArgs =
+    | [<MainCommand; ExactlyOnce>] Inbox of inbox: string
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Inbox _  -> "Name of the inbox."
+            | Output _ -> "Output format: table (default), text, json."
+
+type InboxChannelRemoveArgs =
+    | [<MainCommand; ExactlyOnce>] Inbox_And_Channel of inbox: string * channel: string
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output      of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Inbox_And_Channel _ -> "Inbox name and channel name to remove (e.g. knowledge eru)."
+            | Dryrun              -> "Show what would be removed without writing anything."
+            | Output _            -> "Output format: table (default), text, json."
+
+[<CliPrefix(CliPrefix.None)>]
+type InboxChannelArgs =
+    | [<SubCommand>] Add    of ParseResults<InboxChannelAddArgs>
+    | [<SubCommand>] List   of ParseResults<InboxChannelListArgs>
+    | [<SubCommand>] Remove of ParseResults<InboxChannelRemoveArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Add    _ -> "Register a channel on an existing inbox."
+            | List   _ -> "List an inbox's registered channels."
+            | Remove _ -> "Remove a channel from an inbox."
+
+type InboxSendArgs =
+    | [<MainCommand>]              Content of content: string
+    | [<AltCommandLine("-i")>]     Inbox   of inbox: string
+    | [<AltCommandLine("-c")>]     Channel of channel: string
+    | [<AltCommandLine("-t")>]     Title   of title: string
+    | [<AltCommandLine("-n")>]     Note    of note: string
+    | [<Unique>]                   As      of kind: string
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Content _ -> "Message text, a local file path, or a URL. Reads stdin if omitted."
+            | Inbox _   -> "Name of the configured inbox to send into. Auto-resolved when only one is configured."
+            | Channel _ -> "Channel within the inbox (default: the inbox's default channel, or \"default\")."
+            | Title _   -> "Explicit filename slug, overriding the auto-derived one."
+            | Note _    -> "Extra context text folded into the body of a message/url capture."
+            | As _      -> "Force content-type classification: message, file, or url."
+            | Dryrun    -> "Show the resolved target path without writing anything."
+            | Output _  -> "Output format: table (default), text, json."
+
+[<CliPrefix(CliPrefix.None)>]
+type InboxArgs =
+    | [<SubCommand>] Add     of ParseResults<InboxAddArgs>
+    | [<SubCommand>] List    of ParseResults<InboxListArgs>
+    | [<SubCommand>] Remove  of ParseResults<InboxRemoveArgs>
+    | [<SubCommand>] Channel of ParseResults<InboxChannelArgs>
+    | [<SubCommand>] Send    of ParseResults<InboxSendArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Add     _ -> "Register a local directory as an inbox."
+            | List    _ -> "List configured inboxes."
+            | Remove  _ -> "Remove an inbox."
+            | Channel _ -> "Manage an inbox's channels."
+            | Send    _ -> "Send a message, file, or URL into a configured inbox."
+
 type CollectionCreateArgs =
     | [<MainCommand; ExactlyOnce>] Name        of name: string
     | [<AltCommandLine("-t")>]     Tag         of tag: string
@@ -431,6 +552,7 @@ type EruArgs =
     | [<SubCommand>] Search     of ParseResults<SearchArgs>
     | [<SubCommand>] Sync       of ParseResults<SyncArgs>
     | [<SubCommand>] Source     of ParseResults<SourceArgs>
+    | [<SubCommand>] Inbox      of ParseResults<InboxArgs>
     | [<SubCommand>] Collection of ParseResults<CollectionArgs>
     | [<SubCommand>] Manifest   of ParseResults<ManifestArgs>
     | [<SubCommand>] Remove     of ParseResults<RemoveArgs>
@@ -450,6 +572,7 @@ type EruArgs =
             | Search _     -> "Search across configured knowledge sources."
             | Sync _       -> "Synchronise local files with knowledge sources."
             | Source _     -> "Manage knowledge sources."
+            | Inbox _      -> "Manage inboxes and send messages, files, or URLs into them."
             | Collection _ -> "Manage collections of knowledge file references."
             | Manifest _   -> "Manage the .eru/manifest.json for this knowledge source."
             | Remove _     -> "Remove a tracked artifact from disk and the lock file."

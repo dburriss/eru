@@ -15,6 +15,13 @@ open Eru.Cli.SourceRemoveCli
 open Eru.Cli.SourceBundleAddCli
 open Eru.Cli.SourceBundleListCli
 open Eru.Cli.SourceBundleRemoveCli
+open Eru.Cli.InboxAddCli
+open Eru.Cli.InboxListCli
+open Eru.Cli.InboxRemoveCli
+open Eru.Cli.InboxChannelAddCli
+open Eru.Cli.InboxChannelListCli
+open Eru.Cli.InboxChannelRemoveCli
+open Eru.Cli.InboxSendCli
 open Eru.Cli.CollectionCreateCli
 open Eru.Cli.CollectionAddFileCli
 open Eru.Cli.CollectionRemoveFileCli
@@ -59,6 +66,13 @@ let main argv =
         | SourceBundleAddCmd cmd      -> SourceBundleAddCli.run deps cmd
         | SourceBundleListCmd cmd     -> SourceBundleListCli.run deps cmd
         | SourceBundleRemoveCmd cmd   -> SourceBundleRemoveCli.run deps cmd
+        | InboxAddCmd cmd             -> InboxAddCli.run deps cmd
+        | InboxListCmd cmd            -> InboxListCli.run deps cmd
+        | InboxRemoveCmd cmd          -> InboxRemoveCli.run deps cmd
+        | InboxChannelAddCmd cmd      -> InboxChannelAddCli.run deps cmd
+        | InboxChannelListCmd cmd     -> InboxChannelListCli.run deps cmd
+        | InboxChannelRemoveCmd cmd   -> InboxChannelRemoveCli.run deps cmd
+        | InboxSendCmd cmd            -> InboxSendCli.run deps cmd
         | CollectionCreateCmd cmd     -> CollectionCreateCli.run deps cmd
         | CollectionAddFileCmd cmd    -> CollectionAddFileCli.run deps cmd
         | CollectionRemoveFileCmd cmd -> CollectionRemoveFileCli.run deps cmd

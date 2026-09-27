@@ -12,10 +12,10 @@ let private makeSourceWithBundles name url bundles : SourceConfig =
     { Name = name; Url = Some url; Branch = None; Bundles = bundles }
 
 let private makeLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Collections = []; Settings = None }
+    { Version = 1; Sources = sources; Collections = []; Inboxes = Map.empty; Settings = None }
 
 let private makeGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
+    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeLockEntry localPath sourceName remotePath hash : LockEntry =
     { LocalPath = localPath; SourceName = sourceName; RemotePath = remotePath; ContentHash = hash
@@ -69,6 +69,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private defaultFetch (_url: string) (_branch: string) (paths: string list) : Result<(string * string) list, string> =
@@ -317,6 +319,8 @@ let private makePopulateDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = getRemoteHeadSha
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 [<Fact>]
@@ -326,7 +330,7 @@ let ``populateIndex staleness regression - a dropped frontmatter tag does not su
     let source = makeSource "kb" "https://example.com/kb.git"
     let file : CollectionFileRef = { Source = "kb"; RemotePath = "adr.md"; Tags = []; Description = None }
     let col : CollectionConfig = { Name = "col"; Tags = []; Files = [ file ]; Description = None }
-    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = [ col ]; Defaults = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = [ col ]; DefaultInboxes = Map.empty; Defaults = None }
 
     let currentTags = ref "[a, b]"
     let fetch _ _ (paths: string list) =
@@ -354,7 +358,7 @@ let ``populateIndex preserves SourceHeadSha across a collection-file-only write`
     let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
     let file : CollectionFileRef = { Source = "kb"; RemotePath = "notes.md"; Tags = []; Description = None }
     let col : CollectionConfig = { Name = "col"; Tags = []; Files = [ file ]; Description = None }
-    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = [ col ]; Defaults = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = [ col ]; DefaultInboxes = Map.empty; Defaults = None }
 
     let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
     let listFiles _ _ _ = Ok [ "adr.md" ]
@@ -369,7 +373,7 @@ let ``populateIndex preserves SourceHeadSha across a collection-file-only write`
 [<Fact>]
 let ``populateIndex skips re-walking an Okf bundle when the remote SHA is unchanged`` () =
     let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
-    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
     let listCalls = ref 0
     let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
@@ -386,7 +390,7 @@ let ``populateIndex skips re-walking an Okf bundle when the remote SHA is unchan
 [<Fact>]
 let ``populateIndex re-walks an Okf bundle when the remote SHA changes`` () =
     let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
-    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
     let listCalls = ref 0
     let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
@@ -408,7 +412,7 @@ let ``populateIndex re-walks an Okf bundle when the remote SHA changes`` () =
 [<Fact>]
 let ``populateIndex fails open on a SHA check failure and only escalates after 3 in a row`` () =
     let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
-    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
     let listFiles _ _ _ = Ok [ "adr.md" ]
     let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
@@ -436,7 +440,7 @@ let ``populateIndex fails open on a SHA check failure and only escalates after 3
 [<Fact>]
 let ``populateIndex resets the failure counter after a subsequent successful SHA check`` () =
     let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
-    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; Defaults = None }
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
     let listFiles _ _ _ = Ok [ "adr.md" ]
     let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))

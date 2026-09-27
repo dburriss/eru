@@ -21,7 +21,7 @@ module CollectionCreate =
             let cfg =
                 match deps.ReadGlobalConfig () with
                 | Ok (Some g) -> Ok g
-                | Ok None     -> Ok { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
+                | Ok None     -> Ok { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
                 | Error e     -> Error e
             match cfg with
             | Error e -> Error e

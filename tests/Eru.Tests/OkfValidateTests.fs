@@ -36,6 +36,8 @@ let private makeDeps (files: Map<string, string>) : Deps =
         ListMarkdownFiles       = fun _ -> Ok (files |> Map.toList |> List.map fst)
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private run (files: (string * string) list) : OkfValidate.ValidateResult =

@@ -81,4 +81,6 @@ module AdapterDeps =
             ListMarkdownFiles        = OkfAdapter.listMarkdownFiles
             ExtractLinks             = MarkdownLinkAdapter.extractLinks
             GetRemoteHeadSha         = GitAdapter.getRemoteHeadSha
+            DirectoryExists          = Directory.Exists
+            GetUtcNow                = fun () -> DateTimeOffset.UtcNow
         }

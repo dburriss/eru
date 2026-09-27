@@ -161,6 +161,86 @@ Reads from the source index cache (`~/.cache/eru/sources/<name>/index.json`). No
 
 ---
 
+## `eru inbox add`
+
+```
+eru inbox add <name> <path> [--raw-path <path>] [--default-channel <channel>] [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name for the inbox (required) |
+| `<path>` | Local filesystem directory to write into — not a configured eru source (required) |
+| `--raw-path <path>` | Path within the directory to the raw capture folder (default: `inbox/raw`) |
+| `--default-channel <channel>` | Channel `inbox send` falls back to when `-c` is omitted (default: `default`) |
+| `-g` | Write to global config |
+| `--dryrun` | Show what would be added without writing anything |
+
+## `eru inbox list`
+
+No arguments. Lists all configured inboxes (local + global) with their path, raw path, default channel, registered channels, and scope.
+
+## `eru inbox remove`
+
+```
+eru inbox remove <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the inbox to remove (required) |
+| `-g` | Remove from global config |
+| `--dryrun` | Show what would be removed without writing anything |
+
+## `eru inbox channel add`
+
+```
+eru inbox channel add <inbox> <channel> [--agent <agent>] [-d <description>] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<inbox> <channel>` | Inbox name and channel name (required) |
+| `--agent <agent>` | Reserved: agent that processes this channel (e.g. `ingestor`) |
+| `-d <description>` | Short description of the channel |
+| `--dryrun` | Show what would be added without writing anything |
+
+A channel need only be registered here if it wants extra config (e.g. `--agent`) — `inbox send -c <channel>` works against any channel name without prior registration.
+
+## `eru inbox channel list`
+
+```
+eru inbox channel list <inbox>
+```
+
+Lists the registered channels for `<inbox>`.
+
+## `eru inbox channel remove`
+
+```
+eru inbox channel remove <inbox> <channel> [--dryrun]
+```
+
+## `eru inbox send`
+
+```
+eru inbox send [<content>] [-i <inbox>] [-c <channel>] [-t <title>] [-n <note>] [--as message|file|url] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<content>` | Message text, a local file path, or a URL. Reads stdin if omitted (e.g. `pbpaste \| eru inbox send`) |
+| `-i <inbox>` | Name of the configured inbox to send into. Auto-resolved when only one inbox is configured |
+| `-c <channel>` | Channel within the inbox (default: the inbox's `--default-channel`, or `default`) |
+| `-t <title>` | Explicit filename slug, overriding the auto-derived one |
+| `-n <note>` | Extra context text folded into the body of a message/url capture |
+| `--as` | Force content-type classification: `message`, `file`, or `url` |
+| `--dryrun` | Show the resolved target path without writing anything |
+
+Content-type is auto-detected: an `http(s)://` string is a URL capture; an existing local file path is a file capture; anything else is a plain-text message capture. Message and URL captures are written as `.md` with YAML frontmatter (`type: raw`, `resource`, `generated`); a file capture is copied verbatim alongside a `<name>.meta.json` sidecar (`captured_at`, `original_url`). `inbox send` works with only a global config present — no local `.eru/config.json`/`eru init` is required.
+
+---
+
 ## `eru collection create`
 
 ```

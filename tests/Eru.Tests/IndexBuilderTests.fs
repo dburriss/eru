@@ -50,6 +50,8 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private cfg (sourceName: string) : EffectiveConfig = {
@@ -62,6 +64,8 @@ let private cfg (sourceName: string) : EffectiveConfig = {
     AllowPatterns = []
     AllowBinaries = false
     SiteIgnorePatterns = []
+    Inboxes = Map.empty
+    DefaultInbox = None
 }
 
 [<Fact>]

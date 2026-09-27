@@ -127,7 +127,9 @@ module Sync =
                            BlockPatterns = Config.defaultBlockPatterns
                            AllowPatterns = Config.defaultAllowPatterns
                            AllowBinaries = Config.defaultAllowBinaries
-                           SiteIgnorePatterns = Config.defaultSiteIgnorePatterns }
+                           SiteIgnorePatterns = Config.defaultSiteIgnorePatterns
+                           Inboxes = Map.empty
+                           DefaultInbox = None }
 
         let errors = System.Collections.Generic.List<string>()
 

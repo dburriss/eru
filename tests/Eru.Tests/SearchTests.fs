@@ -9,10 +9,10 @@ let private makeSource name url : SourceConfig =
     { Name = name; Url = Some url; Branch = None; Bundles = [] }
 
 let private makeLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Collections = []; Settings = None }
+    { Version = 1; Sources = sources; Collections = []; Inboxes = Map.empty; Settings = None }
 
 let private makeGlobal sources collections : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = collections; Defaults = None }
+    { Version = 1; DefaultSources = sources; Collections = collections; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeCollection name tags files : CollectionConfig =
     { Name = name; Tags = tags; Files = files; Description = None }
@@ -63,6 +63,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private emptyQuery : LocalSearch.Query = { Terms = []; Tags = [] }

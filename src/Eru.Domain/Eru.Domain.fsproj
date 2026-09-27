@@ -23,6 +23,13 @@
     <Compile Include="SourceBundleAdd.fs" />
     <Compile Include="SourceBundleList.fs" />
     <Compile Include="SourceBundleRemove.fs" />
+    <Compile Include="InboxAdd.fs" />
+    <Compile Include="InboxList.fs" />
+    <Compile Include="InboxRemove.fs" />
+    <Compile Include="InboxChannelAdd.fs" />
+    <Compile Include="InboxChannelList.fs" />
+    <Compile Include="InboxChannelRemove.fs" />
+    <Compile Include="InboxSend.fs" />
     <Compile Include="CollectionCreate.fs" />
     <Compile Include="CollectionAddFile.fs" />
     <Compile Include="CollectionRemoveFile.fs" />

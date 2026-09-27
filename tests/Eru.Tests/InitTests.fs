@@ -3,7 +3,7 @@ module Eru.Tests.InitTests
 open Xunit
 open Eru
 
-let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
+let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeDeps
     (globalCfg: GlobalConfig option)
@@ -38,6 +38,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private cmd force isGlobal path =

@@ -209,7 +209,7 @@ module Add =
                 Bundles  = bundles
             }
             if isGlobal then
-                let g = globalCfg |> Option.defaultValue { Version = 1; DefaultSources = []; Collections = []; Defaults = None }
+                let g = globalCfg |> Option.defaultValue { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
                 let updated = { g with DefaultSources = g.DefaultSources @ [newSource] }
                 deps.WriteGlobalConfig updated
                 |> Result.map (fun () -> effSources @ [newSource])

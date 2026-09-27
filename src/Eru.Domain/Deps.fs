@@ -39,4 +39,6 @@ type Deps = {
     ListMarkdownFiles        : string -> Result<string list, string>
     ExtractLinks             : string -> ExtractedLink list
     GetRemoteHeadSha         : string -> string option -> Result<string, string>
+    DirectoryExists          : string -> bool
+    GetUtcNow                : unit   -> System.DateTimeOffset
 }

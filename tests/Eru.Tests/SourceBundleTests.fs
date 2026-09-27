@@ -7,10 +7,10 @@ let private makeSource name bundles : SourceConfig =
     { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = bundles }
 
 let private emptyLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Collections = []; Settings = None }
+    { Version = 1; Sources = sources; Collections = []; Inboxes = Map.empty; Settings = None }
 
 let private emptyGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; Defaults = None }
+    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
 
 let private makeDeps
     (globalCfg: GlobalConfig option)
@@ -49,6 +49,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        DirectoryExists        = fun _ -> true
+        GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
     }
 
 let private noFetch _ _ (paths: string list) : Result<(string * string) list, string> = Ok []

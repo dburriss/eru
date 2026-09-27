@@ -72,6 +72,13 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="SourceBundleAddCli.fs" />
     <Compile Include="SourceBundleListCli.fs" />
     <Compile Include="SourceBundleRemoveCli.fs" />
+    <Compile Include="InboxAddCli.fs" />
+    <Compile Include="InboxListCli.fs" />
+    <Compile Include="InboxRemoveCli.fs" />
+    <Compile Include="InboxChannelAddCli.fs" />
+    <Compile Include="InboxChannelListCli.fs" />
+    <Compile Include="InboxChannelRemoveCli.fs" />
+    <Compile Include="InboxSendCli.fs" />
     <Compile Include="CollectionCreateCli.fs" />
     <Compile Include="CollectionAddFileCli.fs" />
     <Compile Include="CollectionRemoveFileCli.fs" />

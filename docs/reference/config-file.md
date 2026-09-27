@@ -31,6 +31,7 @@ are merged as described in [Merge and precedence](#merge-and-precedence) below.
   "version": 1,
   "sources": [ /* SourceConfig[] */ ],
   "collections": [ /* CollectionConfig[] */ ],
+  "inboxes": { /* { [name]: InboxConfig } */ },
   "settings": { /* LocalSettings */ }
 }
 ```
@@ -42,6 +43,7 @@ are merged as described in [Merge and precedence](#merge-and-precedence) below.
   "version": 1,
   "defaultSources": [ /* SourceConfig[] */ ],
   "collections": [ /* CollectionConfig[] */ ],
+  "defaultInboxes": { /* { [name]: InboxConfig } */ },
   "defaults": { /* GlobalDefaults */ }
 }
 ```
@@ -110,6 +112,50 @@ Collections declared in the global config are available to every repo; collectio
 available only in that repo. Both lists are concatenated (global first, then local) in the effective config —
 there is no name-based override between the two.
 
+## `InboxConfig`
+
+Describes one inbox — a local filesystem directory `eru inbox send` writes into. An inbox is unrelated
+to `SourceConfig`/`sources`: a source is somewhere eru *pulls from*; an inbox is somewhere eru *writes
+to*. `inboxes` (local) and `defaultInboxes` (global) are both **maps keyed by inbox name**, not lists —
+this is what lets `eru inbox add`/`eru inbox channel add` register several knowledge directories, each
+with its own set of channels, and lets a channel's config grow later (see `InboxChannelConfig` below)
+without a breaking schema change.
+
+| Field | JSON key | Required | Description |
+|---|---|---|---|
+| `Path` | `path` | Yes | Local filesystem directory (e.g. a knowledge repo checkout). Checked against the filesystem at `eru inbox add`/`eru inbox send` time — never treated as a git URL. |
+| `RawPath` | `rawPath` | No | Path within `Path` to the raw capture folder. Default: `"inbox/raw"`. |
+| `DefaultChannel` | `defaultChannel` | No | Channel `eru inbox send -c` falls back to. Default: `"default"`. |
+| `Channels` | `channels` | No | Map of channel name → `InboxChannelConfig`. An entry is only needed for a channel that wants extra config — sending to an unlisted channel name is always allowed. |
+
+### `InboxChannelConfig`
+
+| Field | JSON key | Required | Description |
+|---|---|---|---|
+| `Description` | `description` | No | Free-text description. |
+| `Agent` | `agent` | No | Reserved for future use: which agent processes this channel (e.g. `"ingestor"`). |
+
+```json
+{
+  "inboxes": {
+    "knowledge": {
+      "path": "/Users/me/code/knowledge",
+      "rawPath": "inbox/raw",
+      "defaultChannel": "default",
+      "channels": {
+        "eru": { "agent": "ingestor" }
+      }
+    }
+  }
+}
+```
+
+Inboxes merge by key (like `sources` merge by `Name`): a local inbox of a given name wins outright over
+a global inbox of the same name; any global inbox not named locally is appended. Because the typical
+workflow is sending from whatever project you're currently in, most inboxes are registered in the
+**global** config (`eru inbox add ... -g`) — `eru inbox send` itself never requires a local
+`.eru/config.json` to exist.
+
 ## `defaults` (global) and `settings` (local)
 
 Both blocks hold the same set of overridable options. `settings` (local) takes precedence over `defaults`
@@ -125,6 +171,7 @@ Both blocks hold the same set of overridable options. `settings` (local) takes p
 | `AllowPatterns` | `allowPatterns` | No | `[]` | Gitignore-style globs that override `BlockPatterns` for matching paths. |
 | `AllowBinaries` | `allowBinaries` | No | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
 | `SiteIgnorePatterns` | `siteIgnorePatterns` | No | `["index.md", "log.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
+| `DefaultInbox` | `defaultInbox` | No | — | Name of the inbox `eru inbox send -i` falls back to when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 
 Notes:
 
