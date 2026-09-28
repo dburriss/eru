@@ -44,5 +44,5 @@ type Deps = {
     ListLocalFiles           : string -> Result<string list, string>   // non-recursive; full paths, files only
     ListLocalDirectories     : string -> Result<string list, string>   // non-recursive; full paths, directories only; Ok [] if the directory doesn't exist
     MoveLocalFile            : string -> string -> Result<unit, string> // src -> dst; creates dst's parent dir
-    RunAgent                 : AgentConfig -> string -> string -> Result<string, string> // agent -> workingDir -> prompt
+    RunAgent                 : AgentConfig -> string -> string -> (string -> unit) -> Result<string, string> // agent -> workingDir -> prompt -> onChunk (called with each streamed text fragment as the agent responds)
 }

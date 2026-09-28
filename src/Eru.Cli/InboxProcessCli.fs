@@ -63,6 +63,10 @@ let private renderTable (isDryRun: bool) (note: string option) (items: InboxProc
             t.AddRow(item.Channel, item.ItemPath, (if isDryRun then "(would move here) " + item.ArchivePath else item.ArchivePath), agentSummary item.Agent) |> ignore
         AnsiConsole.Write(t)
 
+// How much of the agent's most-recently-streamed text to show next to the spinner —
+// just enough to look alive, not a transcript.
+let private snippetLength = 60
+
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
     let result =
         match cmd.Format with
@@ -70,8 +74,34 @@ let run (deps: Eru.Deps) (cmd: Cmd) : int =
             let status = AnsiConsole.Status()
             status.Spinner <- Spinner.Known.Dots
             status.Start<Result<InboxProcess.ProcessedItem list, string>>("Processing inbox...", fun ctx ->
-                let onItemStart idx total fileName = ctx.Status <- $"Processing {idx}/{total}: {fileName}"
-                InboxProcess.executeWithProgress deps cmd.Command onItemStart)
+                let mutable itemLabel = "Processing inbox..."
+                // Only ever touched from one thread at a time: onItemStart runs on this
+                // (the blocking) thread between items, onChunk on the ACP transport's
+                // reader thread while an item's RunAgent call is in flight — and that call
+                // has fully returned, with no further onChunk possible, before the next
+                // onItemStart fires.
+                let buffer = System.Text.StringBuilder()
+                let render () =
+                    let flat = buffer.ToString().Replace("\r", "").Replace("\n", " ").Trim()
+                    let tail =
+                        if flat.Length <= snippetLength then flat
+                        else
+                            // Cut to the tail, then drop any partial word at the front (up to
+                            // the first space) so it doesn't look like text is missing —
+                            // a leading "…" marks the cut instead.
+                            let cut = flat.Substring(flat.Length - snippetLength)
+                            let atWordStart = cut.IndexOf ' '
+                            let wholeWords = if atWordStart >= 0 then cut.Substring(atWordStart + 1) else cut
+                            "…" + wholeWords
+                    ctx.Status <- if tail = "" then itemLabel else $"{itemLabel} — {Markup.Escape tail}"
+                let onItemStart idx total fileName =
+                    itemLabel <- $"Processing {idx}/{total}: {fileName}"
+                    buffer.Clear() |> ignore
+                    render ()
+                let onChunk (text: string) =
+                    buffer.Append(text) |> ignore
+                    render ()
+                InboxProcess.executeWithProgress deps cmd.Command onItemStart onChunk)
         | _ -> InboxProcess.execute deps cmd.Command
     match result with
     | Error e -> renderError e; 1

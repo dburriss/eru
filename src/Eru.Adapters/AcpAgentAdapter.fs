@@ -4,7 +4,7 @@ namespace Eru.Adapters
 // subprocess and talks bidirectional stdio JSON-RPC to it over the Agent Client
 // Protocol (agentclientprotocol.com), via the Acp.Net package. Kept entirely inside
 // Eru.Adapters — Eru.Domain never references Acp.Net or System.Diagnostics.Process
-// directly, only the `RunAgent : AgentConfig -> workingDir -> prompt -> Result<string, string>`
+// directly, only the `RunAgent : AgentConfig -> workingDir -> prompt -> onChunk -> Result<string, string>`
 // shape (`Deps.RunAgent`).
 //
 // Note for anyone touching this: `Connection.ClientSideConnection`'s `Start()` is
@@ -26,7 +26,7 @@ module AcpAgentAdapter =
 
     let private defaultTurnTimeout = TimeSpan.FromSeconds 120.0
 
-    let run (agent: AgentConfig) (workingDir: string) (prompt: string) : Result<string, string> =
+    let run (agent: AgentConfig) (workingDir: string) (prompt: string) (onChunk: string -> unit) : Result<string, string> =
         if agent.Protocol <> "acp" then
             Error $"unsupported agent protocol '{agent.Protocol}' — only 'acp' is supported."
         else
@@ -73,7 +73,9 @@ module AcpAgentAdapter =
                     match notification.Update with
                     | SessionUpdate.AgentMessageChunk chunk ->
                         match chunk.Content with
-                        | ContentBlock.Text textContent -> response.Append(textContent.Text) |> ignore
+                        | ContentBlock.Text textContent ->
+                            response.Append(textContent.Text) |> ignore
+                            onChunk textContent.Text
                         | _ -> ()
                     | _ -> ()
                     Task.FromResult ())

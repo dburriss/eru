@@ -66,9 +66,14 @@ let private makeDeps
             |> List.filter (fun p -> p.StartsWith prefix && not (p.Substring(prefix.Length).Contains "/"))
             |> Ok
         MoveLocalFile           = fun src dst -> state.Moves <- state.Moves @ [ (src, dst) ]; Ok ()
-        RunAgent                = fun agent wd prompt ->
+        RunAgent                = fun agent wd prompt onChunk ->
             state.RunAgentCalls <- state.RunAgentCalls @ [ (agent, wd, prompt) ]
-            runAgent agent wd prompt
+            let result = runAgent agent wd prompt
+            // Simulate streaming: a real agent reports its response one fragment at a
+            // time via onChunk as it works, so a single "final text" chunk here is enough
+            // to exercise a test's onChunk wiring without modelling a real ACP stream.
+            result |> Result.iter onChunk
+            result
     }
 
 let private okAgent : AgentConfig -> string -> string -> Result<string, string> = fun _ _ _ -> Ok "curated"
@@ -217,6 +222,46 @@ let ``--all processes every pending item in pooled chronological order across ch
     Assert.Equal(2, result.Length)
     Assert.Equal("other", result.[0].Channel)
     Assert.Equal("eru", result.[1].Channel)
+
+[<Fact>]
+let ``executeWithProgress reports each item's 1-based index/total/filename via onItemStart`` () =
+    let state = newState ()
+    let channels =
+        Map.ofList [
+            "eru",   { Description = None; Agent = Some (acpAgent "opencode") }
+            "other", { Description = None; Agent = Some (acpAgent "opencode") }
+        ]
+    let filesByDir =
+        Map.ofList [
+            "/kb/inbox/raw/eru",   [ "2026-09-27T101500-a.md" ]
+            "/kb/inbox/raw/other", [ "2026-09-27T090000-b.md" ]
+        ]
+    let contents =
+        Map.ofList [
+            "/kb/inbox/raw/eru/2026-09-27T101500-a.md",   "content-a"
+            "/kb/inbox/raw/other/2026-09-27T090000-b.md", "content-b"
+        ]
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
+    let calls = System.Collections.Generic.List<int * int * string>()
+    InboxProcess.executeWithProgress deps { emptyOpts with All = true } (fun idx total name -> calls.Add(idx, total, name)) (fun _ -> ())
+    |> function Ok r -> r | Error e -> failwith e
+    |> ignore
+    Assert.Equal<(int * int * string) list>(
+        [ (1, 2, "2026-09-27T090000-b.md"); (2, 2, "2026-09-27T101500-a.md") ],
+        List.ofSeq calls)
+
+[<Fact>]
+let ``executeWithProgress streams each item's agent response through onChunk`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "opencode") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let contents = Map.ofList [ "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "content-a" ]
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
+    let chunks = System.Collections.Generic.List<string>()
+    InboxProcess.executeWithProgress deps emptyOpts (fun _ _ _ -> ()) chunks.Add
+    |> function Ok r -> r | Error e -> failwith e
+    |> ignore
+    Assert.Equal<string list>([ "curated" ], List.ofSeq chunks)
 
 [<Fact>]
 let ``--all stops at first failure and reports partial progress`` () =

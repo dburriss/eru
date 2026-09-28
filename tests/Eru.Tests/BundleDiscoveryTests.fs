@@ -40,7 +40,7 @@ let private makeDeps
         ListLocalFiles   = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile    = fun _ _ -> Ok ()
-        RunAgent         = fun _ _ _ -> Ok ""
+        RunAgent         = fun _ _ _ _ -> Ok ""
     }
 
 let private rootBundle : Bundle = { Path = ""; Kind = Okf }

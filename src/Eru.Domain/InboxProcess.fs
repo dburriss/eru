@@ -187,14 +187,14 @@ module InboxProcess =
             | Ok (Some _) -> Ok ()
             | _ -> Error moveErr
 
-    let private processOne (deps: Deps) (inbox: InboxConfig) (item: PooledItem) : Result<ProcessedItem, string> =
+    let private processOne (deps: Deps) (inbox: InboxConfig) (onChunk: string -> unit) (item: PooledItem) : Result<ProcessedItem, string> =
         match buildPrompt deps inbox item with
         | Error e -> Error e
         | Ok prompt ->
         match archiveChannelDir inbox item.Channel with
         | Error e -> Error e
         | Ok archiveDir ->
-        match deps.RunAgent item.Agent inbox.Path prompt with
+        match deps.RunAgent item.Agent inbox.Path prompt onChunk with
         | Error e -> Error e
         | Ok _response ->
         let archivePath = Path.Combine(archiveDir, item.FileName)
@@ -209,13 +209,13 @@ module InboxProcess =
         | Error e -> Error e
         | Ok () -> Ok { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = archivePath; Agent = item.Agent }
 
-    let rec private processAll (deps: Deps) (inbox: InboxConfig) (onItemStart: int -> int -> string -> unit) (total: int) (succeeded: ProcessedItem list) (items: PooledItem list) : Result<ProcessedItem list, string> =
+    let rec private processAll (deps: Deps) (inbox: InboxConfig) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) (total: int) (succeeded: ProcessedItem list) (items: PooledItem list) : Result<ProcessedItem list, string> =
         match items with
         | [] -> Ok (List.rev succeeded)
         | item :: rest ->
             onItemStart (total - List.length rest) total item.FileName
-            match processOne deps inbox item with
-            | Ok p -> processAll deps inbox onItemStart total (p :: succeeded) rest
+            match processOne deps inbox onChunk item with
+            | Ok p -> processAll deps inbox onItemStart onChunk total (p :: succeeded) rest
             | Error e -> Error $"processed {List.length succeeded} item(s) before failing on '{item.FileName}': {e}"
 
     let private previewOne (inbox: InboxConfig) (item: PooledItem) : Result<ProcessedItem, string> =
@@ -223,7 +223,7 @@ module InboxProcess =
         |> Result.map (fun archiveDir ->
             { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = Path.Combine(archiveDir, item.FileName); Agent = item.Agent })
 
-    let private executeCore (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) : Result<ProcessedItem list, string> =
+    let private executeCore (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) : Result<ProcessedItem list, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
@@ -269,17 +269,18 @@ module InboxProcess =
                     | Ok p -> Ok (list @ [ p ]))
                 (Ok [])
         else
-            processAll deps inbox onItemStart (List.length targets) [] targets
+            processAll deps inbox onItemStart onChunk (List.length targets) [] targets
 
     let execute (deps: Deps) (opts: Options) : Result<ProcessedItem list, string> =
-        executeCore deps opts (fun _ _ _ -> ())
+        executeCore deps opts (fun _ _ _ -> ()) (fun _ -> ())
 
-    // Same as `execute`, but invoked once per item just before it starts processing —
-    // (1-based index, total, file name) — so a caller (e.g. the CLI) can render live
-    // progress for what would otherwise be a silent, potentially slow batch of external
-    // agent calls.
-    let executeWithProgress (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) : Result<ProcessedItem list, string> =
-        executeCore deps opts onItemStart
+    // Same as `execute`, but with two live-progress hooks so a caller (e.g. the CLI) can
+    // render feedback for what would otherwise be a silent, potentially slow batch of
+    // external agent calls: `onItemStart` fires once per item just before it starts
+    // processing (1-based index, total, file name); `onChunk` fires with each fragment
+    // of text the current item's agent streams back as it works.
+    let executeWithProgress (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) : Result<ProcessedItem list, string> =
+        executeCore deps opts onItemStart onChunk
 
     // Diagnostic for the "nothing to process" case: `execute`'s default (no `-c`) scope
     // only ever looks at channels with an `Agent` configured, so a raw item sitting in any
