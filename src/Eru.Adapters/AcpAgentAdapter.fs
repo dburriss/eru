@@ -53,10 +53,23 @@ module AcpAgentAdapter =
                 let connection = Connection.ClientSideConnection(transport)
                 connection.Start()
 
+                use cts = new CancellationTokenSource(turnTimeout)
+
+                // `turnTimeout` is an idle timeout, not a total-turn budget: every
+                // session/update notification (not just message chunks — a tool call or
+                // plan update counts too) is evidence the agent is still working, so it
+                // pushes the deadline out another `turnTimeout` rather than letting a
+                // single fixed clock run out on a slow-but-alive agent. `CancelAfter` is
+                // safe to call after the token has already fired; the try/with below is
+                // only for the (rare) case a notification races the `use cts` disposal
+                // on the way out of this function.
+                let bumpDeadline () = try cts.CancelAfter turnTimeout with :? ObjectDisposedException -> ()
+
                 // Accumulates the agent's final response from `agent_message_chunk`
                 // session/update notifications.
                 let response = StringBuilder()
                 connection.HandleSessionUpdate(fun notification ->
+                    bumpDeadline ()
                     match notification.Update with
                     | SessionUpdate.AgentMessageChunk chunk ->
                         match chunk.Content with
@@ -64,8 +77,6 @@ module AcpAgentAdapter =
                         | _ -> ()
                     | _ -> ()
                     Task.FromResult ())
-
-                use cts = new CancellationTokenSource(turnTimeout)
 
                 let clientCapabilities : ClientCapabilities =
                     { Fs = { ReadTextFile = false; WriteTextFile = false; Meta = None }
@@ -100,7 +111,7 @@ module AcpAgentAdapter =
                 | StopReason.MaxTurnRequests -> Error "agent stopped early: reached its max-turn-requests limit."
                 | _                          -> Error "agent stopped for an unrecognized reason."
             with
-            | :? OperationCanceledException -> Error $"agent did not respond within {turnTimeout.TotalSeconds}s."
+            | :? OperationCanceledException -> Error $"agent produced no activity for {turnTimeout.TotalSeconds}s."
             | ex -> Error ex.Message
         finally
             if not (isNull proc) then

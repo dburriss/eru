@@ -143,7 +143,7 @@ without a breaking schema change.
 | `Command` | `command` | Yes | Executable that launches the agent (e.g. `"opencode"`). |
 | `Args` | `args` | Yes | Arguments passed to `Command` (e.g. `["acp"]`). |
 | `InstructionsPath` | `instructionsPath` | No | Absolute path, or path relative to the inbox's `path`, to a file prepended to every prompt this agent receives (e.g. an `ingestor.md` agent definition) — the raw capture alone doesn't tell a generic ACP agent what to do with it. If absent, `eru inbox process` falls back to `<inbox path>/.agents/agents/ingestor.md` if it exists, else proceeds with no instructions. |
-| `Timeout` | `timeout` | No | Seconds `eru inbox process` waits for this agent to finish a turn (init + session + full prompt round-trip) before giving up. Default: 120. Set with `--agent-timeout` on `eru inbox channel add`. |
+| `Timeout` | `timeout` | No | Idle timeout in seconds: how long `eru inbox process` will wait with *no activity* (no `session/update` notification) from this agent before giving up — not a cap on the total turn length, so a slow-but-still-working agent won't get killed as long as it keeps streaming updates. Default: 120. Set with `--agent-timeout` on `eru inbox channel add`. |
 
 ```json
 {
