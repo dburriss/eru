@@ -20,6 +20,11 @@ let (|InboxProcessCmd|_|) (r: ParseResults<EruArgs>) =
                             InboxProcess.Options.ItemName  = processArgs.TryGetResult InboxProcessArgs.Item
                             InboxProcess.Options.All       = processArgs.Contains InboxProcessArgs.All
                             InboxProcess.Options.DryRun    = processArgs.Contains InboxProcessArgs.Dryrun
+                            // Reuses the top-level `eru --debug` flag rather than a second,
+                            // confusingly-same-named subcommand flag — `--debug` already means
+                            // "show more than usual"; here that includes each item's agent
+                            // handshake timings.
+                            InboxProcess.Options.Timing    = r.Contains EruArgs.Debug
                         }
                         Format = parseFormat (processArgs.TryGetResult InboxProcessArgs.Output)
                     }
@@ -40,6 +45,9 @@ let private pendingElsewhereNote (deps: Eru.Deps) (opts: InboxProcess.Options) :
         let detail = pairs |> List.map (fun (name, n) -> $"{name} ({n})") |> String.concat ", "
         Some $"{total} item(s) pending in channel(s) with no agent configured: {detail}. Run 'eru inbox channel add <inbox> <channel> --agent-command <cmd>' to enable one."
 
+let private timingsSummary (timings: AgentTimings) : string =
+    $"initialize: %.0f{timings.InitializeMs}ms, session/new: %.0f{timings.SessionNewMs}ms, prompt: %.0f{timings.PromptMs}ms"
+
 let private renderText (isDryRun: bool) (note: string option) (items: InboxProcess.ProcessedItem list) =
     if items.IsEmpty then
         printfn "Nothing to process."
@@ -48,6 +56,7 @@ let private renderText (isDryRun: bool) (note: string option) (items: InboxProce
         let verb = if isDryRun then "Would process" else "Processed"
         for item in items do
             printfn $"{verb} [{item.Channel}] {item.ItemPath} -> {item.ArchivePath} (agent: {agentSummary item.Agent})"
+            item.Timings |> Option.iter (fun t -> printfn $"  {timingsSummary t}")
 
 let private renderJson (items: InboxProcess.ProcessedItem list) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
@@ -58,9 +67,18 @@ let private renderTable (isDryRun: bool) (note: string option) (items: InboxProc
         printfn "Nothing to process."
         note |> Option.iter (printfn "%s")
     else
-        let t = makeTable ["Channel"; "Item"; "Archive Path"; "Agent"]
+        let showTimings = items |> List.exists (fun i -> i.Timings.IsSome)
+        let headers = if showTimings then ["Channel"; "Item"; "Archive Path"; "Agent"; "Timings"] else ["Channel"; "Item"; "Archive Path"; "Agent"]
+        let t = makeTable headers
         for item in items do
-            t.AddRow(item.Channel, item.ItemPath, (if isDryRun then "(would move here) " + item.ArchivePath else item.ArchivePath), agentSummary item.Agent) |> ignore
+            let cells = [
+                item.Channel
+                item.ItemPath
+                (if isDryRun then "(would move here) " + item.ArchivePath else item.ArchivePath)
+                agentSummary item.Agent
+            ]
+            let cells = if showTimings then cells @ [ item.Timings |> Option.map timingsSummary |> Option.defaultValue "" ] else cells
+            t.AddRow(cells |> Array.ofList) |> ignore
         AnsiConsole.Write(t)
 
 // How much of the agent's most-recently-streamed text to show next to the spinner —

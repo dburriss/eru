@@ -10,6 +10,7 @@ module InboxProcess =
         ItemName  : string option   // <name>, if given
         All       : bool
         DryRun    : bool
+        Timing     : bool           // include each item's RunAgent phase timings in the result
     }
 
     type ProcessedItem = {
@@ -17,6 +18,7 @@ module InboxProcess =
         ItemPath    : string   // original raw path
         ArchivePath : string   // where it landed (or would land, for --dryrun)
         Agent       : AgentConfig
+        Timings     : AgentTimings option   // Some only when Options.Timing is set (dry-run: always None, RunAgent never runs)
     }
 
     // A raw item pooled across every channel in scope, tagged with the channel/agent
@@ -187,7 +189,7 @@ module InboxProcess =
             | Ok (Some _) -> Ok ()
             | _ -> Error moveErr
 
-    let private processOne (deps: Deps) (inbox: InboxConfig) (onChunk: string -> unit) (item: PooledItem) : Result<ProcessedItem, string> =
+    let private processOne (deps: Deps) (inbox: InboxConfig) (debug: bool) (onChunk: string -> unit) (item: PooledItem) : Result<ProcessedItem, string> =
         match buildPrompt deps inbox item with
         | Error e -> Error e
         | Ok prompt ->
@@ -196,7 +198,7 @@ module InboxProcess =
         | Ok archiveDir ->
         match deps.RunAgent item.Agent inbox.Path prompt onChunk with
         | Error e -> Error e
-        | Ok _response ->
+        | Ok runResult ->
         let archivePath = Path.Combine(archiveDir, item.FileName)
         match moveOrAcceptAlreadyDone deps item.FullPath archivePath with
         | Error e -> Error e
@@ -207,21 +209,23 @@ module InboxProcess =
             | Some sc -> moveOrAcceptAlreadyDone deps sc (archivePath + ".meta.json")
         match sidecarResult with
         | Error e -> Error e
-        | Ok () -> Ok { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = archivePath; Agent = item.Agent }
+        | Ok () ->
+            let timings = if debug then Some runResult.Timings else None
+            Ok { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = archivePath; Agent = item.Agent; Timings = timings }
 
-    let rec private processAll (deps: Deps) (inbox: InboxConfig) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) (total: int) (succeeded: ProcessedItem list) (items: PooledItem list) : Result<ProcessedItem list, string> =
+    let rec private processAll (deps: Deps) (inbox: InboxConfig) (debug: bool) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) (total: int) (succeeded: ProcessedItem list) (items: PooledItem list) : Result<ProcessedItem list, string> =
         match items with
         | [] -> Ok (List.rev succeeded)
         | item :: rest ->
             onItemStart (total - List.length rest) total item.FileName
-            match processOne deps inbox onChunk item with
-            | Ok p -> processAll deps inbox onItemStart onChunk total (p :: succeeded) rest
+            match processOne deps inbox debug onChunk item with
+            | Ok p -> processAll deps inbox debug onItemStart onChunk total (p :: succeeded) rest
             | Error e -> Error $"processed {List.length succeeded} item(s) before failing on '{item.FileName}': {e}"
 
     let private previewOne (inbox: InboxConfig) (item: PooledItem) : Result<ProcessedItem, string> =
         archiveChannelDir inbox item.Channel
         |> Result.map (fun archiveDir ->
-            { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = Path.Combine(archiveDir, item.FileName); Agent = item.Agent })
+            { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = Path.Combine(archiveDir, item.FileName); Agent = item.Agent; Timings = None })
 
     let private executeCore (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) : Result<ProcessedItem list, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
@@ -269,7 +273,7 @@ module InboxProcess =
                     | Ok p -> Ok (list @ [ p ]))
                 (Ok [])
         else
-            processAll deps inbox onItemStart onChunk (List.length targets) [] targets
+            processAll deps inbox opts.Timing onItemStart onChunk (List.length targets) [] targets
 
     let execute (deps: Deps) (opts: Options) : Result<ProcessedItem list, string> =
         executeCore deps opts (fun _ _ _ -> ()) (fun _ -> ())

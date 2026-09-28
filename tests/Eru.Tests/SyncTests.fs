@@ -74,7 +74,7 @@ let private makeDeps
         ListLocalFiles   = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile    = fun _ _ -> Ok ()
-        RunAgent         = fun _ _ _ _ -> Ok ""
+        RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
 let private defaultFetch (_url: string) (_branch: string) (paths: string list) : Result<(string * string) list, string> =
@@ -328,7 +328,7 @@ let private makePopulateDeps
         ListLocalFiles   = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile    = fun _ _ -> Ok ()
-        RunAgent         = fun _ _ _ _ -> Ok ""
+        RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
 [<Fact>]

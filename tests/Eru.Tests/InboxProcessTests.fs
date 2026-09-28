@@ -21,7 +21,7 @@ let private makeDeps
     (localCfg: LocalConfig option)
     (filesByDir: Map<string, string list>)
     (fileContents: Map<string, string>)
-    (runAgent: AgentConfig -> string -> string -> Result<string, string>)
+    (runAgent: AgentConfig -> string -> string -> Result<AgentRunResult, string>)
     (state: CapturedState) : Deps =
     {
         ReadGlobalConfig   = fun () -> Ok globalCfg
@@ -72,11 +72,14 @@ let private makeDeps
             // Simulate streaming: a real agent reports its response one fragment at a
             // time via onChunk as it works, so a single "final text" chunk here is enough
             // to exercise a test's onChunk wiring without modelling a real ACP stream.
-            result |> Result.iter onChunk
+            result |> Result.iter (fun r -> onChunk r.Response)
             result
     }
 
-let private okAgent : AgentConfig -> string -> string -> Result<string, string> = fun _ _ _ -> Ok "curated"
+let private zeroTimings : AgentTimings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 }
+
+let private okAgent : AgentConfig -> string -> string -> Result<AgentRunResult, string> =
+    fun _ _ _ -> Ok { Response = "curated"; Timings = zeroTimings }
 
 let private makeInbox (channels: Map<string, InboxChannelConfig>) : InboxConfig =
     { Path = "/kb"; RawPath = None; DefaultChannel = None; Channels = channels }
@@ -85,7 +88,7 @@ let private singleInboxLocal (channels: Map<string, InboxChannelConfig>) : Local
     Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox channels ]; Settings = None }
 
 let private emptyOpts : InboxProcess.Options =
-    { InboxName = None; Channel = None; ItemName = None; All = false; DryRun = false }
+    { InboxName = None; Channel = None; ItemName = None; All = false; DryRun = false; Timing = false }
 
 let private assertError (result: Result<'a, string>) = match result with Ok _ -> Assert.Fail "Expected Error result" | Error _ -> ()
 
@@ -223,6 +226,44 @@ let ``--all processes every pending item in pooled chronological order across ch
     Assert.Equal("other", result.[0].Channel)
     Assert.Equal("eru", result.[1].Channel)
 
+// ── Options.Timing (driven by the top-level `eru --debug` flag) ─────────────
+
+[<Fact>]
+let ``Timing surfaces each item's RunAgent timings; omitted otherwise`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "opencode") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let contents = Map.ofList [ "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "content-a" ]
+    let timedAgent : AgentConfig -> string -> string -> Result<AgentRunResult, string> =
+        fun _ _ _ -> Ok { Response = "curated"; Timings = { InitializeMs = 12.0; SessionNewMs = 34.0; PromptMs = 56.0 } }
+
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir contents timedAgent state
+    let withoutTiming = InboxProcess.execute deps emptyOpts |> function Ok r -> r | Error e -> failwith e
+    Assert.Equal(1, withoutTiming.Length)
+    Assert.True(withoutTiming.[0].Timings.IsNone)
+
+    let state2 = newState ()
+    let deps2 = makeDeps None (singleInboxLocal channels) filesByDir contents timedAgent state2
+    let withTiming = InboxProcess.execute deps2 { emptyOpts with Timing = true } |> function Ok r -> r | Error e -> failwith e
+    Assert.Equal(1, withTiming.Length)
+    match withTiming.[0].Timings with
+    | None -> Assert.Fail "expected Some timings"
+    | Some t ->
+        Assert.Equal(12.0, t.InitializeMs)
+        Assert.Equal(34.0, t.SessionNewMs)
+        Assert.Equal(56.0, t.PromptMs)
+
+[<Fact>]
+let ``Timing with --dryrun never runs the agent, so Timings stays None`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "opencode") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir Map.empty okAgent state
+    let result = InboxProcess.execute deps { emptyOpts with Timing = true; DryRun = true } |> function Ok r -> r | Error e -> failwith e
+    Assert.Equal(1, result.Length)
+    Assert.True(result.[0].Timings.IsNone)
+    Assert.Empty(state.RunAgentCalls)
+
 [<Fact>]
 let ``executeWithProgress reports each item's 1-based index/total/filename via onItemStart`` () =
     let state = newState ()
@@ -272,8 +313,8 @@ let ``--all stops at first failure and reports partial progress`` () =
             "/kb/inbox/raw/eru",
             [ "2026-09-27T080000-a.md"; "2026-09-27T090000-b.md"; "2026-09-27T100000-c.md" ]
         ]
-    let failOnB : AgentConfig -> string -> string -> Result<string, string> =
-        fun _ _ prompt -> if prompt.Contains "b-content" then Error "agent boom" else Ok "curated"
+    let failOnB : AgentConfig -> string -> string -> Result<AgentRunResult, string> =
+        fun _ _ prompt -> if prompt.Contains "b-content" then Error "agent boom" else Ok { Response = "curated"; Timings = zeroTimings }
     let contents =
         Map.ofList [
             "/kb/inbox/raw/eru/2026-09-27T080000-a.md", "a-content"
@@ -408,7 +449,7 @@ let ``RunAgent returning Error leaves the item in place and surfaces the message
     let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "opencode") } ]
     let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
     let contents = Map.ofList [ "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "content-a" ]
-    let failing : AgentConfig -> string -> string -> Result<string, string> = fun _ _ _ -> Error "agent unreachable"
+    let failing : AgentConfig -> string -> string -> Result<AgentRunResult, string> = fun _ _ _ -> Error "agent unreachable"
     let deps = makeDeps None (singleInboxLocal channels) filesByDir contents failing state
     match InboxProcess.execute deps emptyOpts with
     | Ok _ -> Assert.Fail "expected an error"

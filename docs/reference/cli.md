@@ -367,7 +367,7 @@ Protocol](https://agentclientprotocol.com), then archive it. Requires at least o
 have an agent configured (`eru inbox channel add ... --agent-command <cmd>`).
 
 ```
-eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
+eru [--debug] inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -377,6 +377,7 @@ eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
 | `-c <channel>` | Restrict to one channel (default: every channel of the inbox with an agent configured) |
 | `--all` | Process every pending item in scope, oldest first, stopping at the first failure |
 | `--dryrun` | Show which item(s) and agent(s) would be used, without spawning anything or moving files |
+| top-level `--debug` | Also include each item's agent handshake timings (`initialize`/`session/new`/`prompt`, in ms) in the output |
 
 "Pending" means "still under `<inbox>`'s raw folder" — there's no separate status field. Items across
 every channel in scope are pooled and sorted oldest-first by filename (capture filenames are
@@ -389,6 +390,12 @@ channel (including `default`, which `inbox send` falls back to with no `-c`; see
 auto-wiring behavior above) is invisible to the default scope. When that leaves nothing to process,
 the output says so explicitly (e.g. `"3 item(s) pending in channel(s) with no agent configured:
 default (3)."`) instead of implying the inbox is genuinely empty.
+
+Each item spawns a brand-new agent process and ACP session — there's no reuse across items in an
+`--all` batch. Running with the top-level `--debug` flag (`eru --debug inbox process ...`) breaks
+down where that per-item time actually goes (`initialize`, `session/new`, `prompt`), which is mostly
+useful for telling fixed handshake overhead apart from the agent's own thinking/tool-use time on a
+slow batch.
 
 **Examples**
 

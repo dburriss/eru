@@ -265,6 +265,9 @@ eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
 | `--all` | Process every pending item in scope, oldest first, stopping at the first failure |
 | `--dryrun` | Show which item(s)/agent(s) would be used, without spawning anything or moving files |
 
+Run with the top-level `--debug` flag (`eru --debug inbox process ...`) to also include each item's
+agent handshake timings (initialize/session/prompt, ms) in the output.
+
 Hands the oldest (or named) raw item to its channel's configured agent over the Agent Client Protocol
 to curate, then archives it (`.../raw/<channel>/` → `.../archive/<channel>/`) on success. Requires at
 least one channel in scope to have an `agent` configured via `inbox channel add`.

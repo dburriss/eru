@@ -10,6 +10,20 @@ type ExtractedLink = {
     Kind        : LinkKind
 }
 
+// Per-phase duration (ms) of one RunAgent call's ACP handshake — surfaced via
+// `eru inbox process --debug` to show where time actually goes (mostly the fixed
+// cost of spawning a fresh agent process + session per item, not the prompt itself).
+type AgentTimings = {
+    InitializeMs : float
+    SessionNewMs : float
+    PromptMs     : float
+}
+
+type AgentRunResult = {
+    Response : string
+    Timings  : AgentTimings
+}
+
 type Deps = {
     ReadGlobalConfig         : unit   -> Result<GlobalConfig option, string>
     ReadLocalConfig          : unit   -> Result<LocalConfig option, string>
@@ -44,5 +58,5 @@ type Deps = {
     ListLocalFiles           : string -> Result<string list, string>   // non-recursive; full paths, files only
     ListLocalDirectories     : string -> Result<string list, string>   // non-recursive; full paths, directories only; Ok [] if the directory doesn't exist
     MoveLocalFile            : string -> string -> Result<unit, string> // src -> dst; creates dst's parent dir
-    RunAgent                 : AgentConfig -> string -> string -> (string -> unit) -> Result<string, string> // agent -> workingDir -> prompt -> onChunk (called with each streamed text fragment as the agent responds)
+    RunAgent                 : AgentConfig -> string -> string -> (string -> unit) -> Result<AgentRunResult, string> // agent -> workingDir -> prompt -> onChunk (called with each streamed text fragment as the agent responds)
 }

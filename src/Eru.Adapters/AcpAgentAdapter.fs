@@ -26,7 +26,7 @@ module AcpAgentAdapter =
 
     let private defaultTurnTimeout = TimeSpan.FromSeconds 120.0
 
-    let run (agent: AgentConfig) (workingDir: string) (prompt: string) (onChunk: string -> unit) : Result<string, string> =
+    let run (agent: AgentConfig) (workingDir: string) (prompt: string) (onChunk: string -> unit) : Result<AgentRunResult, string> =
         if agent.Protocol <> "acp" then
             Error $"unsupported agent protocol '{agent.Protocol}' — only 'acp' is supported."
         else
@@ -91,22 +91,29 @@ module AcpAgentAdapter =
                       ClientCapabilities = clientCapabilities
                       ClientInfo = Some { Name = "eru"; Title = None; Version = "0.1"; Meta = None }
                       Meta = None }
+                let sw = Stopwatch.StartNew()
                 connection.InitializeAsync(initializeRequest, cts.Token).GetAwaiter().GetResult() |> ignore
+                let initializeMs = sw.Elapsed.TotalMilliseconds
 
                 let sessionRequest : NewSessionRequest =
                     { Cwd = workingDir; AdditionalDirectories = None; McpServers = []; Meta = None }
+                sw.Restart()
                 let session = connection.SessionNewAsync(sessionRequest, cts.Token).GetAwaiter().GetResult()
+                let sessionNewMs = sw.Elapsed.TotalMilliseconds
 
                 let promptRequest : PromptRequest =
                     { SessionId = session.SessionId
                       Prompt = [ ContentBlock.Text { Text = prompt; Annotations = None; Meta = None } ]
                       Meta = None }
+                sw.Restart()
                 let promptResponse = connection.PromptAsync(promptRequest, cts.Token).GetAwaiter().GetResult()
+                let promptMs = sw.Elapsed.TotalMilliseconds
 
                 connection.Close()
 
+                let timings = { InitializeMs = initializeMs; SessionNewMs = sessionNewMs; PromptMs = promptMs }
                 match promptResponse.StopReason with
-                | StopReason.EndTurn         -> Ok (response.ToString())
+                | StopReason.EndTurn         -> Ok { Response = response.ToString(); Timings = timings }
                 | StopReason.Refusal         -> Error "agent refused the request."
                 | StopReason.Cancelled       -> Error "agent turn was cancelled."
                 | StopReason.MaxTokens       -> Error "agent stopped early: reached its max-tokens limit."
