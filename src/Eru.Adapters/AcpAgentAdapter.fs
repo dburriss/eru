@@ -24,12 +24,17 @@ open Eru
 
 module AcpAgentAdapter =
 
-    let private turnTimeout = TimeSpan.FromSeconds 120.0
+    let private defaultTurnTimeout = TimeSpan.FromSeconds 120.0
 
     let run (agent: AgentConfig) (workingDir: string) (prompt: string) : Result<string, string> =
         if agent.Protocol <> "acp" then
             Error $"unsupported agent protocol '{agent.Protocol}' — only 'acp' is supported."
         else
+
+        let turnTimeout =
+            agent.Timeout
+            |> Option.map (float >> TimeSpan.FromSeconds)
+            |> Option.defaultValue defaultTurnTimeout
 
         let psi = ProcessStartInfo(agent.Command)
         for a in agent.Args do psi.ArgumentList.Add a

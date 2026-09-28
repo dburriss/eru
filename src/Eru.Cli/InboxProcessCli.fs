@@ -64,7 +64,16 @@ let private renderTable (isDryRun: bool) (note: string option) (items: InboxProc
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match InboxProcess.execute deps cmd.Command with
+    let result =
+        match cmd.Format with
+        | (Table | Text) when not cmd.Command.DryRun ->
+            let status = AnsiConsole.Status()
+            status.Spinner <- Spinner.Known.Dots
+            status.Start<Result<InboxProcess.ProcessedItem list, string>>("Processing inbox...", fun ctx ->
+                let onItemStart idx total fileName = ctx.Status <- $"Processing {idx}/{total}: {fileName}"
+                InboxProcess.executeWithProgress deps cmd.Command onItemStart)
+        | _ -> InboxProcess.execute deps cmd.Command
+    match result with
     | Error e -> renderError e; 1
     | Ok items ->
         let note = if items.IsEmpty then pendingElsewhereNote deps cmd.Command else None

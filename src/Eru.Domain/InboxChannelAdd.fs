@@ -9,6 +9,7 @@ module InboxChannelAdd =
         AgentCommand     : string option
         AgentArgs        : string list
         AgentInstructions: string option
+        AgentTimeout     : int option
         Description      : string option
         DryRun           : bool
     }
@@ -16,8 +17,8 @@ module InboxChannelAdd =
     let private buildAgent (cmd: Command) : Result<AgentConfig option, string> =
         match cmd.AgentCommand with
         | None ->
-            if cmd.AgentProtocol.IsSome || not cmd.AgentArgs.IsEmpty || cmd.AgentInstructions.IsSome then
-                Error "--agent-command is required when specifying --agent-protocol, --agent-args, or --agent-instructions."
+            if cmd.AgentProtocol.IsSome || not cmd.AgentArgs.IsEmpty || cmd.AgentInstructions.IsSome || cmd.AgentTimeout.IsSome then
+                Error "--agent-command is required when specifying --agent-protocol, --agent-args, --agent-instructions, or --agent-timeout."
             else
                 Ok None
         | Some command ->
@@ -25,7 +26,7 @@ module InboxChannelAdd =
             if protocol <> "acp" then
                 Error $"unsupported agent protocol '{protocol}' — only 'acp' is supported."
             else
-                Ok (Some { Protocol = protocol; Command = command; Args = cmd.AgentArgs; InstructionsPath = cmd.AgentInstructions })
+                Ok (Some { Protocol = protocol; Command = command; Args = cmd.AgentArgs; InstructionsPath = cmd.AgentInstructions; Timeout = cmd.AgentTimeout })
 
     // `inbox send` falls back to the literal channel "default" whenever no `-c` is given
     // (InboxSend.fs) — so an item can land there without the user ever having run

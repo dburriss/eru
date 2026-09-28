@@ -75,6 +75,10 @@ type AgentConfig = {
     // to `.agents/agents/ingestor.md` under the inbox if that file happens to exist,
     // and proceeds with no instructions (not an error) if it doesn't.
     InstructionsPath : string option
+    // Per-agent override for how long `eru inbox process` waits for this agent to
+    // finish a turn (init + session + full prompt round-trip), in seconds. When absent,
+    // the adapter falls back to its own default (120s) — see AcpAgentAdapter.
+    Timeout          : int option
 }
 
 // An inbox is a local filesystem write-target (e.g. a knowledge repo checkout) that

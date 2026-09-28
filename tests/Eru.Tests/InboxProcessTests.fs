@@ -14,7 +14,7 @@ let private newState () : CapturedState = { Moves = []; RunAgentCalls = [] }
 
 let private fixedNow = System.DateTimeOffset(2026, 9, 27, 10, 0, 0, System.TimeSpan.Zero)
 
-let private acpAgent (command: string) : AgentConfig = { Protocol = "acp"; Command = command; Args = [ "acp" ]; InstructionsPath = None }
+let private acpAgent (command: string) : AgentConfig = { Protocol = "acp"; Command = command; Args = [ "acp" ]; InstructionsPath = None; Timeout = None }
 
 let private makeDeps
     (globalCfg: GlobalConfig option)

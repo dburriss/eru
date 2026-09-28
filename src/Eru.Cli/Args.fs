@@ -227,6 +227,7 @@ type InboxChannelAddArgs =
     | [<Unique>]                    Agent_Command      of command: string
     | Agent_Args                    of arg: string
     | [<Unique>]                    Agent_Instructions of path: string
+    | [<Unique>]                    Agent_Timeout      of seconds: int
     | [<AltCommandLine("-d")>]      Description of desc: string
     | [<Unique>]                    Dryrun
     | [<Unique; AltCommandLine("-o")>] Output   of format: string
@@ -238,6 +239,7 @@ type InboxChannelAddArgs =
             | Agent_Command _      -> "Executable that launches the channel's agent (e.g. opencode)."
             | Agent_Args _         -> "Argument to pass the agent's command (repeatable, e.g. --agent-args acp)."
             | Agent_Instructions _ -> "Path (absolute, or relative to the inbox) to a file prepended to every prompt this agent receives — e.g. an ingestor.md agent definition. Default: <inbox>/.agents/agents/ingestor.md, if it exists."
+            | Agent_Timeout _      -> "Seconds to wait for this agent to finish a turn before giving up. Default: 120."
             | Description _        -> "Short description of the channel."
             | Dryrun                -> "Show what would be added without writing anything."
             | Output _              -> "Output format: table (default), text, json."

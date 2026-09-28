@@ -22,6 +22,7 @@ let (|InboxChannelAddCmd|_|) (r: ParseResults<EruArgs>) =
                                     InboxChannelAdd.Command.AgentCommand      = addArgs.TryGetResult InboxChannelAddArgs.Agent_Command
                                     InboxChannelAdd.Command.AgentArgs         = addArgs.GetResults InboxChannelAddArgs.Agent_Args
                                     InboxChannelAdd.Command.AgentInstructions = addArgs.TryGetResult InboxChannelAddArgs.Agent_Instructions
+                                    InboxChannelAdd.Command.AgentTimeout      = addArgs.TryGetResult InboxChannelAddArgs.Agent_Timeout
                                     InboxChannelAdd.Command.Description       = addArgs.TryGetResult InboxChannelAddArgs.Description
                                     InboxChannelAdd.Command.DryRun            = addArgs.Contains InboxChannelAddArgs.Dryrun
                                 }

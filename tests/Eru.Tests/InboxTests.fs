@@ -146,41 +146,59 @@ let ``InboxChannelAdd adds a channel to the owning (local) config`` () =
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
     let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
     Assert.True(updated.Channels.ContainsKey "eru")
-    Assert.Equal(Some { Protocol = "acp"; Command = "opencode"; Args = [ "acp" ]; InstructionsPath = None }, updated.Channels["eru"].Agent)
+    Assert.Equal(Some { Protocol = "acp"; Command = "opencode"; Args = [ "acp" ]; InstructionsPath = None; Timeout = None }, updated.Channels["eru"].Agent)
+
+[<Fact>]
+let ``InboxChannelAdd stores an explicit --agent-timeout on the channel's AgentConfig`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let deps = makeDeps None (Some local) [] state
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = Some 300; Description = None; DryRun = false }
+    InboxChannelAdd.execute deps cmd |> ignore
+    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    Assert.Equal(Some 300, updated.Channels["eru"].Agent.Value.Timeout)
+
+[<Fact>]
+let ``InboxChannelAdd errors when --agent-timeout is given without --agent-command`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let deps = makeDeps None (Some local) [] state
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = Some 300; Description = None; DryRun = false }
+    InboxChannelAdd.execute deps cmd |> assertError
 
 [<Fact>]
 let ``InboxChannelAdd auto-populates channel 'default' with the same agent when it has none configured`` () =
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
     let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
     Assert.True(updated.Channels.ContainsKey "default")
-    Assert.Equal(Some { Protocol = "acp"; Command = "opencode"; Args = [ "acp" ]; InstructionsPath = None }, updated.Channels["default"].Agent)
+    Assert.Equal(Some { Protocol = "acp"; Command = "opencode"; Args = [ "acp" ]; InstructionsPath = None; Timeout = None }, updated.Channels["default"].Agent)
 
 [<Fact>]
 let ``InboxChannelAdd does not overwrite an already-configured agent on 'default'`` () =
     let state = newState ()
-    let existingDefaultAgent = { Description = None; Agent = Some { Protocol = "acp"; Command = "existing"; Args = []; InstructionsPath = None } }
+    let existingDefaultAgent = { Description = None; Agent = Some { Protocol = "acp"; Command = "existing"; Args = []; InstructionsPath = None; Timeout = None } }
     let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "default", existingDefaultAgent ] }
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
     let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
-    Assert.Equal(Some { Protocol = "acp"; Command = "existing"; Args = []; InstructionsPath = None }, updated.Channels["default"].Agent)
+    Assert.Equal(Some { Protocol = "acp"; Command = "existing"; Args = []; InstructionsPath = None; Timeout = None }, updated.Channels["default"].Agent)
 
 [<Fact>]
 let ``InboxChannelAdd does not double-apply the fallback when the channel being added is 'default' itself`` () =
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "default"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "default"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
     let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
     Assert.Equal(1, updated.Channels.Count)
@@ -190,7 +208,7 @@ let ``InboxChannelAdd does not auto-populate 'default' when the new channel has 
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
     let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
     Assert.False(updated.Channels.ContainsKey "default")
@@ -200,7 +218,7 @@ let ``InboxChannelAdd writes back to global config when inbox owned there`` () =
     let state = newState ()
     let g = Some { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Defaults = None }
     let deps = makeDeps g None [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
     Assert.True(state.WrittenGlobalConfig.Value.DefaultInboxes["kb"].Channels.ContainsKey "eru")
 
@@ -210,13 +228,13 @@ let ``InboxChannelAdd errors when channel already exists`` () =
     let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "eru", { Description = None; Agent = None } ] }
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
-    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; Description = None; DryRun = false }
+    let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> assertError
 
 [<Fact>]
 let ``InboxChannelList lists channels sorted by name`` () =
     let state = newState ()
-    let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "z-chan", { Description = None; Agent = None }; "a-chan", { Description = None; Agent = Some { Protocol = "acp"; Command = "opencode"; Args = []; InstructionsPath = None } } ] }
+    let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "z-chan", { Description = None; Agent = None }; "a-chan", { Description = None; Agent = Some { Protocol = "acp"; Command = "opencode"; Args = []; InstructionsPath = None; Timeout = None } } ] }
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
     let deps = makeDeps None (Some local) [] state
     let rows = InboxChannelList.execute deps "kb" |> function Ok r -> r | Error e -> failwith e
