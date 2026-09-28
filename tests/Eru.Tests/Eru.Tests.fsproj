@@ -7,6 +7,7 @@
     <ProjectReference Include="../../src/Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../../src/Eru.Adapters/Eru.Adapters.fsproj" />
     <ProjectReference Include="../../src/Eru.Site/Eru.Site.fsproj" />
+    <ProjectReference Include="../../src/Eru.Cli/Eru.Cli.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="*" />
@@ -28,6 +29,7 @@
     <Compile Include="InboxTests.fs" />
     <Compile Include="InboxSendTests.fs" />
     <Compile Include="InboxProcessTests.fs" />
+    <Compile Include="InboxWatchCliTests.fs" />
     <Compile Include="CollectionTests.fs" />
     <Compile Include="UrlParserTests.fs" />
     <Compile Include="AddTests.fs" />

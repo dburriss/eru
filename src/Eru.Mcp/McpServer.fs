@@ -33,7 +33,8 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   AllowBinaries             = Config.defaultAllowBinaries
                   SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns
                   Inboxes                   = Map.empty
-                  DefaultInbox              = None })
+                  DefaultInbox              = None
+                  InboxWatchIntervalSeconds = 30 })
             |> Config.withManifests deps.ReadCachedManifest
 
         for src in eff.Sources do

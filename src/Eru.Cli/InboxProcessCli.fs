@@ -48,7 +48,9 @@ let private pendingElsewhereNote (deps: Eru.Deps) (opts: InboxProcess.Options) :
 let private timingsSummary (timings: AgentTimings) : string =
     $"initialize: %.0f{timings.InitializeMs}ms, session/new: %.0f{timings.SessionNewMs}ms, prompt: %.0f{timings.PromptMs}ms"
 
-let private renderText (isDryRun: bool) (note: string option) (items: InboxProcess.ProcessedItem list) =
+// Not private: reused by `InboxWatchCli` to render each trigger's batch the same way
+// `inbox process`'s plain-text output does.
+let renderText (isDryRun: bool) (note: string option) (items: InboxProcess.ProcessedItem list) =
     if items.IsEmpty then
         printfn "Nothing to process."
         note |> Option.iter (printfn "%s")

@@ -78,6 +78,7 @@ let private cfg : EffectiveConfig = {
     SiteIgnorePatterns = []
     Inboxes = Map.empty
     DefaultInbox = None
+    InboxWatchIntervalSeconds = 30
 }
 
 [<Fact>]

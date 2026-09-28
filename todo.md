@@ -29,4 +29,4 @@
 - [x] TUI
 - [x] Send to local inbox
 - [x] Process local inbox
-- [ ] Watch files to process
+- [x] Watch files to process

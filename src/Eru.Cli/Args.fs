@@ -314,6 +314,19 @@ type InboxProcessArgs =
             | Dryrun    -> "Show which item(s) and agent(s) would be used, without spawning anything or moving files."
             | Output _  -> "Output format: table (default), text, json."
 
+type InboxWatchArgs =
+    | [<AltCommandLine("-i")>]     Inbox    of inbox: string
+    | [<AltCommandLine("-c")>]     Channel  of channel: string
+    | [<Unique>]                   Interval of seconds: int
+    | [<Unique>]                   Dryrun
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Inbox _    -> "Name of the configured inbox to watch. Auto-resolved when only one is configured."
+            | Channel _  -> "Restrict to one channel (default: every channel with an agent configured)."
+            | Interval _ -> "Polling fallback interval in seconds, in case filesystem events are missed (default: 30, or settings.inboxWatchIntervalSeconds from config)."
+            | Dryrun     -> "Log what each trigger would process without spawning an agent or moving files."
+
 [<CliPrefix(CliPrefix.None)>]
 type InboxArgs =
     | [<SubCommand>] Add     of ParseResults<InboxAddArgs>
@@ -322,6 +335,7 @@ type InboxArgs =
     | [<SubCommand>] Channel of ParseResults<InboxChannelArgs>
     | [<SubCommand>] Send    of ParseResults<InboxSendArgs>
     | [<SubCommand>] Process of ParseResults<InboxProcessArgs>
+    | [<SubCommand>] Watch   of ParseResults<InboxWatchArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -331,6 +345,7 @@ type InboxArgs =
             | Channel _ -> "Manage an inbox's channels."
             | Send    _ -> "Send a message, file, or URL into a configured inbox."
             | Process _ -> "Curate a raw inbox item via its channel's configured agent."
+            | Watch   _ -> "Watch an inbox and auto-process new items as they arrive."
 
 type CollectionCreateArgs =
     | [<MainCommand; ExactlyOnce>] Name        of name: string

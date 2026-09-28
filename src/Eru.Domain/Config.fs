@@ -108,6 +108,7 @@ type GlobalDefaults = {
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
     DefaultInbox: string option
+    InboxWatchIntervalSeconds: int option
 }
 
 type GlobalConfig = {
@@ -126,6 +127,7 @@ type LocalSettings = {
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
     DefaultInbox: string option
+    InboxWatchIntervalSeconds: int option
 }
 
 type LocalConfig = {
@@ -148,6 +150,7 @@ type EffectiveConfig = {
     SiteIgnorePatterns        : string list
     Inboxes                   : Map<string, InboxConfig>
     DefaultInbox              : string option
+    InboxWatchIntervalSeconds : int
 }
 
 // A single bundle's contribution of metadata for one file: either a manifest entry
@@ -458,6 +461,15 @@ module Config =
                 localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.DefaultInbox)
                 |> Option.orElse (globalCfg |> Option.bind (fun g -> g.Defaults) |> Option.bind (fun d -> d.DefaultInbox))
 
+            let inboxWatchIntervalSeconds =
+                match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.InboxWatchIntervalSeconds) with
+                | Some i -> i
+                | None   ->
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.InboxWatchIntervalSeconds)
+                    |> Option.defaultValue 30
+
             {
                 Sources      = mergedSources
                 CommitOnPull = localCommitOnPull |> Option.defaultValue globalCommitOnPull
@@ -477,6 +489,7 @@ module Config =
                 SiteIgnorePatterns = siteIgnorePatterns
                 Inboxes = mergedInboxes
                 DefaultInbox = defaultInbox
+                InboxWatchIntervalSeconds = inboxWatchIntervalSeconds
             })
 
     let withManifests

@@ -406,6 +406,44 @@ eru inbox process ripgrep-tips -c second-brain
 eru inbox process --all
 ```
 
+### `eru inbox watch`
+
+Keeps an inbox under observation and runs the same "process every pending item" logic as
+`eru inbox process --all` automatically whenever new items show up, so there's no need to run
+`process` by hand after every `inbox send`. It's the long-running counterpart to `inbox process`
+— it adds no selection, archiving, or agent-invocation logic of its own.
+
+```
+eru [--debug] inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `-i <inbox>` | Inbox to watch — auto-resolved when only one is configured |
+| `-c <channel>` | Restrict to one channel (default: every channel of the inbox with an agent configured) |
+| `--interval <seconds>` | Polling fallback period, in case filesystem events are missed (default: `30`, or `inboxWatchIntervalSeconds` from [config](config-file.md)) |
+| `--dryrun` | On every trigger, log what would be processed without spawning an agent or moving files |
+
+On start, resolves the inbox/channel scope once (failing fast on the same errors `inbox process`
+would), then prints what it's watching and blocks. A single `FileSystemWatcher` rooted one level
+above the resolved channels' raw directories reacts to new items immediately; a `PeriodicTimer`
+polls as a fallback in case filesystem events are missed on some filesystems/OSes. A short
+(~500ms) quiet period after the last filesystem event debounces a burst of activity into one
+processing pass, so a still-being-written file doesn't get picked up mid-write.
+
+Unlike a bare `inbox process --all` call, a failure partway through a batch is logged but does
+**not** stop the watch loop — the failing item stays in `raw/`, is retried on the next trigger,
+and watching continues. This is a long-running foreground command; backgrounding or daemonizing
+it (a process supervisor, a `launchd`/`systemd` unit, etc.) is left to you. `Ctrl+C` shuts it down
+gracefully, letting any in-flight batch finish its current item first.
+
+**Examples**
+
+```bash
+eru inbox watch -c eru --interval 10
+eru inbox watch --dryrun
+```
+
 ---
 
 ## `eru collection`

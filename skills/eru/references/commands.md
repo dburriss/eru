@@ -276,6 +276,21 @@ Without `-c`, only agent-having channels are in scope, so a raw item in some oth
 to it. When that leaves nothing to process, the message says so explicitly (e.g. `"3 item(s) pending in
 channel(s) with no agent configured: default (3)."`) rather than implying the inbox is truly empty.
 
+## `eru inbox watch`
+
+```
+eru inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun]
+```
+
+Long-running counterpart to `inbox process`: watches an inbox's raw directory (via a filesystem
+watcher plus a polling fallback, default every 30s, overridable per-run with `--interval` or
+persistently via `inboxWatchIntervalSeconds` in config — see
+[config-file.md](../../../docs/reference/config-file.md)) and automatically runs
+`inbox process --all` whenever new items show up, until interrupted (`Ctrl+C`). A failure partway
+through a batch is logged but doesn't stop the watch loop — the item stays in `raw/` and is
+retried next trigger. This is a foreground command; background/daemonize it yourself if you want
+it always running.
+
 ---
 
 ## `eru collection create`

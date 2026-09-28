@@ -182,6 +182,7 @@ Both blocks hold the same set of overridable options. `settings` (local) takes p
 | `AllowBinaries` | `allowBinaries` | No | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
 | `SiteIgnorePatterns` | `siteIgnorePatterns` | No | `["index.md", "log.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
 | `DefaultInbox` | `defaultInbox` | No | — | Name of the inbox `eru inbox send -i` falls back to when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
+| `InboxWatchIntervalSeconds` | `inboxWatchIntervalSeconds` | No | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
 
 Notes:
 
@@ -205,7 +206,8 @@ Notes:
     "blockPatterns": ["*.exe", "*.dll"],
     "allowPatterns": [],
     "allowBinaries": false,
-    "siteIgnorePatterns": ["index.md", "log.md"]
+    "siteIgnorePatterns": ["index.md", "log.md"],
+    "inboxWatchIntervalSeconds": 30
   }
 }
 ```
@@ -222,7 +224,8 @@ Notes:
     "blockPatterns": null,
     "allowPatterns": ["vendor/**/*.dll"],
     "allowBinaries": null,
-    "siteIgnorePatterns": ["index.md", "log.md"]
+    "siteIgnorePatterns": ["index.md", "log.md"],
+    "inboxWatchIntervalSeconds": null
   }
 }
 ```

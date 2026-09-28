@@ -286,6 +286,40 @@ module InboxProcess =
     let executeWithProgress (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) : Result<ProcessedItem list, string> =
         executeCore deps opts onItemStart onChunk
 
+    type WatchTarget = {
+        RawRootDir : string   // <inbox.Path>/<rawPath> — one level above every channel's raw subdirectory
+        InboxName  : string
+        Channels   : string list
+    }
+
+    // Resolves inbox/channel scope the same way `execute` does — same errors (inbox/channel
+    // not configured, no agent configured) — without pooling or processing anything. Used by
+    // `inbox watch` to fail fast on start and to learn the single directory a `FileSystemWatcher`
+    // needs to root at to cover every channel in scope at once.
+    let resolveWatchTarget (deps: Deps) (opts: Options) : Result<WatchTarget, string> =
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+        | Error e, _ | _, Error e -> Error e
+        | Ok globalCfg, Ok localCfg ->
+
+        match Config.merge globalCfg localCfg with
+        | Error e -> Error e
+        | Ok eff ->
+
+        match resolveInbox eff opts.InboxName with
+        | Error e -> Error e
+        | Ok (inboxName, inbox) ->
+
+        match channelsInScope inbox opts.Channel with
+        | Error e -> Error e
+        | Ok scope ->
+
+        let rawPath = inbox.RawPath |> Option.defaultValue "inbox/raw"
+        Ok {
+            RawRootDir = Path.Combine(inbox.Path, rawPath)
+            InboxName  = inboxName
+            Channels   = scope |> List.map fst
+        }
+
     // Diagnostic for the "nothing to process" case: `execute`'s default (no `-c`) scope
     // only ever looks at channels with an `Agent` configured, so a raw item sitting in any
     // other channel — including "default", which `inbox send` falls back to whenever no

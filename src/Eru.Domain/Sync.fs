@@ -129,7 +129,8 @@ module Sync =
                            AllowBinaries = Config.defaultAllowBinaries
                            SiteIgnorePatterns = Config.defaultSiteIgnorePatterns
                            Inboxes = Map.empty
-                           DefaultInbox = None }
+                           DefaultInbox = None
+                           InboxWatchIntervalSeconds = 30 }
 
         let errors = System.Collections.Generic.List<string>()
 

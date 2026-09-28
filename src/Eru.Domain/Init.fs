@@ -16,7 +16,8 @@ module Init =
     "allowPatterns": null,
     "allowBinaries": null,
     "siteIgnorePatterns": ["index.md", "log.md"],
-    "defaultInbox": null
+    "defaultInbox": null,
+    "inboxWatchIntervalSeconds": null
   }
 }
 """
@@ -35,6 +36,7 @@ module Init =
               AllowBinaries = Some Config.defaultAllowBinaries
               SiteIgnorePatterns = Some Config.defaultSiteIgnorePatterns
               DefaultInbox = None
+              InboxWatchIntervalSeconds = None
           }
         }
 

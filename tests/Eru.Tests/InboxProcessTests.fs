@@ -517,6 +517,42 @@ let ``--dryrun never calls RunAgent or MoveLocalFile`` () =
     Assert.Empty(state.RunAgentCalls)
     Assert.Empty(state.Moves)
 
+// ── resolveWatchTarget (used by `inbox watch`) ────────────────────────────────
+
+[<Fact>]
+let ``resolveWatchTarget resolves the raw root dir and every agent-enabled channel in scope`` () =
+    let state = newState ()
+    let channels =
+        Map.ofList [
+            "eru",      { Description = None; Agent = Some (acpAgent "opencode") }
+            "other",    { Description = None; Agent = Some (acpAgent "opencode") }
+            "no-agent", { Description = None; Agent = None }
+        ]
+    let deps = makeDeps None (singleInboxLocal channels) Map.empty Map.empty okAgent state
+    let target = InboxProcess.resolveWatchTarget deps emptyOpts |> function Ok t -> t | Error e -> failwith e
+    Assert.Equal("kb", target.InboxName)
+    Assert.Equal("/kb/inbox/raw", target.RawRootDir)
+    Assert.Equal<string list>([ "eru"; "other" ], target.Channels |> List.sort)
+
+[<Fact>]
+let ``resolveWatchTarget -c restricts scope to one channel`` () =
+    let state = newState ()
+    let channels =
+        Map.ofList [
+            "eru",   { Description = None; Agent = Some (acpAgent "opencode") }
+            "other", { Description = None; Agent = Some (acpAgent "opencode") }
+        ]
+    let deps = makeDeps None (singleInboxLocal channels) Map.empty Map.empty okAgent state
+    let target = InboxProcess.resolveWatchTarget deps { emptyOpts with Channel = Some "eru" } |> function Ok t -> t | Error e -> failwith e
+    Assert.Equal<string list>([ "eru" ], target.Channels)
+
+[<Fact>]
+let ``resolveWatchTarget errors the same way process does when no channel has an agent configured`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "no-agent", { Description = None; Agent = None } ]
+    let deps = makeDeps None (singleInboxLocal channels) Map.empty Map.empty okAgent state
+    InboxProcess.resolveWatchTarget deps emptyOpts |> assertError
+
 // ── Frontmatter.body ─────────────────────────────────────────────────────────
 
 [<Fact>]

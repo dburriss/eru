@@ -33,14 +33,14 @@ let ``merge uses global sources when no local config`` () =
 
 [<Fact>]
 let ``merge prefers local CommitOnPull over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = Some false; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "commitOnPull"
     Assert.True result.CommitOnPull
 
 [<Fact>]
 let ``merge uses custom StateFile from local settings`` () =
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = Some "custom.lock"; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
     let result = Config.merge None (Some l) |> unwrapOk "stateFile"
     Assert.Equal("custom.lock", result.StateFile)
 
@@ -51,9 +51,29 @@ let ``merge defaults McpRefreshIntervalMinutes to 60`` () =
 
 [<Fact>]
 let ``merge uses McpRefreshIntervalMinutes from global defaults`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = Some 30; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
     let result = Config.merge (Some g) None |> unwrapOk "mcp refresh custom"
     Assert.Equal(30, result.McpRefreshIntervalMinutes)
+
+// ── merge: InboxWatchIntervalSeconds ────────────────────────────────────────
+
+[<Fact>]
+let ``merge defaults InboxWatchIntervalSeconds to 30`` () =
+    let result = Config.merge None None |> unwrapOk "inbox watch interval default"
+    Assert.Equal(30, result.InboxWatchIntervalSeconds)
+
+[<Fact>]
+let ``merge uses InboxWatchIntervalSeconds from global defaults`` () =
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = Some 10 } }
+    let result = Config.merge (Some g) None |> unwrapOk "inbox watch interval global"
+    Assert.Equal(10, result.InboxWatchIntervalSeconds)
+
+[<Fact>]
+let ``merge prefers local InboxWatchIntervalSeconds over global default`` () =
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = Some 10 } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = Some 5 } }
+    let result = Config.merge (Some g) (Some l) |> unwrapOk "inbox watch interval local override"
+    Assert.Equal(5, result.InboxWatchIntervalSeconds)
 
 // ── merge: SiteIgnorePatterns ────────────────────────────────────────────────
 
@@ -64,14 +84,14 @@ let ``merge defaults SiteIgnorePatterns to index.md and log.md`` () =
 
 [<Fact>]
 let ``merge uses SiteIgnorePatterns from global defaults`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "draft-*.md" ]; DefaultInbox = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "draft-*.md" ]; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
     let result = Config.merge (Some g) None |> unwrapOk "site ignore global"
     Assert.Equal<string list>([ "draft-*.md" ], result.SiteIgnorePatterns)
 
 [<Fact>]
 let ``merge prefers local SiteIgnorePatterns over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "index.md"; "log.md" ]; DefaultInbox = None } }
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some []; DefaultInbox = None } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some [ "index.md"; "log.md" ]; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = Some []; DefaultInbox = None; InboxWatchIntervalSeconds = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "site ignore local override"
     Assert.Empty result.SiteIgnorePatterns
 
@@ -409,14 +429,14 @@ let ``merge appends global-only inboxes not present locally`` () =
 
 [<Fact>]
 let ``merge resolves DefaultInbox from local settings over global default`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "global-default" } }
-    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "local-default" } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "global-default"; InboxWatchIntervalSeconds = None } }
+    let l : LocalConfig = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = Some { CommitOnPull = None; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "local-default"; InboxWatchIntervalSeconds = None } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "default inbox"
     Assert.Equal(Some "local-default", result.DefaultInbox)
 
 [<Fact>]
 let ``merge falls back to global DefaultInbox when local settings do not set one`` () =
-    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "global-default" } }
+    let g = { makeGlobal [] [] with Defaults = Some { Branch = None; CommitOnPull = None; McpRefreshIntervalMinutes = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None; SiteIgnorePatterns = None; DefaultInbox = Some "global-default"; InboxWatchIntervalSeconds = None } }
     let result = Config.merge (Some g) None |> unwrapOk "global fallback"
     Assert.Equal(Some "global-default", result.DefaultInbox)
 
