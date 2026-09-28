@@ -223,18 +223,24 @@ type InboxRemoveArgs =
 
 type InboxChannelAddArgs =
     | [<MainCommand; ExactlyOnce>] Inbox_And_Channel of inbox: string * channel: string
-    | Agent                         of agent: string
+    | [<Unique>]                    Agent_Protocol     of protocol: string
+    | [<Unique>]                    Agent_Command      of command: string
+    | Agent_Args                    of arg: string
+    | [<Unique>]                    Agent_Instructions of path: string
     | [<AltCommandLine("-d")>]      Description of desc: string
     | [<Unique>]                    Dryrun
     | [<Unique; AltCommandLine("-o")>] Output   of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Inbox_And_Channel _ -> "Inbox name and channel name (e.g. knowledge eru)."
-            | Agent _             -> "Reserved: agent that processes this channel (e.g. ingestor)."
-            | Description _       -> "Short description of the channel."
-            | Dryrun               -> "Show what would be added without writing anything."
-            | Output _             -> "Output format: table (default), text, json."
+            | Inbox_And_Channel _  -> "Inbox name and channel name (e.g. knowledge eru)."
+            | Agent_Protocol _     -> "Protocol the channel's agent speaks — only 'acp' is supported (default: acp)."
+            | Agent_Command _      -> "Executable that launches the channel's agent (e.g. opencode)."
+            | Agent_Args _         -> "Argument to pass the agent's command (repeatable, e.g. --agent-args acp)."
+            | Agent_Instructions _ -> "Path (absolute, or relative to the inbox) to a file prepended to every prompt this agent receives — e.g. an ingestor.md agent definition. Default: <inbox>/.agents/agents/ingestor.md, if it exists."
+            | Description _        -> "Short description of the channel."
+            | Dryrun                -> "Show what would be added without writing anything."
+            | Output _              -> "Output format: table (default), text, json."
 
 type InboxChannelListArgs =
     | [<MainCommand; ExactlyOnce>] Inbox of inbox: string
@@ -289,6 +295,23 @@ type InboxSendArgs =
             | Dryrun    -> "Show the resolved target path without writing anything."
             | Output _  -> "Output format: table (default), text, json."
 
+type InboxProcessArgs =
+    | [<MainCommand>]              Item    of name: string
+    | [<AltCommandLine("-i")>]     Inbox   of inbox: string
+    | [<AltCommandLine("-c")>]     Channel of channel: string
+    | [<Unique>]                   All
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Item _    -> "Process this specific item instead of the oldest (exact filename or stem)."
+            | Inbox _   -> "Name of the configured inbox to process. Auto-resolved when only one is configured."
+            | Channel _ -> "Restrict to one channel (default: every channel with an agent configured)."
+            | All       -> "Process every pending item in scope, oldest first, stopping at the first failure."
+            | Dryrun    -> "Show which item(s) and agent(s) would be used, without spawning anything or moving files."
+            | Output _  -> "Output format: table (default), text, json."
+
 [<CliPrefix(CliPrefix.None)>]
 type InboxArgs =
     | [<SubCommand>] Add     of ParseResults<InboxAddArgs>
@@ -296,6 +319,7 @@ type InboxArgs =
     | [<SubCommand>] Remove  of ParseResults<InboxRemoveArgs>
     | [<SubCommand>] Channel of ParseResults<InboxChannelArgs>
     | [<SubCommand>] Send    of ParseResults<InboxSendArgs>
+    | [<SubCommand>] Process of ParseResults<InboxProcessArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -304,6 +328,7 @@ type InboxArgs =
             | Remove  _ -> "Remove an inbox."
             | Channel _ -> "Manage an inbox's channels."
             | Send    _ -> "Send a message, file, or URL into a configured inbox."
+            | Process _ -> "Curate a raw inbox item via its channel's configured agent."
 
 type CollectionCreateArgs =
     | [<MainCommand; ExactlyOnce>] Name        of name: string

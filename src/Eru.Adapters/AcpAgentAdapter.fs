@@ -1,0 +1,103 @@
+namespace Eru.Adapters
+
+// The one genuinely new piece of infrastructure in this repo: spawns a long-lived
+// subprocess and talks bidirectional stdio JSON-RPC to it over the Agent Client
+// Protocol (agentclientprotocol.com), via the Acp.Net package. Kept entirely inside
+// Eru.Adapters — Eru.Domain never references Acp.Net or System.Diagnostics.Process
+// directly, only the `RunAgent : AgentConfig -> workingDir -> prompt -> Result<string, string>`
+// shape (`Deps.RunAgent`).
+//
+// Note for anyone touching this: `Connection.ClientSideConnection`'s `Start()` is
+// what pumps `Transport.StdioTransport`'s incoming messages and correlates them to
+// pending requests — call *only* `connection.Start()` (it starts the transport for
+// you); calling `transport.Start()` yourself first throws "Transport is not in
+// Created state", and skipping `connection.Start()` entirely leaves every
+// `SendRequestAsync` call hanging until it's cancelled, with no error to explain why.
+
+open System
+open System.Diagnostics
+open System.Text
+open System.Threading
+open System.Threading.Tasks
+open Acp.Net
+open Eru
+
+module AcpAgentAdapter =
+
+    let private turnTimeout = TimeSpan.FromSeconds 120.0
+
+    let run (agent: AgentConfig) (workingDir: string) (prompt: string) : Result<string, string> =
+        if agent.Protocol <> "acp" then
+            Error $"unsupported agent protocol '{agent.Protocol}' — only 'acp' is supported."
+        else
+
+        let psi = ProcessStartInfo(agent.Command)
+        for a in agent.Args do psi.ArgumentList.Add a
+        psi.RedirectStandardInput  <- true
+        psi.RedirectStandardOutput <- true
+        psi.RedirectStandardError  <- true
+        psi.UseShellExecute        <- false
+        psi.WorkingDirectory       <- workingDir
+
+        let mutable proc : Process = null
+        try
+            try
+                proc <- Process.Start psi
+
+                use transport = new Transport.StdioTransport(proc.StandardOutput, proc.StandardInput)
+                let connection = Connection.ClientSideConnection(transport)
+                connection.Start()
+
+                // Accumulates the agent's final response from `agent_message_chunk`
+                // session/update notifications.
+                let response = StringBuilder()
+                connection.HandleSessionUpdate(fun notification ->
+                    match notification.Update with
+                    | SessionUpdate.AgentMessageChunk chunk ->
+                        match chunk.Content with
+                        | ContentBlock.Text textContent -> response.Append(textContent.Text) |> ignore
+                        | _ -> ()
+                    | _ -> ()
+                    Task.FromResult ())
+
+                use cts = new CancellationTokenSource(turnTimeout)
+
+                let clientCapabilities : ClientCapabilities =
+                    { Fs = { ReadTextFile = false; WriteTextFile = false; Meta = None }
+                      Terminal = false
+                      Session = None
+                      Elicitation = None
+                      Meta = None }
+                let initializeRequest : InitializeRequest =
+                    { ProtocolVersion = 1
+                      ClientCapabilities = clientCapabilities
+                      ClientInfo = Some { Name = "eru"; Title = None; Version = "0.1"; Meta = None }
+                      Meta = None }
+                connection.InitializeAsync(initializeRequest, cts.Token).GetAwaiter().GetResult() |> ignore
+
+                let sessionRequest : NewSessionRequest =
+                    { Cwd = workingDir; AdditionalDirectories = None; McpServers = []; Meta = None }
+                let session = connection.SessionNewAsync(sessionRequest, cts.Token).GetAwaiter().GetResult()
+
+                let promptRequest : PromptRequest =
+                    { SessionId = session.SessionId
+                      Prompt = [ ContentBlock.Text { Text = prompt; Annotations = None; Meta = None } ]
+                      Meta = None }
+                let promptResponse = connection.PromptAsync(promptRequest, cts.Token).GetAwaiter().GetResult()
+
+                connection.Close()
+
+                match promptResponse.StopReason with
+                | StopReason.EndTurn         -> Ok (response.ToString())
+                | StopReason.Refusal         -> Error "agent refused the request."
+                | StopReason.Cancelled       -> Error "agent turn was cancelled."
+                | StopReason.MaxTokens       -> Error "agent stopped early: reached its max-tokens limit."
+                | StopReason.MaxTurnRequests -> Error "agent stopped early: reached its max-turn-requests limit."
+                | _                          -> Error "agent stopped for an unrecognized reason."
+            with
+            | :? OperationCanceledException -> Error $"agent did not respond within {turnTimeout.TotalSeconds}s."
+            | ex -> Error ex.Message
+        finally
+            if not (isNull proc) then
+                (try if not proc.HasExited then proc.Kill(true) with _ -> ())
+                (try proc.Dispose() with _ -> ())

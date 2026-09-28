@@ -259,7 +259,7 @@ eru inbox add <name> <path> [--raw-path <path>] [--default-channel <channel>] [-
 
 ```bash
 eru inbox add knowledge ~/code/knowledge -g
-eru inbox add knowledge ~/code/knowledge --default-channel eru -g --dryrun
+eru inbox add knowledge ~/code/knowledge --default-channel second-brain -g --dryrun
 ```
 
 ### `eru inbox list`
@@ -284,17 +284,36 @@ eru inbox remove <name> [-g] [--dryrun]
 
 ### `eru inbox channel add`
 
-Register a channel on an existing inbox — only needed for a channel that wants extra config (currently
-just a reserved `--agent`); sending to an unregistered channel name works regardless.
+Register a channel on an existing inbox — only needed for a channel that wants extra config (a
+description, or an agent for `eru inbox process` to curate its raw items with); sending to an
+unregistered channel name works regardless.
 
 ```
-eru inbox channel add <inbox> <channel> [--agent <agent>] [-d <description>] [--dryrun]
+eru inbox channel add <inbox> <channel> [--agent-protocol acp] [--agent-command <cmd>]
+                                         [--agent-args <arg> ...] [--agent-instructions <path>]
+                                         [-d <description>] [--dryrun]
 ```
+
+`--agent-protocol` defaults to `acp` (the only supported value) if any `--agent-*` flag is given.
+`--agent-command` is required to configure an agent; `--agent-args` may be repeated.
+
+`--agent-instructions <path>` (absolute, or relative to the inbox's directory) points at a file whose
+content is prepended to every prompt sent to this channel's agent — typically an agent/subagent
+definition like Claude Code's `ingestor.md`, since the bare raw capture alone tells a generic ACP agent
+nothing about how it's expected to curate it. If omitted, `eru inbox process` still looks for
+`<inbox>/.agents/agents/ingestor.md` and uses it automatically if it exists; if that file is also
+absent, the agent just gets the raw item with no instructions prepended (not an error). An *explicitly*
+configured path that doesn't resolve to a file **is** an error.
+
+Since `inbox send` falls back to the literal channel `"default"` whenever no `-c` is given, configuring
+an agent on any *other* channel also wires that same agent onto `default` — but only if `default` isn't
+already configured with one of its own (never overwrites an explicit choice). This keeps items sent
+without `-c` from silently falling outside every channel `inbox process` knows to look at.
 
 **Examples**
 
 ```bash
-eru inbox channel add knowledge eru --agent ingestor
+eru inbox channel add knowledge second-brain --agent-command opencode --agent-args acp
 ```
 
 ### `eru inbox channel list`
@@ -336,9 +355,48 @@ A message or URL capture is written as a `.md` file with YAML frontmatter (`type
 ```bash
 eru inbox send "ripgrep --hidden still respects .gitignore"
 eru inbox send https://example.com/some-article -n "why this matters"
-eru inbox send ./notes.md -c eru
+eru inbox send ./notes.md -c second-brain
 pbpaste | eru inbox send
 eru inbox send "quick note" --dryrun
+```
+
+### `eru inbox process`
+
+Curate a raw inbox item via its channel's configured agent, over the [Agent Client
+Protocol](https://agentclientprotocol.com), then archive it. Requires at least one channel in scope to
+have an agent configured (`eru inbox channel add ... --agent-command <cmd>`).
+
+```
+eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Process this specific item instead of the oldest — matched by exact filename or by filename stem |
+| `-i <inbox>` | Inbox to process — auto-resolved when only one is configured |
+| `-c <channel>` | Restrict to one channel (default: every channel of the inbox with an agent configured) |
+| `--all` | Process every pending item in scope, oldest first, stopping at the first failure |
+| `--dryrun` | Show which item(s) and agent(s) would be used, without spawning anything or moving files |
+
+"Pending" means "still under `<inbox>`'s raw folder" — there's no separate status field. Items across
+every channel in scope are pooled and sorted oldest-first by filename (capture filenames are
+timestamp-prefixed, so this is also chronological order). On success, the raw item (and its
+`.meta.json` sidecar, if any) is moved from `.../raw/<channel>/` to `.../archive/<channel>/`, mirroring
+the layout a human-run curation pass already produces by hand.
+
+Without `-c`, only channels with an agent configured are in scope — a raw item sitting in some other
+channel (including `default`, which `inbox send` falls back to with no `-c`; see `inbox channel add`'s
+auto-wiring behavior above) is invisible to the default scope. When that leaves nothing to process,
+the output says so explicitly (e.g. `"3 item(s) pending in channel(s) with no agent configured:
+default (3)."`) instead of implying the inbox is genuinely empty.
+
+**Examples**
+
+```bash
+eru inbox process --dryrun
+eru inbox process
+eru inbox process ripgrep-tips -c second-brain
+eru inbox process --all
 ```
 
 ---

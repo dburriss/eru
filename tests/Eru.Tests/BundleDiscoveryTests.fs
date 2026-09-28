@@ -37,6 +37,10 @@ let private makeDeps
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
         DirectoryExists        = fun _ -> true
         GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
+        ListLocalFiles   = fun _ -> Ok []
+        ListLocalDirectories = fun _ -> Ok []
+        MoveLocalFile    = fun _ _ -> Ok ()
+        RunAgent         = fun _ _ _ -> Ok ""
     }
 
 let private rootBundle : Bundle = { Path = ""; Kind = Okf }

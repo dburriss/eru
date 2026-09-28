@@ -20,6 +20,21 @@ module Frontmatter =
             | Some closeIdx ->
                 lines.[1 .. closeIdx] |> String.concat "\n" |> Some
 
+    /// Returns `content` with a leading "---"..."---" frontmatter block (if any)
+    /// stripped, verbatim otherwise — for building an agent prompt from a raw
+    /// `.md` capture without re-embedding its YAML.
+    let body (content: string) : string =
+        let lines = content.Split([| "\r\n"; "\n" |], System.StringSplitOptions.None)
+        if lines.Length < 2 || lines.[0].Trim() <> "---" then
+            content
+        else
+            match lines |> Array.skip 1 |> Array.tryFindIndex (fun l -> l.Trim() = "---") with
+            | None -> content
+            | Some closeIdx ->
+                let bodyStartLine = closeIdx + 2
+                if bodyStartLine >= lines.Length then ""
+                else lines.[bodyStartLine ..] |> String.concat "\n" |> fun s -> s.TrimStart('\n', '\r')
+
     let parse (parseYaml: Yaml.Parse) (content: string) : FrontmatterMap =
         match extractBlock content with
         | None -> empty

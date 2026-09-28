@@ -16,11 +16,14 @@ let (|InboxChannelAddCmd|_|) (r: ParseResults<EruArgs>) =
                             let inboxName, channelName = addArgs.GetResult InboxChannelAddArgs.Inbox_And_Channel
                             Some {
                                 Command = {
-                                    InboxChannelAdd.Command.InboxName   = inboxName
-                                    InboxChannelAdd.Command.ChannelName = channelName
-                                    InboxChannelAdd.Command.Agent       = addArgs.TryGetResult InboxChannelAddArgs.Agent
-                                    InboxChannelAdd.Command.Description = addArgs.TryGetResult InboxChannelAddArgs.Description
-                                    InboxChannelAdd.Command.DryRun      = addArgs.Contains InboxChannelAddArgs.Dryrun
+                                    InboxChannelAdd.Command.InboxName         = inboxName
+                                    InboxChannelAdd.Command.ChannelName       = channelName
+                                    InboxChannelAdd.Command.AgentProtocol     = addArgs.TryGetResult InboxChannelAddArgs.Agent_Protocol
+                                    InboxChannelAdd.Command.AgentCommand      = addArgs.TryGetResult InboxChannelAddArgs.Agent_Command
+                                    InboxChannelAdd.Command.AgentArgs         = addArgs.GetResults InboxChannelAddArgs.Agent_Args
+                                    InboxChannelAdd.Command.AgentInstructions = addArgs.TryGetResult InboxChannelAddArgs.Agent_Instructions
+                                    InboxChannelAdd.Command.Description       = addArgs.TryGetResult InboxChannelAddArgs.Description
+                                    InboxChannelAdd.Command.DryRun            = addArgs.Contains InboxChannelAddArgs.Dryrun
                                 }
                                 Format = parseFormat (addArgs.TryGetResult InboxChannelAddArgs.Output)
                             }

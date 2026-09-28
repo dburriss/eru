@@ -27,6 +27,7 @@
     <Compile Include="SourceBundleTests.fs" />
     <Compile Include="InboxTests.fs" />
     <Compile Include="InboxSendTests.fs" />
+    <Compile Include="InboxProcessTests.fs" />
     <Compile Include="CollectionTests.fs" />
     <Compile Include="UrlParserTests.fs" />
     <Compile Include="AddTests.fs" />

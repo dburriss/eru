@@ -53,6 +53,10 @@ let private makeDeps
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
         DirectoryExists         = fun p -> List.contains p existingDirs
         GetUtcNow               = fun () -> fixedNow
+        ListLocalFiles          = fun _ -> Ok []
+        ListLocalDirectories = fun _ -> Ok []
+        MoveLocalFile           = fun _ _ -> Ok ()
+        RunAgent                = fun _ _ _ -> Ok ""
     }
 
 let private makeInbox path : InboxConfig =

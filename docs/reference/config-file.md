@@ -133,7 +133,16 @@ without a breaking schema change.
 | Field | JSON key | Required | Description |
 |---|---|---|---|
 | `Description` | `description` | No | Free-text description. |
-| `Agent` | `agent` | No | Reserved for future use: which agent processes this channel (e.g. `"ingestor"`). |
+| `Agent` | `agent` | No | `AgentConfig` — which agent `eru inbox process` uses to curate this channel's raw items. Absent means the channel is skipped by `inbox process`'s default (no `-c`) scope. |
+
+### `AgentConfig`
+
+| Field | JSON key | Required | Description |
+|---|---|---|---|
+| `Protocol` | `protocol` | Yes | Only `"acp"` ([Agent Client Protocol](https://agentclientprotocol.com)) is supported in v1. |
+| `Command` | `command` | Yes | Executable that launches the agent (e.g. `"opencode"`). |
+| `Args` | `args` | Yes | Arguments passed to `Command` (e.g. `["acp"]`). |
+| `InstructionsPath` | `instructionsPath` | No | Absolute path, or path relative to the inbox's `path`, to a file prepended to every prompt this agent receives (e.g. an `ingestor.md` agent definition) — the raw capture alone doesn't tell a generic ACP agent what to do with it. If absent, `eru inbox process` falls back to `<inbox path>/.agents/agents/ingestor.md` if it exists, else proceeds with no instructions. |
 
 ```json
 {
@@ -143,7 +152,7 @@ without a breaking schema change.
       "rawPath": "inbox/raw",
       "defaultChannel": "default",
       "channels": {
-        "eru": { "agent": "ingestor" }
+        "second-brain": { "agent": { "protocol": "acp", "command": "opencode", "args": ["acp"] } }
       }
     }
   }

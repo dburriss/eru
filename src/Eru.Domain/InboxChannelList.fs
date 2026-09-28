@@ -5,7 +5,7 @@ module InboxChannelList =
     type ChannelRow = {
         Name        : string
         Description : string option
-        Agent       : string option
+        Agent       : AgentConfig option
     }
 
     let execute (deps: Deps) (inboxName: string) : Result<ChannelRow list, string> =

@@ -23,12 +23,16 @@ let (|InboxChannelListCmd|_|) (r: ParseResults<EruArgs>) =
                 | _ -> None)
         | _ -> None)
 
+let private agentSummary (agent: AgentConfig) : string =
+    let argsStr = agent.Args |> String.concat " "
+    if argsStr = "" then $"{agent.Protocol}:{agent.Command}" else $"{agent.Protocol}:{agent.Command} {argsStr}"
+
 let private renderText (rows: InboxChannelList.ChannelRow list) =
     if rows.IsEmpty then
         printfn "No channels registered."
     else
         for row in rows do
-            let agent = row.Agent |> Option.map (fun a -> $" [agent: {a}]") |> Option.defaultValue ""
+            let agent = row.Agent |> Option.map (fun a -> $" [agent: {agentSummary a}]") |> Option.defaultValue ""
             printfn $"  {row.Name}{agent}"
 
 let private renderJson (rows: InboxChannelList.ChannelRow list) =
@@ -41,7 +45,7 @@ let private renderTable (rows: InboxChannelList.ChannelRow list) =
     else
         let t = makeTable ["Name"; "Agent"; "Description"]
         for row in rows do
-            t.AddRow(row.Name, row.Agent |> Option.defaultValue "", row.Description |> Option.defaultValue "") |> ignore
+            t.AddRow(row.Name, row.Agent |> Option.map agentSummary |> Option.defaultValue "", row.Description |> Option.defaultValue "") |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

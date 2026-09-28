@@ -60,14 +60,32 @@ type CollectionConfig = {
     Description: string option
 }
 
+// How `eru inbox process` curates a channel's raw items: launched as
+// `Command Args` and driven over the Agent Client Protocol (agentclientprotocol.com).
+// "acp" is the only supported Protocol value in v1.
+type AgentConfig = {
+    Protocol         : string
+    Command          : string
+    Args             : string list
+    // Path (absolute, or relative to the inbox's Path) to a file whose content is
+    // prepended to every prompt `eru inbox process` sends this agent — typically an
+    // agent/subagent definition (e.g. Claude Code's `ingestor.md`) that tells an
+    // otherwise-generic ACP agent how to curate a raw item, since the bare captured
+    // text alone carries no such instructions. When absent, `InboxProcess` falls back
+    // to `.agents/agents/ingestor.md` under the inbox if that file happens to exist,
+    // and proceeds with no instructions (not an error) if it doesn't.
+    InstructionsPath : string option
+}
+
 // An inbox is a local filesystem write-target (e.g. a knowledge repo checkout) that
 // `eru inbox send` drops captured messages/files/URLs into. Entirely unrelated to
 // SourceConfig/Sources — a source is somewhere eru *pulls from*, an inbox is somewhere
 // eru *writes to*. Channels are a map (not a list) and left mostly empty by design: an
-// entry is only needed for a channel that wants extra config (e.g. a future `Agent`).
+// entry is only needed for a channel that wants extra config (e.g. `Agent`, which
+// `eru inbox process` uses to curate that channel's raw items).
 type InboxChannelConfig = {
     Description : string option
-    Agent       : string option
+    Agent       : AgentConfig option
 }
 
 type InboxConfig = {

@@ -79,6 +79,7 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="InboxChannelListCli.fs" />
     <Compile Include="InboxChannelRemoveCli.fs" />
     <Compile Include="InboxSendCli.fs" />
+    <Compile Include="InboxProcessCli.fs" />
     <Compile Include="CollectionCreateCli.fs" />
     <Compile Include="CollectionAddFileCli.fs" />
     <Compile Include="CollectionRemoveFileCli.fs" />

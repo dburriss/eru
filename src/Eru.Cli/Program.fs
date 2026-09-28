@@ -22,6 +22,7 @@ open Eru.Cli.InboxChannelAddCli
 open Eru.Cli.InboxChannelListCli
 open Eru.Cli.InboxChannelRemoveCli
 open Eru.Cli.InboxSendCli
+open Eru.Cli.InboxProcessCli
 open Eru.Cli.CollectionCreateCli
 open Eru.Cli.CollectionAddFileCli
 open Eru.Cli.CollectionRemoveFileCli
@@ -73,6 +74,7 @@ let main argv =
         | InboxChannelListCmd cmd     -> InboxChannelListCli.run deps cmd
         | InboxChannelRemoveCmd cmd   -> InboxChannelRemoveCli.run deps cmd
         | InboxSendCmd cmd            -> InboxSendCli.run deps cmd
+        | InboxProcessCmd cmd         -> InboxProcessCli.run deps cmd
         | CollectionCreateCmd cmd     -> CollectionCreateCli.run deps cmd
         | CollectionAddFileCmd cmd    -> CollectionAddFileCli.run deps cmd
         | CollectionRemoveFileCmd cmd -> CollectionRemoveFileCli.run deps cmd

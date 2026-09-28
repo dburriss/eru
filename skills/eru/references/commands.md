@@ -195,17 +195,29 @@ eru inbox remove <name> [-g] [--dryrun]
 ## `eru inbox channel add`
 
 ```
-eru inbox channel add <inbox> <channel> [--agent <agent>] [-d <description>] [--dryrun]
+eru inbox channel add <inbox> <channel> [--agent-protocol acp] [--agent-command <cmd>]
+                                         [--agent-args <arg> ...] [--agent-instructions <path>]
+                                         [-d <description>] [--dryrun]
 ```
 
 | Argument / Flag | Description |
 |---|---|
 | `<inbox> <channel>` | Inbox name and channel name (required) |
-| `--agent <agent>` | Reserved: agent that processes this channel (e.g. `ingestor`) |
+| `--agent-protocol <protocol>` | Only `acp` is supported; defaults to `acp` if any `--agent-*` flag is given |
+| `--agent-command <cmd>` | Executable that launches the channel's agent (e.g. `opencode`); required to configure an agent |
+| `--agent-args <arg>` | Argument to pass the agent's command (repeatable) |
+| `--agent-instructions <path>` | File (absolute, or relative to the inbox) prepended to every prompt this agent receives, e.g. an `ingestor.md` agent definition. Default: `<inbox>/.agents/agents/ingestor.md`, if it exists |
 | `-d <description>` | Short description of the channel |
 | `--dryrun` | Show what would be added without writing anything |
 
-A channel need only be registered here if it wants extra config (e.g. `--agent`) — `inbox send -c <channel>` works against any channel name without prior registration.
+A channel need only be registered here if it wants extra config (a description, or an agent for
+`eru inbox process` to curate its raw items) — `inbox send -c <channel>` works against any channel name
+without prior registration.
+
+Since `inbox send` falls back to the literal channel `default` when no `-c` is given, configuring an
+agent on any other channel also wires that same agent onto `default`, unless `default` already has one
+of its own — so items sent without `-c` don't silently fall outside every channel `inbox process` knows
+to look at.
 
 ## `eru inbox channel list`
 
@@ -238,6 +250,28 @@ eru inbox send [<content>] [-i <inbox>] [-c <channel>] [-t <title>] [-n <note>] 
 | `--dryrun` | Show the resolved target path without writing anything |
 
 Content-type is auto-detected: an `http(s)://` string is a URL capture; an existing local file path is a file capture; anything else is a plain-text message capture. Message and URL captures are written as `.md` with YAML frontmatter (`type: raw`, `resource`, `generated`); a file capture is copied verbatim alongside a `<name>.meta.json` sidecar (`captured_at`, `original_url`). `inbox send` works with only a global config present — no local `.eru/config.json`/`eru init` is required.
+
+## `eru inbox process`
+
+```
+eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Process this specific item instead of the oldest (exact filename or stem) |
+| `-i <inbox>` | Inbox to process — auto-resolved when only one is configured |
+| `-c <channel>` | Restrict to one channel (default: every channel with an agent configured) |
+| `--all` | Process every pending item in scope, oldest first, stopping at the first failure |
+| `--dryrun` | Show which item(s)/agent(s) would be used, without spawning anything or moving files |
+
+Hands the oldest (or named) raw item to its channel's configured agent over the Agent Client Protocol
+to curate, then archives it (`.../raw/<channel>/` → `.../archive/<channel>/`) on success. Requires at
+least one channel in scope to have an `agent` configured via `inbox channel add`.
+
+Without `-c`, only agent-having channels are in scope, so a raw item in some other channel is invisible
+to it. When that leaves nothing to process, the message says so explicitly (e.g. `"3 item(s) pending in
+channel(s) with no agent configured: default (3)."`) rather than implying the inbox is truly empty.
 
 ---
 

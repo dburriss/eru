@@ -30,6 +30,7 @@
     <Compile Include="InboxChannelList.fs" />
     <Compile Include="InboxChannelRemove.fs" />
     <Compile Include="InboxSend.fs" />
+    <Compile Include="InboxProcess.fs" />
     <Compile Include="CollectionCreate.fs" />
     <Compile Include="CollectionAddFile.fs" />
     <Compile Include="CollectionRemoveFile.fs" />

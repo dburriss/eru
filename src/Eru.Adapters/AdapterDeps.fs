@@ -83,4 +83,22 @@ module AdapterDeps =
             GetRemoteHeadSha         = GitAdapter.getRemoteHeadSha
             DirectoryExists          = Directory.Exists
             GetUtcNow                = fun () -> DateTimeOffset.UtcNow
+            ListLocalFiles           = fun dir ->
+                try
+                    if not (Directory.Exists dir) then Ok []
+                    else Ok (Directory.GetFiles dir |> Array.toList)
+                with ex -> Error ex.Message
+            ListLocalDirectories     = fun dir ->
+                try
+                    if not (Directory.Exists dir) then Ok []
+                    else Ok (Directory.GetDirectories dir |> Array.toList)
+                with ex -> Error ex.Message
+            MoveLocalFile            = fun src dst ->
+                try
+                    let dir = Path.GetDirectoryName dst
+                    if dir <> null && dir <> "" then Directory.CreateDirectory dir |> ignore
+                    File.Move(src, dst)
+                    Ok ()
+                with ex -> Error ex.Message
+            RunAgent                 = AcpAgentAdapter.run
         }
