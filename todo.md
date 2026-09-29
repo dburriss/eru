@@ -30,3 +30,6 @@
 - [x] Send to local inbox
 - [x] Process local inbox
 - [x] Watch files to process
+- [x] apm skills, mcp, agent
+- [x] update docs
+- [ ] fix: eru to use .agents/agents/ingestor.md or discover it
