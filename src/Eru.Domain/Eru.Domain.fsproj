@@ -46,4 +46,7 @@
     <Compile Include="OkfValidate.fs" />
     <Compile Include="LinkGraph.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../agents/ingestor.agent.md" LogicalName="Eru.Domain.DefaultIngestorInstructions.md" />
+  </ItemGroup>
 </Project>

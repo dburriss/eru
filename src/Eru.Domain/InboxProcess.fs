@@ -1,6 +1,7 @@
 namespace Eru
 
 open System.IO
+open System.Reflection
 
 module InboxProcess =
 
@@ -124,23 +125,78 @@ module InboxProcess =
     // is typically a symlink into this directory).
     let private defaultInstructionsRelPath = ".agents/agents/ingestor.md"
 
+    // Tier 2 of the implicit fallback chain: known coding-agent CLIs each already have
+    // their own well-known home for a project's agent/subagent definitions. Keyed by the
+    // launched command's basename (directory components and a trailing `.exe` stripped) —
+    // `Args` is ignored entirely, since it's the executable identity, not how it's
+    // invoked, that determines which tool's convention applies. The curated file is always
+    // named "ingestor" (matching this repo's own `agents/ingestor.agent.md`), not a
+    // per-agent registry of arbitrary names.
+    let private apmInstructionsPaths =
+        Map.ofList [
+            "claude",       ".claude/agents/ingestor.md"
+            "opencode",     ".opencode/agents/ingestor.md"
+            "cursor-agent", ".cursor/agents/ingestor.md"
+            "codex",        ".codex/agents/ingestor.md"
+            "copilot",      ".github/agents/ingestor.agent.md"
+        ]
+
+    // Strips directory components and a trailing `.exe` (case-insensitive) from an
+    // `AgentConfig.Command` string, so "claude", "/usr/local/bin/claude" and
+    // "C:\tools\claude.exe" all resolve to the same apm lookup key.
+    let private commandBasename (command: string) : string =
+        let name = Path.GetFileName command
+        if name.EndsWith(".exe", System.StringComparison.OrdinalIgnoreCase)
+        then name.Substring(0, name.Length - 4)
+        else name
+
+    // Tier 3, the final fallback: eru's own built-in curation instructions, embedded from
+    // the real, checked-in `agents/ingestor.agent.md` (repo root) at build time — see
+    // `Eru.Domain.fsproj`'s `EmbeddedResource`. Single source of truth; never duplicated
+    // as a string literal here. Always succeeds (barring a build misconfiguration), so
+    // it's read once and memoized rather than re-read per item.
+    let private defaultInstructionsResourceName = "Eru.Domain.DefaultIngestorInstructions.md"
+
+    let private defaultInstructions : Lazy<string> =
+        lazy (
+            let asm = Assembly.GetExecutingAssembly()
+            use stream = asm.GetManifestResourceStream(defaultInstructionsResourceName)
+            if isNull stream then
+                failwith $"embedded resource '{defaultInstructionsResourceName}' not found in {asm.FullName} — was it removed from Eru.Domain.fsproj?"
+            use reader = new StreamReader(stream)
+            reader.ReadToEnd()
+        )
+
     // The bare raw content alone carries no instructions for what an otherwise-generic ACP
-    // agent should actually do with it — this resolves the instructions file (if any) to
-    // prepend to the prompt so the agent knows to curate rather than just reply
-    // conversationally. An explicitly-configured `InstructionsPath` that doesn't resolve is
-    // a real error (misconfiguration); the implicit default is best-effort — its absence
-    // just means no instructions get prepended.
-    let private resolveInstructions (deps: Deps) (inbox: InboxConfig) (agent: AgentConfig) : Result<string option, string> =
-        let isExplicit = agent.InstructionsPath.IsSome
-        let path =
-            match agent.InstructionsPath with
-            | Some p when Path.IsPathRooted p -> p
-            | Some p -> Path.Combine(inbox.Path, p)
-            | None -> Path.Combine(inbox.Path, defaultInstructionsRelPath)
-        match deps.ReadLocalFile path with
-        | Error e -> Error e
-        | Ok (Some content) -> Ok (Some content)
-        | Ok None -> if isExplicit then Error $"agent instructions file '{path}' not found." else Ok None
+    // agent should actually do with it — this resolves the instructions to prepend to the
+    // prompt so the agent knows to curate rather than just reply conversationally. An
+    // explicitly-configured `InstructionsPath` that doesn't resolve is a real error
+    // (misconfiguration). The implicit chain (repo convention → tool-specific apm
+    // convention → eru's own built-in default) is best-effort at each of its first two
+    // tiers but always terminates in real content, since the built-in default is
+    // unconditional.
+    let private resolveInstructions (deps: Deps) (inbox: InboxConfig) (agent: AgentConfig) : Result<string, string> =
+        match agent.InstructionsPath with
+        | Some p ->
+            let path = if Path.IsPathRooted p then p else Path.Combine(inbox.Path, p)
+            match deps.ReadLocalFile path with
+            | Error e -> Error e
+            | Ok (Some content) -> Ok content
+            | Ok None -> Error $"agent instructions file '{path}' not found."
+        | None ->
+            let defaultPath = Path.Combine(inbox.Path, defaultInstructionsRelPath)
+            match deps.ReadLocalFile defaultPath with
+            | Error e -> Error e
+            | Ok (Some content) -> Ok content
+            | Ok None ->
+                match Map.tryFind (commandBasename agent.Command) apmInstructionsPaths with
+                | None -> Ok defaultInstructions.Value
+                | Some apmRelPath ->
+                    let apmPath = Path.Combine(inbox.Path, apmRelPath)
+                    match deps.ReadLocalFile apmPath with
+                    | Error e -> Error e
+                    | Ok (Some content) -> Ok content
+                    | Ok None -> Ok defaultInstructions.Value
 
     let private buildPrompt (deps: Deps) (inbox: InboxConfig) (item: PooledItem) : Result<string, string> =
         let itemContent =
@@ -158,8 +214,7 @@ module InboxProcess =
 
         match resolveInstructions deps inbox item.Agent with
         | Error e -> Error e
-        | Ok None -> Ok itemContent
-        | Ok (Some instructions) ->
+        | Ok instructions ->
             Ok (instructions.TrimEnd() + "\n\n---\n\nCurate the following raw inbox item:\n\n" + itemContent)
 
     // Replaces the last "raw" path segment of the inbox's configured RawPath with

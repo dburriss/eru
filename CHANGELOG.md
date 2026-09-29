@@ -11,6 +11,11 @@
 - Added `SiteIgnorePattern` with default values of "index.md" and "log.md" to ignore OKF structure files when generating site pages
 - OKF bundle discovery on sources
 - `eru inbox` commands for handling inboxes/channels and sending to inboxes
+- `eru inbox process` command to run pending inbox items through their channel's configured ACP agent, archiving processed items; supports `--inbox`, `--channel`, `--item`, `--all`, `--dryrun`, and `--output`; `--debug` also reports per-item agent handshake timings (initialize/session-new/prompt)
+- `eru inbox watch` command to watch an inbox's raw directory and automatically run `inbox process` on new items, debounced and also polled on a configurable interval (`--interval`, default from config); supports `--dryrun` and `--debug`
+- `--agent-timeout` option on `eru inbox channel add` to bound how long an ACP agent call may run; the timeout is a liveness check (reset on any agent activity) rather than a fixed deadline
+- ACP agent output is streamed as it arrives instead of only being shown once the call completes
+- `eru inbox process` now falls back further when a channel has no `--agent-instructions` configured and `<inbox>/.agents/agents/ingestor.md` doesn't exist: it checks a tool-specific convention path derived from `--agent-command` (e.g. `.claude/agents/ingestor.md` for `claude`), and finally falls back to eru's own built-in curation instructions — so a channel's agent always receives some curation instructions
 
 ### Changed
 

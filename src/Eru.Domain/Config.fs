@@ -71,9 +71,12 @@ type AgentConfig = {
     // prepended to every prompt `eru inbox process` sends this agent — typically an
     // agent/subagent definition (e.g. Claude Code's `ingestor.md`) that tells an
     // otherwise-generic ACP agent how to curate a raw item, since the bare captured
-    // text alone carries no such instructions. When absent, `InboxProcess` falls back
-    // to `.agents/agents/ingestor.md` under the inbox if that file happens to exist,
-    // and proceeds with no instructions (not an error) if it doesn't.
+    // text alone carries no such instructions. When absent, `InboxProcess` resolves a
+    // fallback chain instead: `.agents/agents/ingestor.md` under the inbox if it exists,
+    // else a convention keyed by `Command`'s executable name (e.g. `.claude/agents/ingestor.md`
+    // for "claude"), else eru's own built-in curation instructions — this last tier
+    // always succeeds, so an implicit `InstructionsPath` never leaves an agent with no
+    // instructions at all.
     InstructionsPath : string option
     // Per-agent override for how long `eru inbox process` waits for this agent to
     // finish a turn (init + session + full prompt round-trip), in seconds. When absent,

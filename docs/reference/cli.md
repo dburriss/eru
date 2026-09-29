@@ -300,10 +300,20 @@ eru inbox channel add <inbox> <channel> [--agent-protocol acp] [--agent-command 
 `--agent-instructions <path>` (absolute, or relative to the inbox's directory) points at a file whose
 content is prepended to every prompt sent to this channel's agent — typically an agent/subagent
 definition like Claude Code's `ingestor.md`, since the bare raw capture alone tells a generic ACP agent
-nothing about how it's expected to curate it. If omitted, `eru inbox process` still looks for
-`<inbox>/.agents/agents/ingestor.md` and uses it automatically if it exists; if that file is also
-absent, the agent just gets the raw item with no instructions prepended (not an error). An *explicitly*
-configured path that doesn't resolve to a file **is** an error.
+nothing about how it's expected to curate it. If omitted, `eru inbox process` resolves instructions
+through a fallback chain, using whichever tier finds a file first:
+
+1. `<inbox>/.agents/agents/ingestor.md`, if it exists.
+2. A tool-specific convention keyed by `--agent-command`'s executable name — e.g. `.claude/agents/ingestor.md`
+   for `claude`, `.opencode/agents/ingestor.md` for `opencode`, `.cursor/agents/ingestor.md` for
+   `cursor-agent`, `.codex/agents/ingestor.md` for `codex`, `.github/agents/ingestor.agent.md` for
+   `copilot` — checked relative to the inbox's directory.
+3. Eru's own built-in curation instructions, bundled with eru itself — this tier always succeeds, so
+   every channel with an agent configured gets *some* curation instructions even with no `.agents/`,
+   `.claude/`, etc. set up in the inbox.
+
+An *explicitly* configured `--agent-instructions <path>` that doesn't resolve to a file **is** an error
+(this fallback chain only applies when `--agent-instructions` is omitted).
 
 Since `inbox send` falls back to the literal channel `"default"` whenever no `-c` is given, configuring
 an agent on any *other* channel also wires that same agent onto `default` — but only if `default` isn't

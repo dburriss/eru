@@ -32,4 +32,4 @@
 - [x] Watch files to process
 - [x] apm skills, mcp, agent
 - [x] update docs
-- [ ] fix: eru to use .agents/agents/ingestor.md or discover it
+- [x] fix: eru to use .agents/agents/ingestor.md or discover it

@@ -238,7 +238,7 @@ type InboxChannelAddArgs =
             | Agent_Protocol _     -> "Protocol the channel's agent speaks — only 'acp' is supported (default: acp)."
             | Agent_Command _      -> "Executable that launches the channel's agent (e.g. opencode)."
             | Agent_Args _         -> "Argument to pass the agent's command (repeatable, e.g. --agent-args acp)."
-            | Agent_Instructions _ -> "Path (absolute, or relative to the inbox) to a file prepended to every prompt this agent receives — e.g. an ingestor.md agent definition. Default: <inbox>/.agents/agents/ingestor.md, if it exists."
+            | Agent_Instructions _ -> "Path (absolute, or relative to the inbox) to a file prepended to every prompt this agent receives — e.g. an ingestor.md agent definition. Default: <inbox>/.agents/agents/ingestor.md if it exists, else a tool-specific convention for --agent-command (e.g. .claude/agents/ingestor.md, .opencode/agents/ingestor.md), else eru's own built-in curation instructions."
             | Agent_Timeout _      -> "Idle timeout in seconds: how long to wait with no activity from this agent before giving up (resets on every update it streams). Default: 120."
             | Description _        -> "Short description of the channel."
             | Dryrun                -> "Show what would be added without writing anything."

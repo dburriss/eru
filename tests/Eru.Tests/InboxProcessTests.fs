@@ -347,15 +347,49 @@ let ``prompt prepends the default .agents/agents/ingestor.md instructions when p
     Assert.Contains("we need a documentation bundle", prompt)
 
 [<Fact>]
-let ``prompt is just the item content when no instructions file exists anywhere`` () =
+let ``prompt falls back to eru's built-in instructions when no repo or tool-specific instructions file exists`` () =
     let state = newState ()
-    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "opencode") } ]
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "my-wrapper.sh") } ]
     let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
     let contents = Map.ofList [ "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "we need a documentation bundle" ]
     let deps = makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
     InboxProcess.execute deps emptyOpts |> ignore
     let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
-    Assert.Equal("we need a documentation bundle", prompt)
+    Assert.Contains("You curate raw captured material in `inbox/raw/`", prompt)
+    Assert.Contains("we need a documentation bundle", prompt)
+
+[<Fact>]
+let ``prompt uses the apm-managed instructions path for a recognized agent command when the repo default is absent`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "claude") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let contents =
+        Map.ofList [
+            "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "we need a documentation bundle"
+            "/kb/.claude/agents/ingestor.md", "Claude-specific curation instructions."
+        ]
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
+    InboxProcess.execute deps emptyOpts |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.Contains("Claude-specific curation instructions.", prompt)
+    Assert.DoesNotContain("You curate raw captured material in `inbox/raw/`", prompt)
+
+[<Fact>]
+let ``tier 1 default wins over a matching apm-managed path when both are present`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "claude") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let contents =
+        Map.ofList [
+            "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "we need a documentation bundle"
+            "/kb/.agents/agents/ingestor.md", "Repo-convention instructions."
+            "/kb/.claude/agents/ingestor.md", "Should not be used."
+        ]
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
+    InboxProcess.execute deps emptyOpts |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.Contains("Repo-convention instructions.", prompt)
+    Assert.DoesNotContain("Should not be used.", prompt)
 
 [<Fact>]
 let ``prompt prepends an explicitly-configured InstructionsPath instead of the default`` () =
