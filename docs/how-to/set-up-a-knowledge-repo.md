@@ -65,7 +65,7 @@ dependencies:
     - dburriss/eru/skills/eru
     - dburriss/eru/skills/semantic-search
     - dburriss/eru/skills/organizing-documentation
-    - dburriss/eru/agents/ingestor
+    - dburriss/eru/agents/ingestor.agent.md
   mcp:
     - name: eru
       registry: false
