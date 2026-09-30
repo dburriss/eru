@@ -6,7 +6,6 @@ description: >-
   "process the inbox", "ingest raw notes", or after material has been
   captured into inbox/raw/ (e.g. via `eru inbox add`). Runs until
   inbox/raw/ is empty, one commit per raw item processed.
-tools: Read, Write, Edit, Bash, Grep, Glob
 license: MIT
 metadata:
   category: knowledge-management
