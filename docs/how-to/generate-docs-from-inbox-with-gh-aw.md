@@ -9,10 +9,12 @@ tags: [inbox, github-actions, gh-aw, ingestor, ci, security]
 [Locally](use-send-and-watch-locally.md), `eru inbox watch` runs the `ingestor` agent as raw items
 arrive. To get the same curation from CI instead — so pushing a raw capture is enough, with no watcher
 left running anywhere — wire up a [GitHub Agentic Workflow](https://github.github.com/gh-aw/) (`gh-aw`)
-that triggers on changes under `inbox/raw/` and runs the same `ingestor.md` instructions.
+that triggers on changes under `inbox/raw/` and runs the same ingestor instructions.
 
-This assumes a [knowledge repo already set up](set-up-a-knowledge-repo.md) with `.agents/agents/ingestor.md`
-in place.
+This assumes a [knowledge repo already set up](set-up-a-knowledge-repo.md) with the `ingestor` agent
+installed via `apm`. gh-aw runs on the Copilot engine, so add `copilot` to `targets` in `apm.yml`
+(`targets: [claude, copilot]`) and re-run `apm install`; that installs the agent to
+`.github/agents/ingestor.agent.md`, which the workflow below reads.
 
 There's a simpler alternative: [a plain GitHub Action that calls `eru inbox process --all`
 directly](generate-docs-from-inbox-with-a-plain-action.md) — no `gh-aw` dependency, and it reuses the
@@ -47,7 +49,7 @@ safe-outputs:
 # Inbox Curator
 
 Raw material was just pushed to `inbox/raw/`. Follow the instructions in
-`.agents/agents/ingestor.md` at the repo root and curate every pending item
+`.github/agents/ingestor.agent.md` at the repo root and curate every pending item
 into structured notes, exactly as that file describes — including archiving
 processed raw items to `inbox/archive/` and committing one change set per
 item.
@@ -56,7 +58,7 @@ item.
 The frontmatter is the bounded, auditable surface: `permissions: read-all` keeps the agent itself
 read-only, and `safe-outputs` names the one write it's allowed to request — here, a pull request
 carrying the curated notes and archived raw items, rather than pushing straight to `main`. The
-`ingestor.md` reference means this workflow definition doesn't duplicate the curation instructions —
+`ingestor.agent.md` reference means this workflow definition doesn't duplicate the curation instructions —
 it points at the same file `eru inbox process`/`watch` already use locally.
 
 ## 3. Compile it
@@ -100,7 +102,7 @@ version](generate-docs-from-inbox-with-a-plain-action.md) for exactly that. It's
 reuses eru's actual code path instead of having a separate agent re-derive the same steps from
 `ingestor.md`'s prose. So why not just do that here too?
 
-Because `ingestor.md` grants its agent `tools: Read, Write, Edit, Bash, Grep, Glob`, and the raw
+Because the ingestor agent needs `Bash` and write access to do its job, and the raw
 material it processes isn't fully trusted input — a captured URL, a pasted article, anything from the
 open web. That's a prompt-injection surface: text in a raw capture could try to get the agent to do
 something other than curate.
