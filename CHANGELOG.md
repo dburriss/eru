@@ -5,6 +5,7 @@
 ## Added
 
 - Added description field to the manifest
+- Remote git inboxes: `eru inbox add <name> <git-url> [--branch]` registers a repo as an inbox and `eru inbox send` clones it shallowly, commits the item and pushes (via FsForge); remote inboxes are send-only
 - Added `eru site serve` command to serve the generated static site locally with live reload on changes to the cache
 - `eru okf validate <path>` command to check a directory tree for OKF §11 conformance (parseable frontmatter with a non-empty `type`, valid `index.md`/`log.md` structure); never flags unknown types, unknown extra keys, broken cross-links, or missing optional fields
 - Generated site now surfaces OKF frontmatter: a trust-tier badge per file (`unverified`/`machine-confirmed`/`human-reviewed`, derived from `verified[].by`) and a new "Types" filter/browse page alongside the existing Sources and Tags
@@ -16,9 +17,11 @@
 - `--agent-timeout` option on `eru inbox channel add` to bound how long an ACP agent call may run; the timeout is a liveness check (reset on any agent activity) rather than a fixed deadline
 - ACP agent output is streamed as it arrives instead of only being shown once the call completes
 - `eru inbox process` now falls back further when a channel has no `--agent-instructions` configured and `<inbox>/.agents/agents/ingestor.md` doesn't exist: it checks a tool-specific convention path derived from `--agent-command` (e.g. `.claude/agents/ingestor.md` for `claude`), and finally falls back to eru's own built-in curation instructions — so a channel's agent always receives some curation instructions
+- `--append <text|@file>` (repeatable) on `eru inbox process` and `eru inbox watch` adds text to the agent prompt after the resolved instructions and before the item; a leading `@` reads a file, `@@` is a literal `@`
 
 ### Changed
 
+- Built-in ingestor instructions (`agents/ingestor.agent.md`) no longer include a commit step, so they stay neutral across environments; use `--append` to add commit/PR behaviour
 - `eru manifest verify` renamed to `eru manifest validate`; `verify` is kept as a backward-compatible alias
 - `eru add` gives a clearer error when passed a bare repo URL, suggesting `eru source add <url>` followed by `eru add <source>:<path>`
 - Unhandled exceptions now print a concise `eru: unexpected error: <message>` instead of a raw stack trace; pass `--debug` to see the full stack trace

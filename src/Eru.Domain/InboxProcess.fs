@@ -12,6 +12,7 @@ module InboxProcess =
         All       : bool
         DryRun    : bool
         Timing     : bool           // include each item's RunAgent phase timings in the result
+        Append     : string list    // --append pieces (literal text, `@file`, or `@@` escape), in flag order
     }
 
     type ProcessedItem = {
@@ -35,6 +36,8 @@ module InboxProcess =
     let private resolveInbox (eff: EffectiveConfig) (explicit_: string option) : Result<string * InboxConfig, string> =
         let byName name =
             match Map.tryFind name eff.Inboxes with
+            | Some inbox when InboxConfig.isRemote inbox ->
+                Error $"inbox '{name}' is a remote git inbox ({inbox.Path}); process and watch only support local inboxes."
             | Some inbox -> Ok (name, inbox)
             | None       -> Error $"inbox '{name}' not configured."
         match explicit_ with
@@ -198,7 +201,29 @@ module InboxProcess =
                     | Ok (Some content) -> Ok content
                     | Ok None -> Ok defaultInstructions.Value
 
-    let private buildPrompt (deps: Deps) (inbox: InboxConfig) (item: PooledItem) : Result<string, string> =
+    // Resolves one `--append` value: `@@text` is a literal "@text", `@path` reads the file
+    // (relative paths against the current directory, where the user typed the flag), and
+    // anything else is used as-is.
+    let private resolveAppendOne (deps: Deps) (raw: string) : Result<string, string> =
+        if raw.StartsWith "@@" then Ok (raw.Substring 1)
+        elif raw.StartsWith "@" then
+            let p = raw.Substring 1
+            let path = if Path.IsPathRooted p then p else Path.Combine(deps.GetCwd (), p)
+            match deps.ReadLocalFile path with
+            | Error e -> Error e
+            | Ok None -> Error $"append file '{path}' not found."
+            | Ok (Some content) -> Ok content
+        else Ok raw
+
+    let private resolveAppends (deps: Deps) (raws: string list) : Result<string list, string> =
+        raws
+        |> List.fold (fun acc raw ->
+            match acc with
+            | Error e -> Error e
+            | Ok list -> resolveAppendOne deps raw |> Result.map (fun a -> list @ [ a ]))
+            (Ok [])
+
+    let private buildPrompt (deps: Deps) (inbox: InboxConfig) (appends: string list) (item: PooledItem) : Result<string, string> =
         let itemContent =
             if Path.GetExtension(item.FileName).ToLowerInvariant() = ".md" then
                 match deps.ReadLocalFile item.FullPath with
@@ -215,7 +240,8 @@ module InboxProcess =
         match resolveInstructions deps inbox item.Agent with
         | Error e -> Error e
         | Ok instructions ->
-            Ok (instructions.TrimEnd() + "\n\n---\n\nCurate the following raw inbox item:\n\n" + itemContent)
+            let appended = appends |> List.map (fun a -> "\n\n" + a.Trim()) |> String.concat ""
+            Ok (instructions.TrimEnd() + appended + "\n\n---\n\nCurate the following raw inbox item:\n\n" + itemContent)
 
     // Replaces the last "raw" path segment of the inbox's configured RawPath with
     // "archive", mirroring the `knowledge/inbox/archive/<channel>/...` layout
@@ -244,8 +270,8 @@ module InboxProcess =
             | Ok (Some _) -> Ok ()
             | _ -> Error moveErr
 
-    let private processOne (deps: Deps) (inbox: InboxConfig) (debug: bool) (onChunk: string -> unit) (item: PooledItem) : Result<ProcessedItem, string> =
-        match buildPrompt deps inbox item with
+    let private processOne (deps: Deps) (inbox: InboxConfig) (debug: bool) (appends: string list) (onChunk: string -> unit) (item: PooledItem) : Result<ProcessedItem, string> =
+        match buildPrompt deps inbox appends item with
         | Error e -> Error e
         | Ok prompt ->
         match archiveChannelDir inbox item.Channel with
@@ -268,13 +294,13 @@ module InboxProcess =
             let timings = if debug then Some runResult.Timings else None
             Ok { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = archivePath; Agent = item.Agent; Timings = timings }
 
-    let rec private processAll (deps: Deps) (inbox: InboxConfig) (debug: bool) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) (total: int) (succeeded: ProcessedItem list) (items: PooledItem list) : Result<ProcessedItem list, string> =
+    let rec private processAll (deps: Deps) (inbox: InboxConfig) (debug: bool) (appends: string list) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) (total: int) (succeeded: ProcessedItem list) (items: PooledItem list) : Result<ProcessedItem list, string> =
         match items with
         | [] -> Ok (List.rev succeeded)
         | item :: rest ->
             onItemStart (total - List.length rest) total item.FileName
-            match processOne deps inbox debug onChunk item with
-            | Ok p -> processAll deps inbox debug onItemStart onChunk total (p :: succeeded) rest
+            match processOne deps inbox debug appends onChunk item with
+            | Ok p -> processAll deps inbox debug appends onItemStart onChunk total (p :: succeeded) rest
             | Error e -> Error $"processed {List.length succeeded} item(s) before failing on '{item.FileName}': {e}"
 
     let private previewOne (inbox: InboxConfig) (item: PooledItem) : Result<ProcessedItem, string> =
@@ -317,6 +343,10 @@ module InboxProcess =
         | Error e -> Error e
         | Ok targets ->
 
+        match resolveAppends deps opts.Append with
+        | Error e -> Error e
+        | Ok appends ->
+
         if opts.DryRun then
             targets
             |> List.fold (fun acc item ->
@@ -328,7 +358,7 @@ module InboxProcess =
                     | Ok p -> Ok (list @ [ p ]))
                 (Ok [])
         else
-            processAll deps inbox opts.Timing onItemStart onChunk (List.length targets) [] targets
+            processAll deps inbox opts.Timing appends onItemStart onChunk (List.length targets) [] targets
 
     let execute (deps: Deps) (opts: Options) : Result<ProcessedItem list, string> =
         executeCore deps opts (fun _ _ _ -> ()) (fun _ -> ())

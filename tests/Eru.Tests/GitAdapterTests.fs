@@ -155,3 +155,37 @@ let ``listRemoteTopLevel uses HEAD when branch is None`` () =
         | Ok entries -> Assert.Contains("file.txt", entries)
     finally
         cleanup dir
+
+// ── RemoteInboxAdapter.push ───────────────────────────────────────────────────
+
+[<Fact>]
+let ``push commits new files to the default branch of a remote repo`` () =
+    let remote = makeRepo [ ("README.md", "hi") ]
+    // A non-bare repo refuses pushes to its checked-out branch.
+    runGit remote "config receive.denyCurrentBranch updateInstead"
+    try
+        let result = RemoteInboxAdapter.push $"file://{remote}" None "inbox: add note" [ ("inbox/raw/default/a.md", "hello") ]
+        Assert.Equal(Ok "main", result)
+        Assert.Equal("hello", File.ReadAllText(Path.Combine(remote, "inbox/raw/default/a.md")))
+    finally cleanup remote
+
+[<Fact>]
+let ``push refuses to overwrite an existing file`` () =
+    let remote = makeRepo [ ("inbox/raw/default/a.md", "old") ]
+    runGit remote "config receive.denyCurrentBranch updateInstead"
+    try
+        match RemoteInboxAdapter.push $"file://{remote}" None "msg" [ ("inbox/raw/default/a.md", "new") ] with
+        | Error _ -> Assert.Equal("old", File.ReadAllText(Path.Combine(remote, "inbox/raw/default/a.md")))
+        | Ok _ -> Assert.Fail "expected an error"
+    finally cleanup remote
+
+[<Fact>]
+let ``push creates a new branch but refuses an existing non-default one`` () =
+    let remote = makeRepo [ ("README.md", "hi") ]
+    runGit remote "branch existing"
+    try
+        Assert.Equal(Ok "fresh", RemoteInboxAdapter.push $"file://{remote}" (Some "fresh") "msg" [ ("inbox/raw/default/b.md", "x") ])
+        match RemoteInboxAdapter.push $"file://{remote}" (Some "existing") "msg" [ ("inbox/raw/default/c.md", "x") ] with
+        | Error _ -> ()
+        | Ok _ -> Assert.Fail "expected an error"
+    finally cleanup remote

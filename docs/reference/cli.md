@@ -144,8 +144,11 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
 | `-p <basepath>` | Explicitly set the base path, skipping auto-detection |
+| `--branch <branch>` | Remote inbox only: branch `inbox send` pushes to (default: the repo's default branch). Must be the default branch or a branch that doesn't exist yet — an existing non-default branch is refused so it can't be overwritten. |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
 | `--dryrun` | Preview without writing |
+
+**Remote inboxes.** With a URL, `eru inbox send` shallow-clones the repo, writes the item under `<rawPath>/<channel>/`, commits it (`inbox: add <slug> (<channel>)`) and pushes — one commit per send. It needs `git` and `gh` on `PATH`; GitHub HTTPS URLs authenticate through your `gh` login, other hosts use whatever git is already configured with. Remote inboxes are send-only: `eru inbox process` and `eru inbox watch` reject them (run those in the repo, e.g. with [gh-aw](../how-to/generate-docs-from-inbox-with-gh-aw.md)).
 
 **Examples**
 
@@ -240,16 +243,16 @@ running `eru inbox send` while working in some other project, `-g`/`--global` (w
 
 ### `eru inbox add`
 
-Register a local directory as an inbox.
+Register a local directory — or a remote git repo — as an inbox.
 
 ```
-eru inbox add <name> <path> [--raw-path <path>] [--default-channel <channel>] [-g] [--dryrun]
+eru inbox add <name> <path-or-url> [--raw-path <path>] [--default-channel <channel>] [--branch <branch>] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
 |---|---|
 | `<name>` | Name for the inbox (required) |
-| `<path>` | Local filesystem directory to write into (required) |
+| `<path-or-url>` | Local filesystem directory to write into, or a git repo URL (`https://…`, `git@…`, `ssh://…`) for a remote inbox (required) |
 | `--raw-path <path>` | Path within the directory to the raw capture folder (default: `inbox/raw`) |
 | `--default-channel <channel>` | Channel `inbox send` falls back to when `-c` is omitted (default: `default`) |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
@@ -259,6 +262,7 @@ eru inbox add <name> <path> [--raw-path <path>] [--default-channel <channel>] [-
 
 ```bash
 eru inbox add knowledge ~/code/knowledge -g
+eru inbox add knowledge https://github.com/acme/knowledge -g   # remote: send commits and pushes
 eru inbox add knowledge ~/code/knowledge --default-channel second-brain -g --dryrun
 ```
 
@@ -377,7 +381,7 @@ Protocol](https://agentclientprotocol.com), then archive it. Requires at least o
 have an agent configured (`eru inbox channel add ... --agent-command <cmd>`).
 
 ```
-eru [--debug] inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
+eru [--debug] inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun] [--append <text|@file>]...
 ```
 
 | Argument / Flag | Description |
@@ -387,6 +391,7 @@ eru [--debug] inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryr
 | `-c <channel>` | Restrict to one channel (default: every channel of the inbox with an agent configured) |
 | `--all` | Process every pending item in scope, oldest first, stopping at the first failure |
 | `--dryrun` | Show which item(s) and agent(s) would be used, without spawning anything or moving files |
+| `--append <text|@file>` | Extra text added to the agent's prompt after the resolved instructions and before the item. Repeatable; pieces are joined in order. A leading `@` reads the value from a file (relative to the current directory), e.g. `@.github/flavours/action.md`; use `@@` for a literal leading `@` |
 | top-level `--debug` | Also include each item's agent handshake timings (`initialize`/`session/new`/`prompt`, in ms) in the output |
 
 "Pending" means "still under `<inbox>`'s raw folder" — there's no separate status field. Items across
@@ -414,7 +419,12 @@ eru inbox process --dryrun
 eru inbox process
 eru inbox process ripgrep-tips -c second-brain
 eru inbox process --all
+eru inbox process --all --append "Commit one change set per item."
 ```
+
+The built-in curation instructions say nothing about committing. Use `--append` to add what your
+environment needs (commit per item, open a PR, don't commit). An unreadable `@file` fails the run
+before any item is processed, including with `--dryrun`.
 
 ### `eru inbox watch`
 
@@ -424,7 +434,7 @@ Keeps an inbox under observation and runs the same "process every pending item" 
 — it adds no selection, archiving, or agent-invocation logic of its own.
 
 ```
-eru [--debug] inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun]
+eru [--debug] inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun] [--append <text|@file>]...
 ```
 
 | Argument / Flag | Description |
@@ -433,6 +443,7 @@ eru [--debug] inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--
 | `-c <channel>` | Restrict to one channel (default: every channel of the inbox with an agent configured) |
 | `--interval <seconds>` | Polling fallback period, in case filesystem events are missed (default: `30`, or `inboxWatchIntervalSeconds` from [config](config-file.md)) |
 | `--dryrun` | On every trigger, log what would be processed without spawning an agent or moving files |
+| `--append <text|@file>` | Extra text added to every prompt after the resolved instructions and before the item. Repeatable; pieces are joined in order. A leading `@` reads the value from a file (relative to the current directory), e.g. `@.github/flavours/action.md`; use `@@` for a literal leading `@` |
 
 On start, resolves the inbox/channel scope once (failing fast on the same errors `inbox process`
 would), then prints what it's watching and blocks. A single `FileSystemWatcher` rooted one level
@@ -452,6 +463,7 @@ gracefully, letting any in-flight batch finish its current item first.
 ```bash
 eru inbox watch -c eru --interval 10
 eru inbox watch --dryrun
+eru inbox watch --append @.github/flavours/local.md
 ```
 
 ---

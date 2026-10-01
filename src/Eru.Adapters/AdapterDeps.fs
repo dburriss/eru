@@ -100,5 +100,6 @@ module AdapterDeps =
                     File.Move(src, dst)
                     Ok ()
                 with ex -> Error ex.Message
+            PushToRemote             = RemoteInboxAdapter.push
             RunAgent                 = AcpAgentAdapter.run
         }

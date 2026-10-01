@@ -25,6 +25,7 @@ let (|InboxProcessCmd|_|) (r: ParseResults<EruArgs>) =
                             // "show more than usual"; here that includes each item's agent
                             // handshake timings.
                             InboxProcess.Options.Timing    = r.Contains EruArgs.Debug
+                            InboxProcess.Options.Append    = processArgs.GetResults InboxProcessArgs.Append
                         }
                         Format = parseFormat (processArgs.TryGetResult InboxProcessArgs.Output)
                     }

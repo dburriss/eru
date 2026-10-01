@@ -66,6 +66,7 @@ let private makeDeps
             |> List.filter (fun p -> p.StartsWith prefix && not (p.Substring(prefix.Length).Contains "/"))
             |> Ok
         MoveLocalFile           = fun src dst -> state.Moves <- state.Moves @ [ (src, dst) ]; Ok ()
+        PushToRemote                = fun _ _ _ _ -> Ok "main"
         RunAgent                = fun agent wd prompt onChunk ->
             state.RunAgentCalls <- state.RunAgentCalls @ [ (agent, wd, prompt) ]
             let result = runAgent agent wd prompt
@@ -82,13 +83,13 @@ let private okAgent : AgentConfig -> string -> string -> Result<AgentRunResult, 
     fun _ _ _ -> Ok { Response = "curated"; Timings = zeroTimings }
 
 let private makeInbox (channels: Map<string, InboxChannelConfig>) : InboxConfig =
-    { Path = "/kb"; RawPath = None; DefaultChannel = None; Channels = channels }
+    { Path = "/kb"; RawPath = None; DefaultChannel = None; Channels = channels; Branch = None }
 
 let private singleInboxLocal (channels: Map<string, InboxChannelConfig>) : LocalConfig option =
     Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox channels ]; Settings = None }
 
 let private emptyOpts : InboxProcess.Options =
-    { InboxName = None; Channel = None; ItemName = None; All = false; DryRun = false; Timing = false }
+    { InboxName = None; Channel = None; ItemName = None; All = false; DryRun = false; Timing = false; Append = [] }
 
 let private assertError (result: Result<'a, string>) = match result with Ok _ -> Assert.Fail "Expected Error result" | Error _ -> ()
 
@@ -598,3 +599,71 @@ let ``Frontmatter.body strips a present frontmatter block`` () =
 let ``Frontmatter.body returns content unchanged when there is no block`` () =
     let content = "Just a plain message, no frontmatter."
     Assert.Equal(content, Frontmatter.body content)
+
+// ── --append ────────────────────────────────────────────────────────────────
+
+let private appendSetup (extraContents: (string * string) list) =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "opencode") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let contents =
+        Map.ofList (
+            [ "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "ITEM-BODY"
+              "/kb/.agents/agents/ingestor.md", "INSTRUCTIONS" ] @ extraContents)
+    state, makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
+
+[<Fact>]
+let ``append text lands after the instructions and before the item`` () =
+    let state, deps = appendSetup []
+    InboxProcess.execute deps { emptyOpts with Append = [ "APPENDED" ] } |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    let i, a, b = prompt.IndexOf "INSTRUCTIONS", prompt.IndexOf "APPENDED", prompt.IndexOf "ITEM-BODY"
+    Assert.True(i >= 0 && i < a && a < b)
+
+[<Fact>]
+let ``repeated appends keep their order`` () =
+    let state, deps = appendSetup []
+    InboxProcess.execute deps { emptyOpts with Append = [ "FIRST"; "SECOND" ] } |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.True(prompt.IndexOf "FIRST" < prompt.IndexOf "SECOND")
+
+[<Fact>]
+let ``append file reference is read and a relative path resolves against the cwd`` () =
+    let state, deps = appendSetup [ "/tmp/flavour.md", "FROM-FILE"; "/abs/x.md", "ABS-FILE" ]
+    InboxProcess.execute deps { emptyOpts with Append = [ "@flavour.md"; "@/abs/x.md" ] } |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.Contains("FROM-FILE", prompt)
+    Assert.Contains("ABS-FILE", prompt)
+
+[<Fact>]
+let ``append double-at is a literal leading at-sign`` () =
+    let state, deps = appendSetup []
+    InboxProcess.execute deps { emptyOpts with Append = [ "@@mention the reviewer" ] } |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.Contains("\n\n@mention the reviewer", prompt)
+    Assert.DoesNotContain("@@", prompt)
+
+[<Fact>]
+let ``missing append file errors before the agent runs, even on dryrun`` () =
+    let state, deps = appendSetup []
+    assertError (InboxProcess.execute deps { emptyOpts with Append = [ "@nope.md" ] })
+    assertError (InboxProcess.execute deps { emptyOpts with Append = [ "@nope.md" ]; DryRun = true })
+    Assert.Empty state.RunAgentCalls
+
+[<Fact>]
+let ``no appends leaves the prompt as instructions then item`` () =
+    let state, deps = appendSetup []
+    InboxProcess.execute deps emptyOpts |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.Equal("INSTRUCTIONS\n\n---\n\nCurate the following raw inbox item:\n\nITEM-BODY", prompt)
+
+[<Fact>]
+let ``built-in default instructions do not mention committing`` () =
+    let state = newState ()
+    let channels = Map.ofList [ "eru", { Description = None; Agent = Some (acpAgent "my-wrapper.sh") } ]
+    let filesByDir = Map.ofList [ "/kb/inbox/raw/eru", [ "2026-09-27T101500-a.md" ] ]
+    let contents = Map.ofList [ "/kb/inbox/raw/eru/2026-09-27T101500-a.md", "x" ]
+    let deps = makeDeps None (singleInboxLocal channels) filesByDir contents okAgent state
+    InboxProcess.execute deps emptyOpts |> ignore
+    let (_, _, prompt) = List.exactlyOne state.RunAgentCalls
+    Assert.DoesNotContain("### 7. Commit", prompt)

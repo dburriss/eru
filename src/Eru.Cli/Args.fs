@@ -188,13 +188,15 @@ type InboxAddArgs =
     | [<MainCommand; ExactlyOnce>] Name_And_Path   of name: string * path: string
     | Raw_Path        of path: string
     | Default_Channel of channel: string
+    | Branch          of branch: string
     | [<AltCommandLine("-g")>]     Global
     | [<Unique>]                   Dryrun
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Name_And_Path _   -> "Inbox name and local directory path (e.g. knowledge /path/to/knowledge)."
+            | Name_And_Path _   -> "Inbox name and local directory path, or a git repo URL for a remote inbox (e.g. knowledge /path/to/knowledge, or knowledge https://github.com/org/repo)."
+            | Branch _          -> "Remote inbox only: branch 'inbox send' pushes to (default: the repo's default branch)."
             | Raw_Path _        -> "Path within the inbox directory to the raw capture folder (default: inbox/raw)."
             | Default_Channel _ -> "Channel 'inbox send' falls back to when -c is omitted (default: default)."
             | Global            -> "Write to global config (~/.config/eru/config.json)."
@@ -304,9 +306,11 @@ type InboxProcessArgs =
     | [<Unique>]                   All
     | [<Unique>]                   Dryrun
     | [<Unique; AltCommandLine("-o")>] Output of format: string
+    | Append of text: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
+            | Append _  -> "Text appended to the agent instructions, before the item (literal, or @file to read a file; @@ for a literal leading @). Repeatable."
             | Item _    -> "Process this specific item instead of the oldest (exact filename or stem)."
             | Inbox _   -> "Name of the configured inbox to process. Auto-resolved when only one is configured."
             | Channel _ -> "Restrict to one channel (default: every channel with an agent configured)."
@@ -319,9 +323,11 @@ type InboxWatchArgs =
     | [<AltCommandLine("-c")>]     Channel  of channel: string
     | [<Unique>]                   Interval of seconds: int
     | [<Unique>]                   Dryrun
+    | Append of text: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
+            | Append _   -> "Text appended to the agent instructions, before each item (literal, or @file to read a file; @@ for a literal leading @). Repeatable."
             | Inbox _    -> "Name of the configured inbox to watch. Auto-resolved when only one is configured."
             | Channel _  -> "Restrict to one channel (default: every channel with an agent configured)."
             | Interval _ -> "Polling fallback interval in seconds, in case filesystem events are missed (default: 30, or settings.inboxWatchIntervalSeconds from config)."

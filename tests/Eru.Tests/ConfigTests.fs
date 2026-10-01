@@ -403,7 +403,7 @@ let ``checkVersion (via merge) accepts a v2 global config`` () =
 // ── merge: Inboxes ───────────────────────────────────────────────────────────
 
 let private makeInbox path : InboxConfig =
-    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty }
+    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty; Branch = None }
 
 [<Fact>]
 let ``merge returns empty Inboxes when both configs absent`` () =

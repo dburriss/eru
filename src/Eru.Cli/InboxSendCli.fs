@@ -35,7 +35,8 @@ let (|InboxSendCmd|_|) (r: ParseResults<EruArgs>) =
 let private messageFor (isDryRun: bool) (result: InboxSend.SendResult) : string =
     let verb = if isDryRun then "Would send" else "Sent"
     let sidecar = result.SidecarPath |> Option.map (fun p -> $" (+ {p})") |> Option.defaultValue ""
-    $"{verb} {result.Kind} to inbox '{result.InboxName}' channel '{result.Channel}' -> {result.TargetPath}{sidecar}"
+    let remote = result.Remote |> Option.map (fun r -> $" [remote {r}]") |> Option.defaultValue ""
+    $"{verb} {result.Kind} to inbox '{result.InboxName}' channel '{result.Channel}' -> {result.TargetPath}{sidecar}{remote}"
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
     match InboxSend.execute deps cmd.Command with

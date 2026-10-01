@@ -18,6 +18,7 @@ let (|InboxAddCmd|_|) (r: ParseResults<EruArgs>) =
                             InboxAdd.Command.Path           = path
                             InboxAdd.Command.RawPath        = addArgs.TryGetResult InboxAddArgs.Raw_Path
                             InboxAdd.Command.DefaultChannel = addArgs.TryGetResult InboxAddArgs.Default_Channel
+                            InboxAdd.Command.Branch         = addArgs.TryGetResult InboxAddArgs.Branch
                             InboxAdd.Command.IsGlobal       = addArgs.Contains     InboxAddArgs.Global
                             InboxAdd.Command.DryRun         = addArgs.Contains     InboxAddArgs.Dryrun
                         }

@@ -22,6 +22,7 @@ module InboxSend =
         Kind        : string   // "message" | "url" | "file"
         TargetPath  : string
         SidecarPath : string option
+        Remote      : string option   // Some "<url>@<branch>" when the item was pushed to a remote git inbox
     }
 
     type private ContentKind =
@@ -130,7 +131,8 @@ module InboxSend =
         | Error e -> Error e
         | Ok (inboxName, inbox) ->
 
-        if not (deps.DirectoryExists inbox.Path) then
+        let isRemote = InboxConfig.isRemote inbox
+        if not isRemote && not (deps.DirectoryExists inbox.Path) then
             Error $"inbox '{inboxName}''s path '{inbox.Path}' does not exist on disk."
         else
 
@@ -140,37 +142,61 @@ module InboxSend =
 
         let channel   = cmd.Channel |> Option.orElse inbox.DefaultChannel |> Option.defaultValue "default"
         let rawPath   = inbox.RawPath |> Option.defaultValue "inbox/raw"
-        let targetDir = Path.Combine(inbox.Path, rawPath, channel)
+        // Remote inboxes use repo-relative '/' paths; the adapter refuses to overwrite an existing file.
+        let targetDir = if isRemote then $"{rawPath.Trim('/')}/{channel}" else Path.Combine(inbox.Path, rawPath, channel)
         let now       = deps.GetUtcNow ()
         let ts        = timestamp now
+        let pending   = System.Collections.Generic.List<string * string>()
+
+        let uniquePath (dir: string) (stem: string) (ext: string) (attempt: int) : string =
+            if isRemote then $"{dir}/{stem}{ext}" else uniquePath deps dir stem ext attempt
 
         let write (path: string) (content: string) =
-            if cmd.DryRun then Ok () else deps.WriteLocalFile path content
+            if cmd.DryRun then Ok ()
+            elif isRemote then
+                pending.Add((path, content))
+                Ok ()
+            else deps.WriteLocalFile path content
 
-        match contentKind with
-        | Message text ->
-            let slug = cmd.Title |> Option.defaultWith (fun () -> slugFromMessage text)
-            let path = uniquePath deps targetDir $"{ts}-{slug}" ".md" 1
-            let noteSuffix = cmd.Note |> Option.map (fun n -> "\n\n" + n) |> Option.defaultValue ""
-            let body = renderFrontmatter None now + text + noteSuffix
-            write path body
-            |> Result.map (fun () -> { InboxName = inboxName; Channel = channel; Kind = "message"; TargetPath = path; SidecarPath = None })
-        | Url url ->
-            let slug = cmd.Title |> Option.defaultWith (fun () -> slugFromUrl url)
-            let path = uniquePath deps targetDir $"{ts}-{slug}" ".md" 1
-            let noteSuffix = cmd.Note |> Option.map (fun n -> "\n\n" + n) |> Option.defaultValue ""
-            let body = renderFrontmatter (Some url) now + url + noteSuffix
-            write path body
-            |> Result.map (fun () -> { InboxName = inboxName; Channel = channel; Kind = "url"; TargetPath = path; SidecarPath = None })
-        | ExternalFile (srcPath, fileContent) ->
-            let ext = Path.GetExtension srcPath
-            let slug = cmd.Title |> Option.defaultWith (fun () -> slugFromFile srcPath)
-            let path = uniquePath deps targetDir $"{ts}-{slug}" ext 1
-            let sidecarPath = path + ".meta.json"
-            let atStr = now.ToString("yyyy-MM-ddTHH:mm:ssZ")
-            let sidecar = $$"""{"captured_at": "{{atStr}}", "original_url": null}"""
-            match write path fileContent with
-            | Error e -> Error e
-            | Ok () ->
-                write sidecarPath sidecar
-                |> Result.map (fun () -> { InboxName = inboxName; Channel = channel; Kind = "file"; TargetPath = path; SidecarPath = Some sidecarPath })
+        // Local writes happen inside `write`; a remote inbox commits everything collected in one push.
+        let finish (result: Result<SendResult, string>) : Result<SendResult, string> =
+            match result with
+            | Ok r when isRemote && not cmd.DryRun ->
+                let message = $"inbox: add {Path.GetFileNameWithoutExtension r.TargetPath} ({channel})"
+                deps.PushToRemote inbox.Path inbox.Branch message (List.ofSeq pending)
+                |> Result.map (fun branch -> { r with Remote = Some $"{inbox.Path}@{branch}" })
+            | Ok r when isRemote ->
+                let branch = inbox.Branch |> Option.defaultValue "(default branch)"
+                Ok { r with Remote = Some $"{inbox.Path}@{branch}" }
+            | other -> other
+
+        let sent =
+            match contentKind with
+            | Message text ->
+                let slug = cmd.Title |> Option.defaultWith (fun () -> slugFromMessage text)
+                let path = uniquePath targetDir $"{ts}-{slug}" ".md" 1
+                let noteSuffix = cmd.Note |> Option.map (fun n -> "\n\n" + n) |> Option.defaultValue ""
+                let body = renderFrontmatter None now + text + noteSuffix
+                write path body
+                |> Result.map (fun () -> { InboxName = inboxName; Channel = channel; Kind = "message"; TargetPath = path; SidecarPath = None; Remote = None })
+            | Url url ->
+                let slug = cmd.Title |> Option.defaultWith (fun () -> slugFromUrl url)
+                let path = uniquePath targetDir $"{ts}-{slug}" ".md" 1
+                let noteSuffix = cmd.Note |> Option.map (fun n -> "\n\n" + n) |> Option.defaultValue ""
+                let body = renderFrontmatter (Some url) now + url + noteSuffix
+                write path body
+                |> Result.map (fun () -> { InboxName = inboxName; Channel = channel; Kind = "url"; TargetPath = path; SidecarPath = None; Remote = None })
+            | ExternalFile (srcPath, fileContent) ->
+                let ext = Path.GetExtension srcPath
+                let slug = cmd.Title |> Option.defaultWith (fun () -> slugFromFile srcPath)
+                let path = uniquePath targetDir $"{ts}-{slug}" ext 1
+                let sidecarPath = path + ".meta.json"
+                let atStr = now.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                let sidecar = $$"""{"captured_at": "{{atStr}}", "original_url": null}"""
+                match write path fileContent with
+                | Error e -> Error e
+                | Ok () ->
+                    write sidecarPath sidecar
+                    |> Result.map (fun () -> { InboxName = inboxName; Channel = channel; Kind = "file"; TargetPath = path; SidecarPath = Some sidecarPath; Remote = None })
+
+        finish sent

@@ -58,5 +58,8 @@ type Deps = {
     ListLocalFiles           : string -> Result<string list, string>   // non-recursive; full paths, files only
     ListLocalDirectories     : string -> Result<string list, string>   // non-recursive; full paths, directories only; Ok [] if the directory doesn't exist
     MoveLocalFile            : string -> string -> Result<unit, string> // src -> dst; creates dst's parent dir
+    // remoteUrl -> branch (None = the repo's default branch) -> commit message -> (repo-relative path, content) files.
+    // Shallow-clones the repo, writes the files, commits and pushes; returns the branch pushed to.
+    PushToRemote             : string -> string option -> string -> (string * string) list -> Result<string, string>
     RunAgent                 : AgentConfig -> string -> string -> (string -> unit) -> Result<AgentRunResult, string> // agent -> workingDir -> prompt -> onChunk (called with each streamed text fragment as the agent responds)
 }

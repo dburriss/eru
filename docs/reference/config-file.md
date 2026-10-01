@@ -123,7 +123,8 @@ without a breaking schema change.
 
 | Field | JSON key | Required | Description |
 |---|---|---|---|
-| `Path` | `path` | Yes | Local filesystem directory (e.g. a knowledge repo checkout). Checked against the filesystem at `eru inbox add`/`eru inbox send` time — never treated as a git URL. |
+| `Path` | `path` | Yes | Local filesystem directory (e.g. a knowledge repo checkout), checked against the filesystem at `eru inbox add`/`eru inbox send` time — or, if it starts with `http://`, `https://`, `git@` or `ssh://`, the URL of a remote git repo: `eru inbox send` then clones, commits and pushes instead of writing locally, and `inbox process`/`inbox watch` reject it. |
+| `Branch` | `branch` | No | Remote inboxes only: branch `eru inbox send` pushes to. Default: the repo's default branch. |
 | `RawPath` | `rawPath` | No | Path within `Path` to the raw capture folder. Default: `"inbox/raw"`. |
 | `DefaultChannel` | `defaultChannel` | No | Channel `eru inbox send -c` falls back to. Default: `"default"`. |
 | `Channels` | `channels` | No | Map of channel name → `InboxChannelConfig`. An entry is only needed for a channel that wants extra config — sending to an unlisted channel name is always allowed. |

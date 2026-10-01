@@ -33,4 +33,4 @@
 - [x] apm skills, mcp, agent
 - [x] update docs
 - [x] fix: eru to use .agents/agents/ingestor.md or discover it
-- [ ] remote git inbox send 
+- [x] remote git inbox send 

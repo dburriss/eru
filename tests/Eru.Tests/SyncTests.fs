@@ -74,6 +74,7 @@ let private makeDeps
         ListLocalFiles   = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile    = fun _ _ -> Ok ()
+        PushToRemote         = fun _ _ _ _ -> Ok "main"
         RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
@@ -328,6 +329,7 @@ let private makePopulateDeps
         ListLocalFiles   = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile    = fun _ _ -> Ok ()
+        PushToRemote         = fun _ _ _ _ -> Ok "main"
         RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 

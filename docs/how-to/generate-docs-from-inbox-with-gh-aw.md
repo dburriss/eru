@@ -51,9 +51,18 @@ safe-outputs:
 Raw material was just pushed to `inbox/raw/`. Follow the instructions in
 `.github/agents/ingestor.agent.md` at the repo root and curate every pending item
 into structured notes, exactly as that file describes — including archiving
-processed raw items to `inbox/archive/` and committing one change set per
-item.
+processed raw items to `inbox/archive/`. Do not commit yourself.
+
+When you have finished, call the `create_pull_request` safe output to open a pull request with
+your changes. Only call `noop` if `inbox/raw/` had no items to process — never after making edits,
+or the changes are discarded and no PR is opened.
 ```
+
+The last paragraph matters: `ingestor.agent.md` doesn't say how its changes should be delivered (it
+doesn't commit), so the workflow prompt has to supply that ending itself. Without an explicit
+instruction to call `create_pull_request`, an agent can finish with `noop` after making its edits,
+silently discarding them. "Do not commit yourself" is a guard: the safe output builds the pull request
+from the working-tree changes, so the agent has no need to commit.
 
 The frontmatter is the bounded, auditable surface: `permissions: read-all` keeps the agent itself
 read-only, and `safe-outputs` names the one write it's allowed to request — here, a pull request
@@ -82,7 +91,14 @@ git push
 ## 5. Trigger it
 
 Push (or merge) anything under `inbox/raw/` — for example, capture something with `eru inbox send`
-from a machine that doesn't run `eru inbox watch`, then push:
+from a machine that doesn't run `eru inbox watch`. If you registered the repo as a remote inbox
+(`eru inbox add knowledge https://github.com/<org>/knowledge -g`), `send` commits and pushes for you:
+
+```bash
+eru inbox send "quick note" -i knowledge -c second-brain
+```
+
+With a local checkout as the inbox, commit and push yourself:
 
 ```bash
 eru inbox send "quick note" -i knowledge -c second-brain

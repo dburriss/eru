@@ -56,11 +56,12 @@ let private makeDeps
         ListLocalFiles          = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile           = fun _ _ -> Ok ()
+        PushToRemote                = fun _ _ _ _ -> Ok "main"
         RunAgent                = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
 let private makeInbox path : InboxConfig =
-    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty }
+    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty; Branch = None }
 
 let private singleInboxLocal (name: string) (inbox: InboxConfig) : LocalConfig option =
     Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ name, inbox ]; Settings = None }
@@ -281,3 +282,58 @@ let ``send -c overrides the inbox's default channel`` () =
     let deps = makeDeps None (singleInboxLocal "kb" inbox) [ "/kb" ] Map.empty state
     let result = InboxSend.execute deps { emptyCmd with Content = Some "hi"; Channel = Some "explicit" } |> function Ok r -> r | Error e -> failwith e
     Assert.Equal("explicit", result.Channel)
+
+// ── remote git inbox ─────────────────────────────────────────────────────────
+
+let private remoteUrl = "https://github.com/acme/knowledge"
+
+let private remoteInbox branch : InboxConfig =
+    { makeInbox remoteUrl with Branch = branch }
+
+let private captureRemote (deps: Deps) (pushed: (string * string option * string * (string * string) list) list ref) : Deps =
+    { deps with
+        PushToRemote = fun url branch message files ->
+            pushed.Value <- pushed.Value @ [ (url, branch, message, files) ]
+            Ok (branch |> Option.defaultValue "main") }
+
+[<Fact>]
+let ``send to a remote inbox pushes one commit and writes nothing locally`` () =
+    let state = newState ()
+    let pushed = ref []
+    let deps = makeDeps None (singleInboxLocal "kb" (remoteInbox None)) [] Map.empty state |> fun d -> captureRemote d pushed
+    let result = InboxSend.execute deps { emptyCmd with Content = Some "remember this" } |> function Ok r -> r | Error e -> failwith e
+    Assert.Empty(state.WrittenFiles)
+    let (url, branch, message, files) = pushed.Value |> List.exactlyOne
+    Assert.Equal(remoteUrl, url)
+    Assert.Equal(None, branch)
+    Assert.Equal("inbox/raw/default/2026-09-27T100000-remember-this.md", result.TargetPath)
+    Assert.Equal("inbox: add 2026-09-27T100000-remember-this (default)", message)
+    Assert.Equal<string list>([ result.TargetPath ], files |> List.map fst)
+    Assert.Equal(Some $"{remoteUrl}@main", result.Remote)
+
+[<Fact>]
+let ``send to a remote inbox passes the configured branch and includes the file sidecar`` () =
+    let state = newState ()
+    let pushed = ref []
+    let files = Map.ofList [ "notes.md", "hello" ]
+    let deps = makeDeps None (singleInboxLocal "kb" (remoteInbox (Some "inbox"))) [] files state |> fun d -> captureRemote d pushed
+    let result = InboxSend.execute deps { emptyCmd with Content = Some "notes.md"; Channel = Some "eru" } |> function Ok r -> r | Error e -> failwith e
+    let (_, branch, _, sent) = pushed.Value |> List.exactlyOne
+    Assert.Equal(Some "inbox", branch)
+    Assert.Equal(2, sent.Length)
+    Assert.Contains("inbox/raw/eru/", result.TargetPath)
+    Assert.EndsWith(".meta.json", (sent |> List.last |> fst))
+
+[<Fact>]
+let ``send --dryrun to a remote inbox does not push`` () =
+    let state = newState ()
+    let pushed = ref []
+    let deps = makeDeps None (singleInboxLocal "kb" (remoteInbox None)) [] Map.empty state |> fun d -> captureRemote d pushed
+    InboxSend.execute deps { emptyCmd with Content = Some "hi"; DryRun = true } |> function Ok _ -> () | Error e -> failwith e
+    Assert.Empty(pushed.Value)
+
+[<Fact>]
+let ``send surfaces a remote push failure`` () =
+    let state = newState ()
+    let deps = { makeDeps None (singleInboxLocal "kb" (remoteInbox None)) [] Map.empty state with PushToRemote = fun _ _ _ _ -> Error "auth failed" }
+    Assert.Equal(Error "auth failed", InboxSend.execute deps { emptyCmd with Content = Some "hi" } |> Result.map ignore)

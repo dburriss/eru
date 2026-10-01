@@ -95,12 +95,26 @@ type InboxChannelConfig = {
     Agent       : AgentConfig option
 }
 
+// For a local inbox `Path` is a directory; for a remote git inbox it is the repo URL
+// (see `InboxConfig.isRemote`) and `Branch` optionally names the branch `inbox send`
+// pushes to (default: the repo's default branch).
 type InboxConfig = {
     Path           : string
     RawPath        : string option
     DefaultChannel : string option
     Channels       : Map<string, InboxChannelConfig>
+    Branch         : string option
 }
+
+module InboxConfig =
+    let isRemotePath (path: string) : bool =
+        let p = path.Trim()
+        p.StartsWith("http://", System.StringComparison.OrdinalIgnoreCase)
+        || p.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase)
+        || p.StartsWith("git@", System.StringComparison.OrdinalIgnoreCase)
+        || p.StartsWith("ssh://", System.StringComparison.OrdinalIgnoreCase)
+
+    let isRemote (inbox: InboxConfig) : bool = isRemotePath inbox.Path
 
 type GlobalDefaults = {
     Branch: string option

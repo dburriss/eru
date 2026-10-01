@@ -164,15 +164,16 @@ Reads from the source index cache (`~/.cache/eru/sources/<name>/index.json`). No
 ## `eru inbox add`
 
 ```
-eru inbox add <name> <path> [--raw-path <path>] [--default-channel <channel>] [-g] [--dryrun]
+eru inbox add <name> <path-or-url> [--raw-path <path>] [--default-channel <channel>] [--branch <branch>] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
 |---|---|
 | `<name>` | Name for the inbox (required) |
-| `<path>` | Local filesystem directory to write into — not a configured eru source (required) |
+| `<path-or-url>` | Local filesystem directory to write into, or a git repo URL for a remote inbox (`send` clones, commits and pushes; send-only, not usable with `process`/`watch`) — not a configured eru source (required) |
 | `--raw-path <path>` | Path within the directory to the raw capture folder (default: `inbox/raw`) |
 | `--default-channel <channel>` | Channel `inbox send` falls back to when `-c` is omitted (default: `default`) |
+| `--branch <branch>` | Remote inbox only: branch to push to (default: the repo's default branch; must be the default or a new branch) |
 | `-g` | Write to global config |
 | `--dryrun` | Show what would be added without writing anything |
 
@@ -254,7 +255,7 @@ Content-type is auto-detected: an `http(s)://` string is a URL capture; an exist
 ## `eru inbox process`
 
 ```
-eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
+eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun] [--append <text|@file>]...
 ```
 
 | Argument / Flag | Description |
@@ -264,6 +265,7 @@ eru inbox process [<name>] [-i <inbox>] [-c <channel>] [--all] [--dryrun]
 | `-c <channel>` | Restrict to one channel (default: every channel with an agent configured) |
 | `--all` | Process every pending item in scope, oldest first, stopping at the first failure |
 | `--dryrun` | Show which item(s)/agent(s) would be used, without spawning anything or moving files |
+| `--append <text\|@file>` | Repeatable. Extra text for the agent prompt, after the instructions and before the item. Leading `@` reads a file (relative to cwd); `@@` is a literal `@`. Built-in instructions don't commit — use this to say so |
 
 Run with the top-level `--debug` flag (`eru --debug inbox process ...`) to also include each item's
 agent handshake timings (initialize/session/prompt, ms) in the output.
@@ -279,7 +281,7 @@ channel(s) with no agent configured: default (3)."`) rather than implying the in
 ## `eru inbox watch`
 
 ```
-eru inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun]
+eru inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun] [--append <text|@file>]...
 ```
 
 Long-running counterpart to `inbox process`: watches an inbox's raw directory (via a filesystem
@@ -289,7 +291,7 @@ persistently via `inboxWatchIntervalSeconds` in config — see
 `inbox process --all` whenever new items show up, until interrupted (`Ctrl+C`). A failure partway
 through a batch is logged but doesn't stop the watch loop — the item stays in `raw/` and is
 retried next trigger. This is a foreground command; background/daemonize it yourself if you want
-it always running.
+it always running. Accepts the same repeatable `--append` as `inbox process`.
 
 ---
 

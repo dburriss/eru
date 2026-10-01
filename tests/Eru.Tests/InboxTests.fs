@@ -51,11 +51,12 @@ let private makeDeps
         ListLocalFiles          = fun _ -> Ok []
         ListLocalDirectories = fun _ -> Ok []
         MoveLocalFile           = fun _ _ -> Ok ()
+        PushToRemote                = fun _ _ _ _ -> Ok "main"
         RunAgent                = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
 let private makeInbox path : InboxConfig =
-    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty }
+    { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty; Branch = None }
 
 let private assertError (result: Result<'a, string>) = match result with Ok _ -> Assert.Fail "Expected Error result" | Error _ -> ()
 
@@ -65,7 +66,7 @@ let private assertError (result: Result<'a, string>) = match result with Ok _ ->
 let ``InboxAdd errors when path is not an existing directory`` () =
     let state = newState ()
     let deps = makeDeps None (Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }) [] state
-    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/nope"; RawPath = None; DefaultChannel = None; IsGlobal = false; DryRun = false }
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/nope"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> assertError
 
 [<Fact>]
@@ -73,7 +74,7 @@ let ``InboxAdd writes to local config by default`` () =
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
     let deps = makeDeps None (Some local) [ "/kb" ] state
-    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; IsGlobal = false; DryRun = false }
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> ignore
     Assert.True(state.WrittenLocalConfig.IsSome)
     Assert.Equal("/kb", state.WrittenLocalConfig.Value.Inboxes["kb"].Path)
@@ -82,7 +83,7 @@ let ``InboxAdd writes to local config by default`` () =
 let ``InboxAdd writes to global config when IsGlobal`` () =
     let state = newState ()
     let deps = makeDeps (Some { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }) None [ "/kb" ] state
-    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; IsGlobal = true; DryRun = false }
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = true; DryRun = false }
     InboxAdd.execute deps cmd |> ignore
     Assert.True(state.WrittenGlobalConfig.IsSome)
     Assert.Equal("/kb", state.WrittenGlobalConfig.Value.DefaultInboxes["kb"].Path)
@@ -92,7 +93,7 @@ let ``InboxAdd errors when name already exists`` () =
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
     let deps = makeDeps None (Some local) [ "/kb" ] state
-    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; IsGlobal = false; DryRun = false }
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> assertError
 
 [<Fact>]
@@ -100,9 +101,28 @@ let ``InboxAdd dryrun does not write`` () =
     let state = newState ()
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
     let deps = makeDeps None (Some local) [ "/kb" ] state
-    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; IsGlobal = false; DryRun = true }
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = true }
     InboxAdd.execute deps cmd |> ignore
     Assert.True(state.WrittenLocalConfig.IsNone)
+
+[<Fact>]
+let ``InboxAdd accepts a git URL without a directory check and records the branch`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let deps = makeDeps None (Some local) [] state
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "https://github.com/acme/knowledge"; RawPath = None; DefaultChannel = None; Branch = Some "inbox"; IsGlobal = false; DryRun = false }
+    InboxAdd.execute deps cmd |> function Ok _ -> () | Error e -> failwith e
+    let written = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    Assert.Equal("https://github.com/acme/knowledge", written.Path)
+    Assert.Equal(Some "inbox", written.Branch)
+
+[<Fact>]
+let ``InboxAdd rejects --branch for a local directory`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let deps = makeDeps None (Some local) [ "/kb" ] state
+    let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = Some "x"; IsGlobal = false; DryRun = false }
+    InboxAdd.execute deps cmd |> assertError
 
 // ── InboxList ────────────────────────────────────────────────────────────────
 

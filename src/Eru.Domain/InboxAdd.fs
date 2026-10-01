@@ -7,13 +7,17 @@ module InboxAdd =
         Path           : string
         RawPath        : string option
         DefaultChannel : string option
+        Branch         : string option
         IsGlobal       : bool
         DryRun         : bool
     }
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
-        if not (deps.DirectoryExists cmd.Path) then
+        let isRemote = InboxConfig.isRemotePath cmd.Path
+        if not isRemote && not (deps.DirectoryExists cmd.Path) then
             Error $"'{cmd.Path}' is not an existing local directory."
+        elif not isRemote && cmd.Branch.IsSome then
+            Error "--branch only applies to a remote git inbox (a URL path)."
         else
 
         let newInbox : InboxConfig = {
@@ -21,6 +25,7 @@ module InboxAdd =
             RawPath        = cmd.RawPath
             DefaultChannel = cmd.DefaultChannel
             Channels       = Map.empty
+            Branch         = cmd.Branch
         }
 
         if cmd.IsGlobal then

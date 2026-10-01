@@ -11,6 +11,7 @@
     <PackageReference Include="SimpleExec" Version="13.*" />
     <PackageReference Include="YamlDotNet" Version="*" />
     <PackageReference Include="Markdig" Version="0.*" />
+    <PackageReference Include="FsForge" Version="0.0.1-beta1" />
     <PackageReference Include="Acp.Net" Version="0.0.1-rc1" />
   </ItemGroup>
   <ItemGroup>
@@ -21,6 +22,7 @@
     <Compile Include="ConfigAdapter.fs" />
     <Compile Include="LockFileAdapter.fs" />
     <Compile Include="GitAdapter.fs" />
+    <Compile Include="RemoteInboxAdapter.fs" />
     <Compile Include="ManifestAdapter.fs" />
     <Compile Include="OkfAdapter.fs" />
     <Compile Include="SourceIndexAdapter.fs" />

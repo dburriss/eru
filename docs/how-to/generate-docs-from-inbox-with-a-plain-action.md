@@ -54,10 +54,17 @@ jobs:
       - name: Install the channel's agent CLI
         run: npm install -g @anthropic-ai/claude-code  # or whatever --agent-command names
 
+      - name: Set git identity for the agent's commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Process every pending item
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: eru inbox process --all -i knowledge
+        run: |
+          eru inbox process --all -i knowledge \
+            --append "Commit one change set per raw item, staging the new or updated notes, index.md and the archived raw file with its sidecar."
 
       - uses: peter-evans/create-pull-request@v6
         with:
@@ -73,10 +80,16 @@ Swap the "Install the channel's agent CLI" step for whatever `--agent-command` t
 configured with, and add whichever credential secret that agent needs (`ANTHROPIC_API_KEY` for
 `claude`, an OpenAI key for `codex`, etc.) under **Settings → Secrets and variables → Actions**.
 
-`eru inbox process --all` does the same archiving-and-committing it would do if you ran it by hand:
-each curated item lands as a local commit on the runner's checkout. `create-pull-request` then picks
-up those local commits (not a live diff it computes itself) and pushes them as a branch + PR, rather
-than letting the job push straight to `main`.
+eru's built-in curation instructions don't say anything about committing, so the workflow adds that
+itself with `--append`: the text goes after the resolved instructions and before each item. Without it
+the agent would curate and archive the item but leave the changes uncommitted. With it, each curated
+item lands as a local commit on the runner's checkout (the git identity step above is what lets the
+agent commit). `create-pull-request` then picks up those local commits (not a live diff it computes
+itself) and pushes them as a branch + PR, rather than letting the job push straight to `main`.
+
+To keep the wording in a file instead, pass `--append @.github/flavours/action.md`; the path is
+relative to the directory the command runs in. `--append` is repeatable and the pieces are joined in
+order. See the [CLI reference](../reference/cli.md#eru-inbox-process).
 
 ## 2. Commit the workflow
 
@@ -95,7 +108,7 @@ git -C ~/code/knowledge commit -m "inbox: capture quick note"
 git -C ~/code/knowledge push
 ```
 
-The workflow runs `eru inbox process --all`, which curates every pending item exactly as it would
+The workflow runs `eru inbox process --all --append ...`, which curates every pending item exactly as it would
 locally, then opens a pull request with the resulting commits. Review and merge like any other PR.
 
 ## Security tradeoff vs gh-aw

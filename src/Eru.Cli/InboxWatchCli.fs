@@ -31,6 +31,7 @@ let (|InboxWatchCmd|_|) (r: ParseResults<EruArgs>) =
                             InboxProcess.Options.DryRun    = watchArgs.Contains InboxWatchArgs.Dryrun
                             // See InboxProcessCli: reuses the top-level `eru --debug` flag.
                             InboxProcess.Options.Timing    = r.Contains EruArgs.Debug
+                            InboxProcess.Options.Append    = watchArgs.GetResults InboxWatchArgs.Append
                         }
                         Interval = watchArgs.TryGetResult InboxWatchArgs.Interval
                     }
