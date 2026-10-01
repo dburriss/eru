@@ -611,6 +611,7 @@ type EruArgs =
     | [<SubCommand>] Site       of ParseResults<SiteArgs>
     | [<SubCommand>] Okf        of ParseResults<OkfArgs>
     | [<SubCommand>] Graph      of ParseResults<GraphArgs>
+    | Version
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -631,3 +632,4 @@ type EruArgs =
             | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
             | Okf _        -> "Validate a knowledge bundle for OKF conformance."
             | Graph _      -> "Show the link graph between cached documents and external URLs."
+            | Version      -> "Print the eru version and commit."

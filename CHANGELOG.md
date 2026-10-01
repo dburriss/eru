@@ -4,6 +4,7 @@
 
 ## Added
 
+- `eru version` command prints the version and the git commit it was built from
 - Added description field to the manifest
 - Remote git inboxes: `eru inbox add <name> <git-url> [--branch]` registers a repo as an inbox and `eru inbox send` clones it shallowly, commits the item and pushes (via FsForge); remote inboxes are send-only
 - Added `eru site serve` command to serve the generated static site locally with live reload on changes to the cache

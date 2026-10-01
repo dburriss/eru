@@ -40,6 +40,7 @@ open Eru.Cli.SiteGenerateCli
 open Eru.Cli.SiteServeCli
 open Eru.Cli.OkfValidateCli
 open Eru.Cli.GraphCli
+open Eru.Cli.VersionCli
 
 let private (|McpCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -93,6 +94,7 @@ let main argv =
         | SiteServeCmd args           -> SiteServeCli.run deps args
         | OkfValidateCmd cmd          -> OkfValidateCli.run deps cmd
         | GraphCmd cmd                -> GraphCli.run deps cmd
+        | VersionCmd ()               -> VersionCli.run ()
         | _ ->
             printfn "%s" (parser.PrintUsage())
             0
