@@ -99,6 +99,10 @@ project:
 eru inbox add knowledge ~/code/knowledge --default-channel second-brain -g
 ```
 
+Register the **root of the knowledge repo** as the inbox path, not its `inbox/` subfolder. `eru inbox
+process`/`watch` launch the agent with that path as its working directory, so the root is where the agent
+harness discovers the repo's installed skills and agents (e.g. `.claude/skills/`, `.agents/skills/`).
+
 This creates `inbox/raw/` and `inbox/archive/` under the repo (raw captures land in the former;
 curated items are archived to the latter — see [use send and watch locally](use-send-and-watch-locally.md)).
 

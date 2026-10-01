@@ -24,10 +24,11 @@ This agent definition is intentionally self-contained (inlines the Diataxis
 decision table and `ck` search guidance below) because it may run outside a
 Claude Code session — e.g. dispatched directly by an ACP-capable client, or
 handed one raw item at a time by a filesystem watcher. When running inside
-Claude Code, you may additionally consult
-`.apm/skills/organizing-documentation/SKILL.md` and
-`.apm/skills/semantic-search/SKILL.md` directly for more detail than the
-summaries below.
+an agent harness that has the `organizing-documentation` and
+`semantic-search` skills installed, you may additionally consult them for more
+detail than the summaries below. Where they live depends on the harness
+(e.g. `.claude/skills/`, `.agents/skills/`), so refer to them by name rather
+than by path.
 
 ## Loop
 

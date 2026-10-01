@@ -170,7 +170,7 @@ eru inbox add <name> <path-or-url> [--raw-path <path>] [--default-channel <chann
 | Argument / Flag | Description |
 |---|---|
 | `<name>` | Name for the inbox (required) |
-| `<path-or-url>` | Local filesystem directory to write into, or a git repo URL for a remote inbox (`send` clones, commits and pushes; send-only, not usable with `process`/`watch`) — not a configured eru source (required) |
+| `<path-or-url>` | Local filesystem directory to write into (use the knowledge repo root — `process`/`watch` run the agent with it as the working directory so the harness finds the repo's skills), or a git repo URL for a remote inbox (`send` clones, commits and pushes; send-only, not usable with `process`/`watch`) — not a configured eru source (required) |
 | `--raw-path <path>` | Path within the directory to the raw capture folder (default: `inbox/raw`) |
 | `--default-channel <channel>` | Channel `inbox send` falls back to when `-c` is omitted (default: `default`) |
 | `--branch <branch>` | Remote inbox only: branch to push to (default: the repo's default branch; must be the default or a new branch) |
