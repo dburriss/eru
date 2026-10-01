@@ -75,7 +75,7 @@ module GitAdapter =
             Error ex.Message
 
     let listRemoteTopLevel (verbose: bool) (url: string) (branch: string option) : Result<string list, string> =
-        let bFlag = branch |> Option.map (fun b -> $"--branch {b} ") |> Option.defaultValue ""
+        let bFlag = branch |> Option.map branchFlag |> Option.defaultValue ""
         withTempDir (fun tmpDir ->
             try
                 runGit verbose $"clone --filter=blob:none --depth=1 --no-checkout {bFlag}-- {url} {tmpDir}" None
@@ -91,7 +91,7 @@ module GitAdapter =
                 Error ex.Message)
 
     let listRemoteFiles (verbose: bool) (url: string) (branch: string option) (basePath: string option) : Result<string list, string> =
-        let bFlag = branch |> Option.map (fun b -> $"--branch {b} ") |> Option.defaultValue ""
+        let bFlag = branch |> Option.map branchFlag |> Option.defaultValue ""
         withTempDir (fun tmpDir ->
             try
                 runGit verbose $"clone --filter=blob:none --depth=1 --no-checkout {bFlag}-- {url} {tmpDir}" None

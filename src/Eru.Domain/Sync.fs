@@ -20,6 +20,7 @@ module Sync =
     type SyncResult = {
         Entries : SyncEntry list
         DryRun  : bool
+        Errors  : string list
     }
 
     type private EntryResult =
@@ -198,9 +199,12 @@ module Sync =
                                 deps.WriteSourceIndex src.Name { existingIdx with ConsecutiveShaCheckFailures = 0 } |> ignore
                         else
                             let mutable idx = existingIdx
+                            let mutable discoveryFailed = false
                             for bundle in okfBundles do
                                 match BundleDiscovery.walkBundle deps src.Name url branch bundle with
-                                | Error e -> errors.Add($"source '{src.Name}': bundle discovery for '{bundle.Path}' failed: {e}")
+                                | Error e ->
+                                    discoveryFailed <- true
+                                    errors.Add($"source '{src.Name}': bundle discovery for '{bundle.Path}' failed: {e}")
                                 | Ok discovered ->
                                     for d in discovered do
                                         let contentHash = deps.HashContent d.Content
@@ -232,7 +236,9 @@ module Sync =
                                         match cacheRelPath with
                                         | Some relPath -> deps.BuildSearchIndex src.Name relPath
                                         | None         -> ()
-                            deps.WriteSourceIndex src.Name { idx with SourceHeadSha = Some headSha; ConsecutiveShaCheckFailures = 0 } |> ignore
+                            // Leave SourceHeadSha unset on failure so the next sync retries discovery.
+                            let sha = if discoveryFailed then existingIdx.SourceHeadSha else Some headSha
+                            deps.WriteSourceIndex src.Name { idx with SourceHeadSha = sha; ConsecutiveShaCheckFailures = 0 } |> ignore
 
         // Step 2: Fetch and cache collection files; merge frontmatter into the
         // "frontmatter" contribution (a full overwrite of that one key every sync —
@@ -373,10 +379,7 @@ module Sync =
 
         errors |> Seq.toList
 
-    let execute (deps: Deps) (opts: Options) : Result<SyncResult, string> =
-        // Populate index and cache (best-effort, errors are non-fatal for local sync)
-        populateIndex deps |> ignore
-
+    let private executeLocked (deps: Deps) (opts: Options) : Result<SyncResult, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
@@ -496,7 +499,7 @@ module Sync =
                                     | _                                 -> ELocalDrifted (entry, content))
 
         if opts.DryRun then
-            Ok { Entries = classified |> List.map toSyncEntry; DryRun = true }
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = true; Errors = [] }
         else
 
         let drifted      = classified |> List.choose (function EDrifted (e, c)      -> Some (e, c) | _ -> None)
@@ -504,7 +507,7 @@ module Sync =
         let toWrite      = drifted @ localDrifted
 
         if toWrite.IsEmpty then
-            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = [] }
         else
 
         let writeError =
@@ -518,7 +521,7 @@ module Sync =
         | None ->
 
         if drifted.IsEmpty then
-            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = [] }
         else
 
         let updatedEntries =
@@ -529,4 +532,9 @@ module Sync =
 
         match deps.WriteLockEntries eff.StateFile updatedEntries with
         | Error e -> Error $"Error writing lock file: {e}"
-        | Ok () -> Ok { Entries = classified |> List.map toSyncEntry; DryRun = false }
+        | Ok () -> Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = [] }
+
+    let execute (deps: Deps) (opts: Options) : Result<SyncResult, string> =
+        // Populate index and cache; failures are reported on the result rather than aborting the lock sync.
+        let errors = populateIndex deps
+        executeLocked deps opts |> Result.map (fun r -> { r with Errors = errors })

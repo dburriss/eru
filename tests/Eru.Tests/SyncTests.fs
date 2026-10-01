@@ -468,3 +468,36 @@ let ``populateIndex resets the failure counter after a subsequent successful SHA
     match store.TryGet "kb" with
     | Some idx -> Assert.Equal(0, idx.ConsecutiveShaCheckFailures)
     | None -> Assert.Fail "expected an index to have been written"
+
+[<Fact>]
+let ``populateIndex reports bundle discovery failure immediately and does not persist SourceHeadSha`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+
+    let listCalls = ref 0
+    let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Error "clone failed"
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    let errors = Sync.populateIndex deps
+    Assert.Single(errors) |> ignore
+    Assert.Contains("clone failed", errors.Head)
+    match store.TryGet "kb" with
+    | Some idx -> Assert.Equal(None, idx.SourceHeadSha)
+    | None -> ()
+
+    // Same SHA on the next run must retry discovery rather than skip.
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(2, listCalls.Value)
+
+[<Fact>]
+let ``execute surfaces bundle discovery failures in SyncResult.Errors`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) (fun _ _ _ -> Ok []) (fun _ _ _ -> Error "clone failed") (fun _ _ -> Ok "sha-1") store
+
+    match Sync.execute deps { DryRun = false } with
+    | Ok r -> Assert.Contains(r.Errors, fun e -> e.Contains "clone failed")
+    | Error e -> Assert.Fail e

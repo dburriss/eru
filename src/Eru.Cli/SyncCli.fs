@@ -83,4 +83,7 @@ let run (deps: Eru.Deps) (cmd: Cmd) : int =
         | Text  -> renderText result
         | Json  -> renderJson result
         | Table -> renderTable result
-        0
+        if not result.Errors.IsEmpty then
+            for e in result.Errors do eprintfn "error: %s" e
+            1
+        else 0
