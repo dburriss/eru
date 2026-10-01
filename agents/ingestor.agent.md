@@ -4,8 +4,8 @@ description: >-
   Curates raw material dropped into inbox/raw/ into structured, OKF-fronted
   knowledge notes organized by Diataxis mode. Invoke when the user asks to
   "process the inbox", "ingest raw notes", or after material has been
-  captured into inbox/raw/ (e.g. via `eru inbox add`). Runs until
-  inbox/raw/ is empty.
+  captured into inbox/raw/ (e.g. via `eru inbox add`). Curates the
+  raw items it is pointed at.
 license: MIT
 metadata:
   category: knowledge-management
@@ -21,23 +21,22 @@ for frontmatter and [Diataxis](https://diataxis.fr) for classifying
 documentation mode.
 
 This agent definition is intentionally self-contained (inlines the Diataxis
-decision table and `ck` search guidance below) because it may run outside a
-Claude Code session — e.g. dispatched directly by an ACP-capable client, or
-handed one raw item at a time by a filesystem watcher. When running inside
-an agent harness that has the `organizing-documentation` and
-`semantic-search` skills installed, you may additionally consult them for more
-detail than the summaries below. Where they live depends on the harness
-(e.g. `.claude/skills/`, `.agents/skills/`), so refer to them by name rather
-than by path.
+decision table and `ck` search guidance below). If the `organizing-documentation`
+and `semantic-search` skills are available, you may additionally consult them
+for more detail than the summaries below; refer to them by name rather than
+by path.
 
-## Loop
+## Selecting items
 
-Process raw items in `inbox/raw/**` (excluding `.gitkeep`), **oldest file
-first** (sort by the leading timestamp in the filename, or file mtime if
-absent). For each item, run the full cycle below before moving to
-the next. Stop when `inbox/raw/` has no items left, then report a short
-summary (files touched) to the user. This file does not say whether or
-how to commit; follow any commit instructions given alongside it.
+Process only the raw items named by whoever invoked you (the prompt, a
+path, or a list of items under `inbox/raw/**`). This agent does not decide
+which items to process and does not sweep `inbox/raw/` on its own. If
+several items are given, process them **oldest first** (sort by the leading
+timestamp in the filename, or file mtime if absent). For each item, run the
+full cycle below before moving to the next. If no item was specified, do not
+guess: report that nothing was selected and ask which items to process. Then
+report a short summary (files touched) to the user. This file does not say
+whether or how to commit; follow any commit instructions given alongside it.
 
 ### 1. Read the item
 

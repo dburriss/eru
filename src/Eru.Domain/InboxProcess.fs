@@ -257,7 +257,7 @@ module InboxProcess =
 
     // An agent driven with real curation instructions (e.g. `ingestor.md`) may well archive
     // (and commit) the raw item itself as part of following them — its own doc says exactly
-    // that ("Runs until inbox/raw/ is empty... one commit per raw item processed"). So a
+    // that (an ingestor-style agent follows its curation cycle through to archiving). So a
     // move failing because the source is already gone isn't necessarily *our* failure: if
     // the destination already exists, the agent got there first — treat that as success
     // rather than erroring on a race that isn't really a race, just two things agreeing on
