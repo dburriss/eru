@@ -96,6 +96,8 @@ Search results now return structured data in addition to the existing text outpu
     <Compile Include="SiteGenerateCli.fs" />
     <Compile Include="SiteServeCli.fs" />
     <Compile Include="OkfValidateCli.fs" />
+    <Compile Include="OkfFixCli.fs" />
+    <Compile Include="OkfInitCli.fs" />
     <Compile Include="GraphCli.fs" />
     <Compile Include="VersionCli.fs" />
     <Compile Include="Program.fs" />

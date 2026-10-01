@@ -866,6 +866,45 @@ eru okf validate <path>
 eru okf validate ./my-bundle   # exits 0 if conformant, 1 if any violations found
 ```
 
+### `eru okf init`
+
+Scaffold the OKF index files a bundle is missing. The bundle-root `index.md` is created with `okf_version` frontmatter (which makes eru detect the directory as an OKF bundle); every folder containing concepts gets a catalog `index.md` (a table of concept, type, tags, `stale_after`, plus links to subfolders) with no frontmatter. Existing files are never touched and `log.md` is never created. The same ignore rules as `validate` apply.
+
+```
+eru okf init <path> [--dry-run] [-o <format>]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | Directory to scaffold (required) |
+| `--dry-run` | Report what would be created without writing |
+| `-o` / `--output` | Output format: table (default), text, json |
+
+### `eru okf fix`
+
+Repair a directory tree so it passes `eru okf validate`, and create any missing `index.md` files like `init`. Writes happen by default; use `--dry-run` to preview.
+
+| Problem | Repair |
+|---|---|
+| Root `index.md` has no `okf_version`, or other keys | Frontmatter set to exactly `okf_version` (an existing value is kept) |
+| Non-root `index.md` has frontmatter | Frontmatter removed |
+| Concept has no frontmatter, or no/empty `type` | `type` added (text edit; other keys and order are preserved) |
+| `log.md` date heading is not `YYYY-MM-DD` | Rewritten when the heading parses as a date (invariant culture, so `03/04/2026` is read as March 4) |
+| Folder with concepts has no `index.md` | Catalog index created |
+
+Problems that cannot be repaired safely (concept frontmatter that is invalid YAML, `log.md` headings that are not dates) are reported and left untouched; the command then exits 1.
+
+```
+eru okf fix <path> [--dry-run] [--default-type <type>] [-o <format>]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<path>` | Directory to repair (required) |
+| `--dry-run` | Report what would change without writing |
+| `--default-type` | `type` for concepts that have none (default: `reference`) |
+| `-o` / `--output` | Output format: table (default), text, json |
+
 ---
 
 ## `eru mcp`

@@ -573,13 +573,41 @@ type OkfValidateArgs =
             | Path _   -> "Directory to validate against OKF §11."
             | Output _ -> "Output format: table (default), text, json."
 
+type OkfInitArgs =
+    | [<MainCommand; ExactlyOnce>] Path of path: string
+    | [<Unique>]                   Dry_Run
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Path _   -> "Directory to scaffold index.md files in."
+            | Dry_Run  -> "Report what would be created without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
+type OkfFixArgs =
+    | [<MainCommand; ExactlyOnce>] Path of path: string
+    | [<Unique>]                   Dry_Run
+    | [<Unique>]                   Default_Type of typ: string
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Path _         -> "Directory to repair so it passes `eru okf validate`."
+            | Dry_Run        -> "Report what would change without writing anything."
+            | Default_Type _ -> "`type` to give concept files that have none (default: reference)."
+            | Output _       -> "Output format: table (default), text, json."
+
 [<CliPrefix(CliPrefix.None)>]
 type OkfArgs =
     | [<SubCommand>] Validate of ParseResults<OkfValidateArgs>
+    | [<SubCommand>] Init     of ParseResults<OkfInitArgs>
+    | [<SubCommand>] Fix      of ParseResults<OkfFixArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Validate _ -> "Validate a directory tree for OKF conformance (§11)."
+            | Init _     -> "Create missing OKF index.md files (never overwrites)."
+            | Fix _      -> "Repair a directory tree so it passes OKF conformance."
 
 type GraphArgs =
     | [<Unique; AltCommandLine("-o")>] Output of format: string
@@ -630,6 +658,6 @@ type EruArgs =
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
             | Browse _     -> "Interactively browse sources and tracked files."
             | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
-            | Okf _        -> "Validate a knowledge bundle for OKF conformance."
+            | Okf _        -> "Validate, scaffold and repair a knowledge bundle for OKF conformance."
             | Graph _      -> "Show the link graph between cached documents and external URLs."
             | Version      -> "Print the eru version and commit."

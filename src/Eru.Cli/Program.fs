@@ -39,6 +39,8 @@ open Eru.Cli.BrowseCli
 open Eru.Cli.SiteGenerateCli
 open Eru.Cli.SiteServeCli
 open Eru.Cli.OkfValidateCli
+open Eru.Cli.OkfFixCli
+open Eru.Cli.OkfInitCli
 open Eru.Cli.GraphCli
 open Eru.Cli.VersionCli
 
@@ -93,6 +95,8 @@ let main argv =
         | SiteGenerateCmd args        -> SiteGenerateCli.run deps args
         | SiteServeCmd args           -> SiteServeCli.run deps args
         | OkfValidateCmd cmd          -> OkfValidateCli.run deps cmd
+        | OkfFixCmd cmd               -> OkfFixCli.run deps cmd
+        | OkfInitCmd cmd              -> OkfInitCli.run deps cmd
         | GraphCmd cmd                -> GraphCli.run deps cmd
         | VersionCmd ()               -> VersionCli.run ()
         | _ ->

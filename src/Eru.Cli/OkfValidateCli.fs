@@ -16,7 +16,8 @@ let (|OkfValidateCmd|_|) (r: ParseResults<EruArgs>) =
                     Some {
                         Path   = validateArgs.GetResult OkfValidateArgs.Path
                         Format = parseFormat (validateArgs.TryGetResult OkfValidateArgs.Output)
-                    })
+                    }
+                | _ -> None)
         | _ -> None)
 
 let private renderText (result: OkfValidate.ValidateResult) =

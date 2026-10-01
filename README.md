@@ -101,6 +101,8 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru site generate [-o <dir>]` | Generate a static HTML site for browsing the local knowledge cache |
 | `eru site serve [-p <port>]` | Serve the site locally with live reload and a search API |
 | `eru okf validate <path>` | Check a directory tree for OKF §11 conformance |
+| `eru okf init <path>` | Create missing OKF `index.md` files |
+| `eru okf fix <path>` | Repair a directory tree so it passes OKF validation |
 | `eru mcp` | Start an MCP stdio server for AI agent use |
 
 For full argument details see [docs/reference/cli.md](docs/reference/cli.md).

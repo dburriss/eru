@@ -395,6 +395,17 @@ Walks `<path>` and reports OKF §11 conformance violations (missing/malformed fr
 
 ---
 
+## `eru okf init` / `eru okf fix`
+
+```
+eru okf init <path> [--dry-run] [-o <format>]
+eru okf fix  <path> [--dry-run] [--default-type <type>] [-o <format>]
+```
+
+`init` creates missing `index.md` files (root gets `okf_version`, each folder with concepts gets a catalog table); it never overwrites and never creates `log.md`. `fix` also repairs index frontmatter, missing concept frontmatter/`type` (default `reference`) and non-ISO `log.md` date headings so `eru okf validate` passes. Both write by default; `--dry-run` previews. `fix` exits 1 if anything needs manual attention (invalid concept YAML, unparseable log dates).
+
+---
+
 ## `eru cache prune`
 
 ```
