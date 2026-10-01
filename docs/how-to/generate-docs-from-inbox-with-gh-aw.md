@@ -46,6 +46,20 @@ reason to pick it, and also the source of every limitation below. Read these bef
 If you can't live with these, use [a plain GitHub Action that calls `eru inbox process --all`
 directly](generate-docs-from-inbox-with-a-plain-action.md), or run `eru inbox watch` locally.
 
+## Prerequisites
+
+Do [Set up a knowledge repo](set-up-a-knowledge-repo.md) first. This guide builds on it and doesn't
+repeat it. In particular you need:
+
+- A knowledge repo with `eru init` and `apm init` already run, and the `eru` inbox
+  (`inbox/raw/` and `inbox/archive/`) in place.
+- The skills and the `ingestor` agent declared in `apm.yml` and installed with `apm install`. The
+  workflow runs on a fresh checkout, so commit the installed output and `apm.lock.yaml`.
+- `copilot` added to `targets` in `apm.yml` (`targets: [claude, copilot]`), then re-run `apm install`.
+  gh-aw runs on the Copilot engine and reads the agent from `.github/agents/ingestor.agent.md`, which
+  is where that target installs it. The skills land in `.agents/skills/`.
+- The [repo settings](#repo-settings) below, and a `COPILOT_GITHUB_TOKEN` secret.
+
 ## What it does
 
 ```
@@ -73,11 +87,6 @@ eru inbox add ──► push to main (inbox/raw/**)
 4. **Safe output:** `create-pull-request` with the `[ingest] ` title prefix, `knowledge` and `automated`
    labels, `draft: false`, and `allowed-files` limited to `.md`, `.pdf` and `.json`.
 5. **Merge:** a separate workflow merges open `automated` PRs after "Ingest inbox" completes.
-
-This assumes a [knowledge repo already set up](set-up-a-knowledge-repo.md) with the `ingestor` agent
-installed via `apm`. gh-aw runs on the Copilot engine, so add `copilot` to `targets` in `apm.yml`
-(`targets: [claude, copilot]`) and re-run `apm install`; that installs the agent to
-`.github/agents/ingestor.agent.md`, which the workflow reads.
 
 ## 1. Install the gh-aw CLI extension
 
