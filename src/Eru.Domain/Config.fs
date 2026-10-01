@@ -124,6 +124,7 @@ type GlobalDefaults = {
     AllowPatterns: string list option
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
+    OkfIgnorePatterns: string list option
     DefaultInbox: string option
     InboxWatchIntervalSeconds: int option
 }
@@ -143,6 +144,7 @@ type LocalSettings = {
     AllowPatterns: string list option
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
+    OkfIgnorePatterns: string list option
     DefaultInbox: string option
     InboxWatchIntervalSeconds: int option
 }
@@ -165,6 +167,7 @@ type EffectiveConfig = {
     AllowPatterns             : string list
     AllowBinaries             : bool
     SiteIgnorePatterns        : string list
+    OkfIgnorePatterns         : string list
     Inboxes                   : Map<string, InboxConfig>
     DefaultInbox              : string option
     InboxWatchIntervalSeconds : int
@@ -324,7 +327,19 @@ module Config =
     let defaultBlockPatterns = ["*.exe"; "*.dll"; "*.so"; "*.dylib"; "*.bin"; "*.out"; "*.app"]
     let defaultAllowPatterns : string list = []
     let defaultAllowBinaries = false
-    let defaultSiteIgnorePatterns = ["index.md"; "log.md"]
+    let defaultSiteIgnorePatterns = ["index.md"; "log.md"; "README.md"]
+    // Repo conventions that hold non-concept markdown. Anchored at the bundle root;
+    // dot-directories are always skipped separately (see Patterns.isOkfIgnored).
+    let defaultOkfIgnorePatterns = ["apm_modules/**"; "inbox/**"; "node_modules/**"]
+
+    let resolveOkfIgnorePatterns (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
+        match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.OkfIgnorePatterns) with
+        | Some ps -> ps
+        | None    ->
+            globalCfg
+            |> Option.bind (fun g -> g.Defaults)
+            |> Option.bind (fun d -> d.OkfIgnorePatterns)
+            |> Option.defaultValue defaultOkfIgnorePatterns
 
     let private supportedVersion = 2
 
@@ -464,6 +479,8 @@ module Config =
                     |> Option.bind (fun d -> d.SiteIgnorePatterns)
                     |> Option.defaultValue defaultSiteIgnorePatterns
 
+            let okfIgnorePatterns = resolveOkfIgnorePatterns globalCfg localCfg
+
             // Inboxes merge by key: a local inbox of a given name wins outright; any
             // global inbox whose name isn't used locally is appended. No cross-reference
             // validation (unlike Sources/Collections) — an inbox's Path is just a plain
@@ -504,6 +521,7 @@ module Config =
                 AllowPatterns = allowPatterns
                 AllowBinaries = allowBinaries
                 SiteIgnorePatterns = siteIgnorePatterns
+                OkfIgnorePatterns = okfIgnorePatterns
                 Inboxes = mergedInboxes
                 DefaultInbox = defaultInbox
                 InboxWatchIntervalSeconds = inboxWatchIntervalSeconds

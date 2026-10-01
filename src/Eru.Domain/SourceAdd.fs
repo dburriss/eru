@@ -58,7 +58,14 @@ module SourceAdd =
             match bundles, cmd.BasePath with
             | [ b ], None ->
                 let kindStr = match b.Kind with Manifest -> "manifest" | Okf -> "okf"
-                $"\nDetected KNOWLEDGE/ convention — bundle at \"{b.Path}\" (kind: {kindStr})"
+                let warning =
+                    match b.Kind with
+                    | Manifest ->
+                        BundleKindWarning.noManifestWarning deps cmd.Url cmd.Branch b.Path
+                        |> Option.map (fun w -> "\n" + w)
+                        |> Option.defaultValue ""
+                    | Okf -> ""
+                $"\nDetected KNOWLEDGE/ convention — bundle at \"{b.Path}\" (kind: {kindStr}){warning}"
             | _ -> ""
 
         if cmd.IsGlobal then

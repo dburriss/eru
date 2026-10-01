@@ -32,8 +32,8 @@ module SourceBundleAdd =
 
     // One-bundle discovery walk, merged directly into the source's index —
     // cheaper than triggering a full `eru sync` just to register one bundle.
-    let private discoverAndMergeBundle (deps: Deps) (sourceName: string) (url: string) (branch: string) (bundles: Bundle list) (bundle: Bundle) =
-        match BundleDiscovery.walkBundle deps sourceName url branch bundle with
+    let private discoverAndMergeBundle (deps: Deps) (ignorePatterns: string list) (sourceName: string) (url: string) (branch: string) (bundles: Bundle list) (bundle: Bundle) =
+        match BundleDiscovery.walkBundle deps ignorePatterns sourceName url branch bundle with
         | Error _ -> ()
         | Ok discovered ->
             let existingIdx =
@@ -106,8 +106,18 @@ module SourceBundleAdd =
 
         let newBundle = { Path = path; Kind = kind }
 
+        // Auto-detected manifest with no manifest file would register a bundle that
+        // can publish nothing; say so instead of staying silent.
+        let warning =
+            match explicitKind, kind, src.Url with
+            | None, Manifest, Some url ->
+                BundleKindWarning.noManifestWarning deps url src.Branch path
+                |> Option.map (fun w -> "\n" + w)
+                |> Option.defaultValue ""
+            | _ -> ""
+
         if cmd.DryRun then
-            Ok $"Would add bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'."
+            Ok $"Would add bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'.{warning}"
         else
             let updatedSrc = { src with Bundles = src.Bundles @ [newBundle] }
 
@@ -130,6 +140,6 @@ module SourceBundleAdd =
                 match kind, src.Url with
                 | Okf, Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
-                    discoverAndMergeBundle deps cmd.SourceName url branch updatedSrc.Bundles newBundle
+                    discoverAndMergeBundle deps (Config.resolveOkfIgnorePatterns globalCfg localCfg) cmd.SourceName url branch updatedSrc.Bundles newBundle
                 | _ -> ()
-                Ok $"Added bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'."
+                Ok $"Added bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'.{warning}"

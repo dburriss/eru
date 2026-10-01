@@ -210,5 +210,15 @@ let ``classifyFile recognizes log_md`` () =
 [<Fact>]
 let ``classifyFile treats every other filename as a concept file`` () =
     Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "docs/knowledge/adr-001.md")
-    Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "readme.md")
     Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "Index.md")
+
+[<Theory>]
+[<InlineData("README.md")>]
+[<InlineData("readme.md")>]
+[<InlineData("docs/README.md")>]
+let ``classifyFile treats README.md as ReadmeFile`` (path: string) =
+    Assert.Equal(Frontmatter.ReadmeFile, Frontmatter.classifyFile path)
+
+[<Fact>]
+let ``classifyFile still treats other files as concepts`` () =
+    Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "docs/readme-first.md")

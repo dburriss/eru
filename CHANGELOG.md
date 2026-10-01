@@ -4,6 +4,11 @@
 
 ## Added
 
+- `eru source bundle add` warns when a bundle is auto-detected as `manifest` but has no `.eru/manifest.json`, listing the ways to fix it (add `okf_version` to `index.md`, pass `--kind okf`, or create a manifest); `eru source add` does the same for a detected `KNOWLEDGE/` bundle
+- `eru okf validate`: the bundle-root `index.md` frontmatter message now explains that it should contain only `okf_version`, which is what makes eru detect an OKF bundle
+- `README.md` and dot-directories (`.github`, `.claude`, `.agents`, …) are no longer treated as OKF concepts: they are skipped by `eru okf validate` and OKF bundle discovery
+- `siteIgnorePatterns` now defaults to `index.md`, `log.md` and `README.md` (configs with an explicit value are unchanged)
+- `okfIgnorePatterns` setting (default `apm_modules/**`, `inbox/**`, `node_modules/**`) to skip paths during OKF bundle discovery and `eru okf validate`
 - `eru version` command prints the version and the git commit it was built from
 - Added description field to the manifest
 - Remote git inboxes: `eru inbox add <name> <git-url> [--branch]` registers a repo as an inbox and `eru inbox send` clones it shallowly, commits the item and pushes (via FsForge); remote inboxes are send-only

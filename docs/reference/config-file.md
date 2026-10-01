@@ -181,7 +181,8 @@ Both blocks hold the same set of overridable options. `settings` (local) takes p
 | `BlockPatterns` | `blockPatterns` | No | `["*.exe", "*.dll", "*.so", "*.dylib", "*.bin", "*.out", "*.app"]` | Gitignore-style globs; matching paths are refused unless also matched by `AllowPatterns`. |
 | `AllowPatterns` | `allowPatterns` | No | `[]` | Gitignore-style globs that override `BlockPatterns` for matching paths. |
 | `AllowBinaries` | `allowBinaries` | No | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
-| `SiteIgnorePatterns` | `siteIgnorePatterns` | No | `["index.md", "log.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
+| `SiteIgnorePatterns` | `siteIgnorePatterns` | No | `["index.md", "log.md", "README.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
+| `OkfIgnorePatterns` | `okfIgnorePatterns` | No | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) and `README.md` are always skipped and need no pattern. Use `**/inbox/**` to match nested directories. |
 | `DefaultInbox` | `defaultInbox` | No | — | Name of the inbox `eru inbox send -i` falls back to when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 | `InboxWatchIntervalSeconds` | `inboxWatchIntervalSeconds` | No | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
 
@@ -207,7 +208,8 @@ Notes:
     "blockPatterns": ["*.exe", "*.dll"],
     "allowPatterns": [],
     "allowBinaries": false,
-    "siteIgnorePatterns": ["index.md", "log.md"],
+    "siteIgnorePatterns": ["index.md", "log.md", "README.md"],
+    "okfIgnorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"],
     "inboxWatchIntervalSeconds": 30
   }
 }
@@ -225,7 +227,8 @@ Notes:
     "blockPatterns": null,
     "allowPatterns": ["vendor/**/*.dll"],
     "allowBinaries": null,
-    "siteIgnorePatterns": ["index.md", "log.md"],
+    "siteIgnorePatterns": ["index.md", "log.md", "README.md"],
+    "okfIgnorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"],
     "inboxWatchIntervalSeconds": null
   }
 }
@@ -249,7 +252,7 @@ After this merge, `Config.withManifests` optionally layers in files advertised b
 ## Creating a config file
 
 `eru init` scaffolds a local config with `settings` fields present but `null` (falling back to defaults),
-except `siteIgnorePatterns` which is scaffolded populated. `eru init --global` scaffolds a global config with
+except `siteIgnorePatterns` and `okfIgnorePatterns` which are scaffolded populated. `eru init --global` scaffolds a global config with
 `defaults` populated from eru's built-in defaults. See the [CLI reference](cli.md#eru-init) for flags.
 
 See also: [lock file and local path resolution](lock-file-and-config.md), [eru concepts](../explanation/concepts.md),

@@ -18,6 +18,7 @@
     <Compile Include="SourceList.fs" />
     <Compile Include="SourceView.fs" />
     <Compile Include="SourceFiles.fs" />
+    <Compile Include="BundleKindWarning.fs" />
     <Compile Include="SourceAdd.fs" />
     <Compile Include="SourceRemove.fs" />
     <Compile Include="SourceBundleAdd.fs" />

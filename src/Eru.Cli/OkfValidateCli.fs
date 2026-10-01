@@ -42,7 +42,11 @@ let private renderTable (result: OkfValidate.ValidateResult) =
         eprintfn $"{result.Violations.Length} violation(s) found; {result.TotalConcepts} concept(s) conformant."
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    match OkfValidate.execute deps { Path = cmd.Path } with
+    let ignorePatterns =
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+        | Ok g, Ok l -> Config.resolveOkfIgnorePatterns g l
+        | _          -> Config.defaultOkfIgnorePatterns
+    match OkfValidate.execute deps { Path = cmd.Path; IgnorePatterns = ignorePatterns } with
     | Error e -> renderError e; 1
     | Ok result ->
         match cmd.Format with

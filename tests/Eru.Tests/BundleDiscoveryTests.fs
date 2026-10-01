@@ -57,7 +57,7 @@ let ``walkBundle classifies index and log files with empty metadata`` () =
             | "log.md"   -> p, "## 2026-01-01\n\nDid stuff."
             | other      -> other, ""))
     let deps = makeDeps listFiles fetch
-    match BundleDiscovery.walkBundle deps "kb" "https://x.com" "main" rootBundle with
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
     | Error e -> Assert.Fail e
     | Ok files ->
         Assert.Equal(2, files.Length)
@@ -72,7 +72,7 @@ let ``walkBundle extracts frontmatter from concept files`` () =
     let fetch _ _ paths =
         Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\ntitle: Use F#\ntags: [dotnet, architecture]\ndescription: Why we chose F#\n---\n"))
     let deps = makeDeps listFiles fetch
-    match BundleDiscovery.walkBundle deps "kb" "https://x.com" "main" rootBundle with
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
     | Error e -> Assert.Fail e
     | Ok [ file ] ->
         Assert.Equal("adr-001.md", file.RemotePath)
@@ -94,7 +94,7 @@ let ``walkBundle re-prefixes bundle-relative paths with the bundle's own path`` 
         fetchedPaths.Value <- paths
         Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\n---\n"))
     let deps = makeDeps listFiles fetch
-    match BundleDiscovery.walkBundle deps "kb" "https://x.com" "main" nestedBundle with
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" nestedBundle with
     | Error e -> Assert.Fail e
     | Ok [ file ] ->
         Assert.Equal("docs/knowledge/adr-001.md", file.RemotePath)
@@ -109,7 +109,7 @@ let ``walkBundle only considers markdown candidate paths`` () =
         seenPaths.Value <- paths
         Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\n---\n"))
     let deps = makeDeps listFiles fetch
-    match BundleDiscovery.walkBundle deps "kb" "https://x.com" "main" rootBundle with
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
     | Error e -> Assert.Fail e
     | Ok files ->
         Assert.Equal(1, files.Length)
@@ -120,7 +120,7 @@ let ``walkBundle returns empty list when the bundle has no markdown files`` () =
     let listFiles _ _ _ = Ok []
     let fetch _ _ _ = Error "should not be called"
     let deps = makeDeps listFiles fetch
-    match BundleDiscovery.walkBundle deps "kb" "https://x.com" "main" rootBundle with
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
     | Error e -> Assert.Fail e
     | Ok files -> Assert.Empty files
 
@@ -129,6 +129,41 @@ let ``walkBundle propagates a ListRemoteFiles error`` () =
     let listFiles _ _ _ = Error "network down"
     let fetch _ _ _ = Error "should not be called"
     let deps = makeDeps listFiles fetch
-    match BundleDiscovery.walkBundle deps "kb" "https://x.com" "main" rootBundle with
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
     | Error e -> Assert.Equal("network down", e)
     | Ok _ -> Assert.Fail "expected Error"
+
+[<Fact>]
+let ``walkBundle treats README.md as non-concept with empty metadata`` () =
+    let listFiles _ _ _ = Ok [ "README.md" ]
+    let fetch _ _ paths = Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\ntags: [x]\n---\n"))
+    let deps = makeDeps listFiles fetch
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
+    | Error e -> Assert.Fail e
+    | Ok [ f ] ->
+        Assert.Equal(None, f.Type)
+        Assert.Empty(f.Contribution.Tags)
+    | Ok other -> Assert.Fail $"expected one file, got {other.Length}"
+
+[<Fact>]
+let ``walkBundle skips dot-directories and ignore-pattern matches`` () =
+    let listFiles _ _ _ = Ok [ ".github/x.md"; ".claude/skills/y.md"; "inbox/n.md"; "apm_modules/p/z.md"; "adr.md" ]
+    let mutable fetched : string list = []
+    let fetch _ _ (paths: string list) =
+        fetched <- paths
+        Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\n---\n"))
+    let deps = makeDeps listFiles fetch
+    match BundleDiscovery.walkBundle deps Config.defaultOkfIgnorePatterns "kb" "https://x.com" "main" rootBundle with
+    | Error e -> Assert.Fail e
+    | Ok files ->
+        Assert.Equal<string list>([ "adr.md" ], files |> List.map (fun f -> f.RemotePath))
+        Assert.Equal<string list>([ "adr.md" ], fetched)
+
+[<Fact>]
+let ``walkBundle applies ignore patterns to bundle-relative paths`` () =
+    let listFiles _ _ _ = Ok [ "inbox/n.md"; "adr.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\n---\n"))
+    let deps = makeDeps listFiles fetch
+    match BundleDiscovery.walkBundle deps [ "inbox/**" ] "kb" "https://x.com" "main" nestedBundle with
+    | Error e -> Assert.Fail e
+    | Ok files -> Assert.Equal<string list>([ "docs/knowledge/adr.md" ], files |> List.map (fun f -> f.RemotePath))

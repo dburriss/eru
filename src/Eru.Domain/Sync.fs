@@ -129,6 +129,7 @@ module Sync =
                            AllowPatterns = Config.defaultAllowPatterns
                            AllowBinaries = Config.defaultAllowBinaries
                            SiteIgnorePatterns = Config.defaultSiteIgnorePatterns
+                           OkfIgnorePatterns = Config.defaultOkfIgnorePatterns
                            Inboxes = Map.empty
                            DefaultInbox = None
                            InboxWatchIntervalSeconds = 30 }
@@ -201,7 +202,7 @@ module Sync =
                             let mutable idx = existingIdx
                             let mutable discoveryFailed = false
                             for bundle in okfBundles do
-                                match BundleDiscovery.walkBundle deps src.Name url branch bundle with
+                                match BundleDiscovery.walkBundle deps eff.OkfIgnorePatterns src.Name url branch bundle with
                                 | Error e ->
                                     discoveryFailed <- true
                                     errors.Add($"source '{src.Name}': bundle discovery for '{bundle.Path}' failed: {e}")

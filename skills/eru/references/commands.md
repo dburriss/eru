@@ -391,7 +391,7 @@ No arguments. Exits 0 if all entries resolve to at least one local file, 1 other
 eru okf validate <path>
 ```
 
-Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Exits 0 if conformant, 1 otherwise.
+Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okfIgnorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise.
 
 ---
 

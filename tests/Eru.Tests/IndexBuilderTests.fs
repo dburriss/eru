@@ -69,6 +69,7 @@ let private cfg (sourceName: string) : EffectiveConfig = {
     AllowPatterns = []
     AllowBinaries = false
     SiteIgnorePatterns = []
+    OkfIgnorePatterns = []
     Inboxes = Map.empty
     DefaultInbox = None
     InboxWatchIntervalSeconds = 30
@@ -148,4 +149,18 @@ let ``files matching SiteIgnorePatterns are excluded from the model`` () =
     | Ok model ->
         Assert.Equal(1, model.Documents.Length)
         Assert.Equal("content.md", model.Documents.[0].RemotePath)
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``default SiteIgnorePatterns exclude README.md at any depth`` () =
+    let index =
+        Map.ofList [
+            "README.md",      { emptyIndexEntry with LocalPath = Some "README.md" }
+            "docs/README.md", { emptyIndexEntry with LocalPath = Some "docs/README.md" }
+            "content.md",     { emptyIndexEntry with LocalPath = Some "content.md" }
+        ]
+    let deps = makeDeps index
+    let cfgDefault = { cfg "src" with SiteIgnorePatterns = Config.defaultSiteIgnorePatterns }
+    match IndexBuilder.buildModel deps cfgDefault with
+    | Ok model -> Assert.Equal<string list>([ "content.md" ], model.Documents |> List.map (fun d -> d.RemotePath))
     | Error e -> Assert.Fail e

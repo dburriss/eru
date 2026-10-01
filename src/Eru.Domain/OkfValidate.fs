@@ -5,7 +5,7 @@ open System.Text.RegularExpressions
 
 module OkfValidate =
 
-    type Command = { Path: string }
+    type Command = { Path: string; IgnorePatterns: string list }
 
     type Violation = { Path: string; Rule: string; Message: string }
 
@@ -25,7 +25,7 @@ module OkfValidate =
             if isRoot && keys = [ "okf_version" ] then
                 None
             elif isRoot then
-                Some { Path = rel; Rule = "index-frontmatter"; Message = "bundle-root index.md frontmatter may only contain okf_version" }
+                Some { Path = rel; Rule = "index-frontmatter"; Message = "bundle-root index.md frontmatter should contain only `okf_version`; this is what makes eru detect the directory as an OKF bundle" }
             else
                 Some { Path = rel; Rule = "index-frontmatter"; Message = "index.md must not contain frontmatter" }
 
@@ -55,7 +55,8 @@ module OkfValidate =
     let execute (deps: Deps) (cmd: Command) : Result<ValidateResult, string> =
         match deps.ListMarkdownFiles cmd.Path with
         | Error e -> Error e
-        | Ok relFiles ->
+        | Ok allFiles ->
+            let relFiles = allFiles |> List.filter (fun rel -> not (Patterns.isOkfIgnored cmd.IgnorePatterns rel))
             let violations = ResizeArray()
             let mutable totalConcepts = 0
 
@@ -70,6 +71,7 @@ module OkfValidate =
                         Frontmatter.tryParse deps.ParseYamlBlock content
                         |> validateIndex rel
                         |> Option.iter violations.Add
+                    | Frontmatter.ReadmeFile -> ()
                     | Frontmatter.LogFile ->
                         validateLog rel content |> List.iter violations.Add
                     | Frontmatter.ConceptFile ->

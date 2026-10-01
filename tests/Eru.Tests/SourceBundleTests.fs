@@ -188,6 +188,48 @@ let ``add triggers a one-bundle discovery walk and merges into the index when Ok
     | Some e -> Assert.Equal<string list>(["dotnet"], e.Tags)
     | None   -> Assert.Fail "expected docs/adr.md to be indexed"
 
+// ── SourceBundleAdd: manifest-without-manifest warning ───────────────────────
+
+let private addResult (kind: string option) (dryRun: bool) (fetch: string -> string -> string list -> Result<(string * string) list, string>) =
+    let local = emptyLocal [ makeSource "kb" [] ]
+    let deps = makeDeps None (Some local) fetch noList (ref None) (ref None) (System.Collections.Generic.List())
+    match SourceBundleAdd.execute deps { SourceName = "kb"; Path = "docs"; Kind = kind; DryRun = dryRun } with
+    | Ok msg -> msg
+    | Error e -> Assert.Fail e; ""
+
+// index.md without okf_version, no manifest
+let private fetchNoManifest _ _ (paths: string list) =
+    Ok (paths |> List.choose (fun p -> if p.EndsWith "index.md" then Some (p, "---\ntype: index\n---\n") else None))
+
+[<Fact>]
+let ``add warns when auto-detected Manifest has no manifest file`` () =
+    let msg = addResult None false fetchNoManifest
+    Assert.Contains("Warning", msg)
+    Assert.Contains("okf_version", msg)
+    Assert.Contains("--kind okf", msg)
+    Assert.Contains("manifest", msg)
+
+[<Fact>]
+let ``add warns in dry-run too`` () =
+    Assert.Contains("Warning", addResult None true fetchNoManifest)
+
+[<Fact>]
+let ``add does not warn with explicit --kind`` () =
+    Assert.DoesNotContain("Warning", addResult (Some "manifest") false fetchNoManifest)
+    Assert.DoesNotContain("Warning", addResult (Some "okf") false fetchNoManifest)
+
+[<Fact>]
+let ``add does not warn when a manifest exists`` () =
+    let fetch _ _ (paths: string list) =
+        Ok (paths |> List.map (fun p -> if p.EndsWith "manifest.json" then p, "{}" else p, "# heading"))
+    Assert.DoesNotContain("Warning", addResult None false fetch)
+
+[<Fact>]
+let ``add does not warn when auto-detected as Okf`` () =
+    let fetch _ _ (paths: string list) =
+        Ok (paths |> List.choose (fun p -> if p.EndsWith "index.md" then Some (p, "---\nokf_version: \"1.0\"\n---\n") else None))
+    Assert.DoesNotContain("Warning", addResult None false fetch)
+
 // ── SourceBundleList ──────────────────────────────────────────────────────────
 
 [<Fact>]

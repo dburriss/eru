@@ -209,6 +209,30 @@ eru source files knowledge --refresh # re-fetch from network, then display
 
 If no index has been built yet, run `eru sync` first.
 
+### `eru source bundle add`
+
+Register a bundle (a directory of knowledge within a source) on an existing source.
+
+```
+eru source bundle add <source> <path> [-k manifest|okf] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<source>` `<path>` | Source name and bundle path (`.` or `/` for the repo root) |
+| `-k` / `--kind` | Bundle kind: `manifest` or `okf`. Auto-detected when omitted |
+| `--dryrun` | Preview without writing |
+
+**Kind auto-detection.** A bundle is detected as `okf` only when its root `index.md` frontmatter contains `okf_version`; otherwise it is registered as `manifest`.
+
+If the kind was auto-detected as `manifest` but the bundle has no `.eru/manifest.json`, eru prints a warning, because the bundle would publish no files. The bundle is still registered. To fix it, do one of:
+
+- add `okf_version` to the bundle root `index.md` frontmatter,
+- re-run with `--kind okf`, or
+- create a manifest (`eru manifest init`).
+
+The warning is not shown when `--kind` is passed explicitly. `eru source add` prints the same warning when it detects a `KNOWLEDGE/` bundle that has neither `okf_version` nor a manifest.
+
 ### `eru source remove`
 
 Remove a knowledge source from the config.
@@ -814,7 +838,18 @@ Check a directory tree for conformance with the Open Knowledge Format (OKF) spec
 
 ### `eru okf validate`
 
-Walk a directory tree and report violations of OKF §11 conformance: every non-reserved `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, broken cross-links, or missing optional fields — those are explicitly permitted by the spec.
+Walk a directory tree and report violations of OKF §11 conformance: every concept `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, broken cross-links, or missing optional fields — those are explicitly permitted by the spec.
+
+The bundle-root `index.md` frontmatter should contain only `okf_version`. That key is what makes eru detect a directory as an OKF bundle (see [`eru source bundle add`](#eru-source-bundle-add)).
+
+**What is not a concept file.** These are skipped, not validated or counted:
+
+- `index.md` and `log.md` (validated against their own rules instead).
+- `README.md`, at any depth and case-insensitively. READMEs are human prose, not concepts.
+- Anything under a dot-directory (`.git`, `.github`, `.claude`, `.agents`, …). Always skipped, not configurable.
+- Paths matching `okfIgnorePatterns` (default `apm_modules/**`, `inbox/**`, `node_modules/**`), read from the local/global config. See the [config file reference](config-file.md). Patterns are relative to `<path>`.
+
+The same rules apply when eru discovers files in a remote OKF bundle.
 
 ```
 eru okf validate <path>

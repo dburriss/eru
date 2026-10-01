@@ -19,7 +19,7 @@ module BundleDiscovery =
 
     let private toDiscoveredFile (parseYaml: Yaml.Parse) (remotePath: string) (content: string) : DiscoveredFile =
         match Frontmatter.classifyFile remotePath with
-        | Frontmatter.IndexFile | Frontmatter.LogFile ->
+        | Frontmatter.IndexFile | Frontmatter.LogFile | Frontmatter.ReadmeFile ->
             { RemotePath   = remotePath
               Content      = content
               Contribution = { Tags = []; Description = None }
@@ -48,7 +48,7 @@ module BundleDiscovery =
     // Walks one Okf-kind bundle: lists its .md files, fetches them all in a single
     // batched call, and classifies/extracts frontmatter for each.
     let walkBundle
-        (deps: Deps) (sourceName: string) (sourceUrl: string) (branch: string) (bundle: Bundle)
+        (deps: Deps) (ignorePatterns: string list) (sourceName: string) (sourceUrl: string) (branch: string) (bundle: Bundle)
         : Result<DiscoveredFile list, string> =
         let bundlePathOpt = if bundle.Path = "" then None else Some bundle.Path
         match deps.ListRemoteFiles sourceUrl (Some branch) bundlePathOpt with
@@ -59,6 +59,7 @@ module BundleDiscovery =
             let candidatePaths =
                 relativePaths
                 |> List.filter (fun p -> p.EndsWith(".md"))
+                |> List.filter (fun p -> not (Patterns.isOkfIgnored ignorePatterns p))
                 |> List.map (fun p ->
                     match bundlePathOpt with
                     | None    -> p

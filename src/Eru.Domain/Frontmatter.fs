@@ -115,11 +115,15 @@ module Frontmatter =
     type FileClass =
         | IndexFile
         | LogFile
+        | ReadmeFile
         | ConceptFile
 
     // Classifies a bundle-relative path by its filename, per OKF §11 conventions.
+    // README.md is human prose rather than a concept, so it is excluded like the
+    // reserved index.md/log.md (case-insensitive, any depth).
     let classifyFile (relPath: string) : FileClass =
         match System.IO.Path.GetFileName(relPath: string) with
         | "index.md" -> IndexFile
         | "log.md"   -> LogFile
+        | name when name.Equals("readme.md", System.StringComparison.OrdinalIgnoreCase) -> ReadmeFile
         | _          -> ConceptFile

@@ -32,6 +32,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
                   AllowPatterns             = Config.defaultAllowPatterns
                   AllowBinaries             = Config.defaultAllowBinaries
                   SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns
+                  OkfIgnorePatterns         = Config.defaultOkfIgnorePatterns
                   Inboxes                   = Map.empty
                   DefaultInbox              = None
                   InboxWatchIntervalSeconds = 30 })

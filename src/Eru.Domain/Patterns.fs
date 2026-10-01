@@ -34,6 +34,14 @@ module Patterns =
     let matchesAny (patterns: string list) (path: string) : bool =
         patterns |> List.exists (fun p -> matchesGlob p path)
 
+    // True when a bundle-relative markdown path can never be a concept file: any
+    // dot-directory segment (.git, .github, .claude, ...) or a match on the
+    // configured okfIgnorePatterns.
+    let isOkfIgnored (ignorePatterns: string list) (relPath: string) : bool =
+        let segments = relPath.Split('/')
+        let inDotDir = segments |> Array.take (segments.Length - 1) |> Array.exists (fun seg -> seg.StartsWith "." )
+        inDotDir || matchesAny ignorePatterns relPath
+
     // Path-only check (no content needed); used as a fast pre-filter
     let isPathBlocked (blockPatterns: string list) (allowPatterns: string list) (path: string) : bool =
         if matchesAny allowPatterns path then false

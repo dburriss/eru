@@ -47,7 +47,7 @@ let private makeDeps (files: Map<string, string>) : Deps =
 
 let private run (files: (string * string) list) : OkfValidate.ValidateResult =
     let deps = makeDeps (Map.ofList files)
-    match OkfValidate.execute deps { Path = "/bundle" } with
+    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = [] } with
     | Error e -> Assert.Fail($"expected Ok, got Error {e}"); failwith "unreachable"
     | Ok result -> result
 
@@ -141,3 +141,37 @@ let ``unknown extra frontmatter key is not a violation`` () =
 let ``broken cross-link is not a violation`` () =
     let result = run [ "tables/orders.md", "---\ntype: table\n---\nSee [missing](./does-not-exist.md)\n" ]
     Assert.Empty(result.Violations)
+
+[<Fact>]
+let ``root index frontmatter message tells the user what is expected`` () =
+    let result = run [ "index.md", "---\ntype: index\n---\n" ]
+    Assert.Equal(1, result.Violations.Length)
+    let msg = result.Violations.[0].Message
+    Assert.Contains("should contain only `okf_version`", msg)
+    Assert.Contains("detect the directory as an OKF bundle", msg)
+
+[<Fact>]
+let ``README.md is not a concept and raises no violation`` () =
+    let result = run [ "README.md", "# Plain prose\n"; "docs/readme.md", "# More prose\n"; "tables/orders.md", conceptWithType ]
+    Assert.Empty(result.Violations)
+    Assert.Equal(1, result.TotalConcepts)
+
+[<Fact>]
+let ``files under dot-directories are skipped`` () =
+    let result = run [ ".claude/skills/x.md", "no frontmatter"; ".github/a/b.md", "no frontmatter"; "tables/orders.md", conceptWithType ]
+    Assert.Empty(result.Violations)
+    Assert.Equal(1, result.TotalConcepts)
+
+[<Fact>]
+let ``files matching ignore patterns are skipped`` () =
+    let deps = makeDeps (Map.ofList [ "apm_modules/p/x.md", "no frontmatter"; "inbox/note.md", "no frontmatter"; "tables/orders.md", conceptWithType ])
+    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = Config.defaultOkfIgnorePatterns } with
+    | Error e -> Assert.Fail e
+    | Ok result ->
+        Assert.Empty(result.Violations)
+        Assert.Equal(1, result.TotalConcepts)
+
+[<Fact>]
+let ``files are validated when not covered by ignore patterns`` () =
+    let result = run [ "inbox/note.md", "no frontmatter" ]
+    Assert.Equal(1, result.Violations.Length)
