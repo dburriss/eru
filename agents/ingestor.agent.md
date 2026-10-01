@@ -63,9 +63,43 @@ whether or how to commit; follow any commit instructions given alongside it.
 
 Compare the item's topic against each existing top-level folder's
 `README.md` description. Best-effort match — if nothing fits reasonably,
-create a new top-level folder with its own `README.md` (human prose
-description) and `index.md` (OKF catalog, same shape as existing folders —
-see any existing `index.md` for the format).
+create a new top-level folder:
+
+1. Write its `README.md` as plain prose describing the domain. A `README.md`
+   is **not part of the OKF bundle** (it has no `type`, so it is not a
+   concept): give it **no frontmatter**, and do not list it in any
+   `index.md`. It exists only as the human description used for matching.
+2. Create its `index.md` (the OKF catalog). Run `eru okf init <repo-root>` if
+   `eru` is available: it creates any missing `index.md` (folder and root)
+   and never overwrites existing files. Otherwise write it by hand: a
+   markdown heading followed by the catalog table
+   `| Concept | Type | Tags | Stale after |`. A folder `index.md` has **NO
+   YAML frontmatter** — no `---` block at all. Do not copy frontmatter from
+   any existing `index.md`; existing indexes may carry it by mistake.
+3. Add a row for the new folder to the root `index.md` (see below).
+
+#### The bundle root
+
+The repo root `index.md` is the OKF bundle marker. Its **only** permitted
+frontmatter is `okf_version`:
+
+```markdown
+---
+okf_version: "0.1"
+---
+
+# <Knowledge base title>
+
+| Domain | Description |
+|---|---|
+| [<folder>](<folder>/index.md) | <one line> |
+```
+
+- If the root `index.md` does not exist, create it as above (`eru okf init`
+  does this), with the top-level domain table after the frontmatter.
+- If it exists with any other frontmatter keys, reduce the frontmatter to
+  `okf_version` only. Keep an existing `okf_version` value as it is.
+- Without `okf_version` eru does not recognise the repo as an OKF bundle.
 
 ### 3. Pick a Diataxis type (and split if mixed)
 
@@ -124,10 +158,34 @@ similarity yourself.
 ### 5. Update the folder's index.md
 
 Add a new row, or update the existing row (`tags`, `stale_after`) if you
-merged into an existing note.
+merged into an existing note. `eru okf init`/`fix` never add rows to an
+existing `index.md`, so do this by hand.
+
+A folder `index.md` has **NO YAML frontmatter**: just a markdown heading and
+the catalog table. If the one you are editing starts with a `---` block
+(e.g. `type: index`, `title: ...`), remove that block. Do not model a new or
+edited index on one that has frontmatter. Do not list `README.md` in the table.
 
 ### 6. Archive the raw item
 
 `git mv` the raw file (and its `.meta.json` sidecar, if any) into
 `inbox/archive/<source>/`, preserving the source subfolder. Raw items are
 never deleted, only archived.
+
+### 7. Self-check
+
+Before finishing, validate every folder you touched (the domain folder, plus
+the repo root if you edited the root `index.md`):
+
+```bash
+eru okf validate <domain folder>
+```
+
+If it reports violations, run `eru okf fix <domain folder> --dry-run` to
+preview the mechanical repairs (index frontmatter, missing `type`), then
+`eru okf fix <domain folder>` to apply them. Fix by hand anything `fix`
+reports as needing manual attention (e.g. malformed YAML in a note), and
+re-run `eru okf validate` until it exits 0. Archived items under `inbox/` are
+not validated. If `eru` is not available, re-read the rules above (no
+frontmatter in folder indexes, `okf_version` only at the root, a non-empty
+`type` on every note) and check your files against them.

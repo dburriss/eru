@@ -100,6 +100,15 @@ ask should become two documents, not one document doing double duty.
    (e.g. a newcomer landed on a reference page and bounced) rather than
    assuming the content itself is unclear.
 
+## Keeping an OKF bundle valid
+
+If the docs tree is an OKF bundle (the root `index.md` has `okf_version`),
+check it after filing documents, when `eru` is available: run `eru okf init
+<root>` to create missing `index.md` files and `eru okf validate <root>` to
+confirm conformance (`eru okf fix` repairs most violations). Remember that a
+folder `index.md` has no frontmatter, and that `README.md` is not part of the
+bundle.
+
 ## Anti-patterns to flag
 
 - A README that opens with installation steps (how-to), drifts into "how it

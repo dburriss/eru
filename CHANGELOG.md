@@ -28,6 +28,7 @@
 
 ### Changed
 
+- Built-in ingestor instructions (`agents/ingestor.agent.md`) now produce a valid OKF bundle: folder `index.md` files get no frontmatter, the root `index.md` carries only `okf_version`, `README.md` is treated as outside the bundle, and the agent uses `eru okf init` for new folders and `eru okf validate`/`fix` as a final self-check
 - Built-in ingestor instructions (`agents/ingestor.agent.md`) no longer loop until `inbox/raw/` is empty; the agent processes only the items it is told to (by `eru`, a harness prompt, or a workflow) and asks if none are specified
 - Built-in ingestor instructions (`agents/ingestor.agent.md`) no longer include a commit step, so they stay neutral across environments; use `--append` to add commit/PR behaviour
 - `eru manifest verify` renamed to `eru manifest validate`; `verify` is kept as a backward-compatible alias

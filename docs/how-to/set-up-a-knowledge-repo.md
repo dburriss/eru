@@ -130,6 +130,12 @@ you'd rather hand-write your own curation instructions instead of using the pack
 skip the `apm.yml` dependency above and write `.agents/agents/ingestor.md` directly — eru picks that
 up with no `--agent-instructions` flag needed.
 
+The ingestor keeps the notes it writes a valid [OKF](https://github.com/GoogleCloudPlatform/open-knowledge-format)
+bundle. The repo root `index.md` is the bundle marker and carries only `okf_version` frontmatter,
+folder `index.md` files have no frontmatter, and `README.md` files are not part of the bundle. When it
+creates a new top-level folder it runs [`eru okf init`](../reference/cli.md), and before finishing it
+runs `eru okf validate` on every folder it touched, fixing violations (with `eru okf fix` where possible).
+
 ## 5. Verify
 
 ```bash

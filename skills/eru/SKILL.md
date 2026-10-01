@@ -193,13 +193,18 @@ The site is fully navigable as plain HTML with no JavaScript. JS adds in-place s
 
 ---
 
-### `eru okf validate`
+### `eru okf init` / `fix` / `validate`
 
-Check a directory tree for OKF §11 conformance (frontmatter with a non-empty `type`, valid `index.md`/`log.md` structure).
+Create, repair and check an OKF bundle. `README.md` and dot-directories are not part of the bundle and are skipped. Folder `index.md` files have no frontmatter; only the root `index.md` has frontmatter, and only `okf_version` (this is the bundle marker).
 
 ```bash
-eru okf validate ./my-bundle   # exits 1 if any conformance violations are found
+eru okf init ./my-bundle                 # create missing index.md files (root with okf_version, catalog table per folder); never overwrites
+eru okf fix ./my-bundle --dry-run        # preview repairs: index frontmatter, missing type, log.md dates
+eru okf fix ./my-bundle                  # apply them (--default-type <t> sets the type for untyped concepts); exits 1 if manual fixes remain
+eru okf validate ./my-bundle             # OKF §11 conformance; exits 1 if any violations are found
 ```
+
+Run `validate` after adding or editing notes; use `init`/`fix` to resolve what it reports. Neither adds rows to an existing `index.md`. See `references/commands.md` for all flags and output formats.
 
 ---
 
