@@ -2,8 +2,9 @@
 
 ## [Unreleased]
 
-## Added
+### Added
 
+- OKF v0.2 alignment: `eru okf init`/`fix` write `okf_version: "0.2"`; `eru okf validate` reports non-fatal v0.2 shape warnings (`generated`, `verified`, `stale_after`, `status`, `sources`, legacy `timestamp`, `log.md` order); eru reads `sources` and falls back to a legacy `timestamp` when `generated` is absent; the ingestor agent template now writes spec-shaped `generated`/`sources` and omits `verified` until a human reviews; `eru inbox send` quotes `resource` in its frontmatter
 - `eru okf init <path>` creates missing `index.md` files (root with `okf_version`, plus a catalog table per folder), never overwriting; `eru okf fix <path>` repairs a tree so `eru okf validate` passes (index frontmatter, missing concept frontmatter/`type`, non-ISO `log.md` date headings, missing indexes). Both write by default; `--dry-run` previews, `--default-type` sets the type for untyped concepts
 - `eru source bundle add` warns when a bundle is auto-detected as `manifest` but has no `.eru/manifest.json`, listing the ways to fix it (add `okf_version` to `index.md`, pass `--kind okf`, or create a manifest); `eru source add` does the same for a detected `KNOWLEDGE/` bundle
 - `eru okf validate`: the bundle-root `index.md` frontmatter message now explains that it should contain only `okf_version`, which is what makes eru detect an OKF bundle
@@ -37,6 +38,7 @@
 
 ### Fixed
 
+- OKF bundle discovery no longer fails when a source has no branch configured
 - Pinned the test runner via `global.json` (`Microsoft.Testing.Platform`) to fix `dotnet test` discovery
 
 ## [0.8.0] - 2026-06-03

@@ -109,6 +109,15 @@ confirm conformance (`eru okf fix` repairs most violations). Remember that a
 folder `index.md` has no frontmatter, and that `README.md` is not part of the
 bundle.
 
+A valid OKF v0.2 note needs only a non-empty `type` in its frontmatter. When
+you also add trust or provenance keys, use the v0.2 shapes: `generated: { by,
+at }`, `verified: [{ by, at }]` (omit it rather than writing `false`),
+`sources: [{ resource: ... }]` (objects, not bare strings), and
+`stale_after` as an ISO 8601 datetime with a UTC offset. Actors are
+`<producer>/<version>`, `human:<id>` or `process:<id>`; only a person's
+confirmation may use `human:`. Don't write v0.1 `timestamp` or a `# Citations`
+section. `eru okf validate` prints `⚠` warnings for non-v0.2 shapes.
+
 ## Anti-patterns to flag
 
 - A README that opens with installation steps (how-to), drifts into "how it

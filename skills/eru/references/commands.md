@@ -391,7 +391,7 @@ No arguments. Exits 0 if all entries resolve to at least one local file, 1 other
 eru okf validate <path>
 ```
 
-Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okfIgnorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise.
+Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okfIgnorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise. Also prints non-fatal `⚠` warnings (never affecting the exit code) for fields that are not OKF v0.2-shaped: `generated`/`verified` that are not `{by, at}` or whose `at` lacks a UTC offset, a legacy `timestamp`, `stale_after` without an offset, `status` outside `draft|stable|deprecated`, `sources` that are not mappings with a `resource` (integer `usage_count`), a root `okf_version` other than `"0.2"`, and `log.md` headings not newest-first.
 
 ---
 

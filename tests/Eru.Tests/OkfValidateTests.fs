@@ -175,3 +175,33 @@ let ``files matching ignore patterns are skipped`` () =
 let ``files are validated when not covered by ignore patterns`` () =
     let result = run [ "inbox/note.md", "no frontmatter" ]
     Assert.Equal(1, result.Violations.Length)
+
+[<Fact>]
+let ``v0.2 shaped trust fields produce no warnings`` () =
+    let c = "---\ntype: t\ngenerated: { by: a/1, at: 2026-06-20T22:53:05Z }\nverified: { by: human:me, at: 2026-06-21T00:00:00Z }\nsources:\n  - resource: https://x.test\n---\n"
+    let result = run [ "a.md", c ]
+    Assert.Empty(result.Violations)
+    Assert.Empty(result.Warnings)
+
+[<Fact>]
+let ``v0.1 shaped fields warn without failing validation`` () =
+    let c = "---\ntype: t\ngenerated: 2026-10-01\nverified: false\nsources: [a.md]\n---\n"
+    let result = run [ "a.md", c ]
+    Assert.Empty(result.Violations)
+    Assert.Equal(1, result.TotalConcepts)
+    let rules = result.Warnings |> List.map (fun w -> w.Rule)
+    Assert.Contains("generated-shape", rules)
+    Assert.Contains("verified-shape", rules)
+    Assert.Contains("sources-shape", rules)
+
+[<Fact>]
+let ``non-0.2 okf_version in root index warns`` () =
+    let result = run [ "index.md", "---\nokf_version: \"0.1\"\n---\n# B\n" ]
+    Assert.Empty(result.Violations)
+    Assert.Equal("okf-version", result.Warnings.Head.Rule)
+
+[<Fact>]
+let ``log.md oldest-first headings warn`` () =
+    let result = run [ "log.md", "# Log\n\n## 2026-01-01\n* a\n\n## 2026-02-01\n* b\n" ]
+    Assert.Empty(result.Violations)
+    Assert.Equal("log-order", result.Warnings.Head.Rule)

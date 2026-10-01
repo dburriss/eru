@@ -85,7 +85,7 @@ frontmatter is `okf_version`:
 
 ```markdown
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 ---
 
 # <Knowledge base title>
@@ -147,13 +147,53 @@ similarity yourself.
                           # sidecar (copied-in file), whichever applies
   tags: []               # reuse existing tags from the target folder's
                           # index.md / other folders before inventing new ones
-  generated: <today>
-  verified: false
+  generated:
+    by: ingestor/<model>   # actor: <producer>/<version>
+    at: <now>              # full ISO 8601 datetime with UTC offset, e.g. 2026-10-01T09:30:00Z
   status: draft
-  stale_after: null
-  sources: [inbox/archive/<source>/<file>]
+  sources:
+    - resource: inbox/archive/<source>/<file>
+      title: <short label>   # optional; add `id: <key>` to cite a claim as [^key]
   ---
   ```
+
+  Omit `verified` — absent means unverified. A human reviewer later adds
+  `verified: [{ by: "human:<id>", at: <ISO 8601 datetime with offset> }]`.
+  Omit `stale_after` unless the note has a known expiry (ISO 8601 datetime
+  with offset).
+
+  **What is valid OKF v0.2 frontmatter** (the spec is
+  <https://github.com/GoogleCloudPlatform/open-knowledge-format>; this repo
+  targets v0.2):
+
+  | Key | Rule |
+  |---|---|
+  | `type` | **Required**, non-empty string. The only key `eru okf validate` enforces. |
+  | `title`, `description`, `resource`, `tags` | Recommended. `description` is one sentence; `tags` is a YAML list of short strings; `resource` is a URI of the underlying asset (or omit/`null` for abstract ideas). Quote URLs. |
+  | `generated` | Mapping `{ by, at }`, both required. `by` is an actor, `at` the last meaningful content change. |
+  | `verified` | List of `{ by, at }` (both required), or a single mapping. Records independent checks; omit until someone has checked the note. |
+  | `status` | `draft`, `stable` or `deprecated`; absent means `stable`. |
+  | `stale_after` | Absolute ISO 8601 datetime **with a UTC offset**; the note is stale when now ≥ this. Not a duration. |
+  | `sources` | List of mappings, each with a **required `resource`** (URL, bundle path, or a scope description like `all queries in project X`); optional `id`, `title`, `author` (actor), `usage_count` (integer), `last_modified` (datetime with offset). Never a list of bare strings. A top-level `usage_window: { from, to }` frames `usage_count`. |
+
+  - **Actors** (`by`, `author`) are `<producer>/<version>` for agents (e.g.
+    `ingestor/claude-sonnet-5-5`), `human:<id>` for people and
+    `process:<id>` for automated jobs. Only a person confirming a note may
+    use `human:`; never write a `human:` actor yourself.
+  - **Datetimes** are full ISO 8601 with an offset (`2026-10-01T09:30:00Z`),
+    never a bare date and never `<today>`.
+  - **Trust** is derived from `verified`: none → unverified; only non-`human:`
+    actors → machine-confirmed; any `human:` actor → human-reviewed. You
+    produce unverified notes.
+  - **Citing a claim:** give the source an `id` and use a footnote in the body
+    (`...sharded daily.[^ga4]` with `[^ga4]: GA4 export schema`). Do not use a
+    `# Citations` body section or a `timestamp` key; those are v0.1 and
+    superseded by `sources` and `generated.at`.
+  - Unknown extra keys and unknown `type` values are allowed; preserve keys
+    you did not write when editing an existing note.
+  - Reserved files: only the root `index.md` has frontmatter (just
+    `okf_version: "0.2"`); folder `index.md` files have none; `log.md` date
+    headings are `## YYYY-MM-DD`, newest first.
 
 ### 5. Update the folder's index.md
 
@@ -185,7 +225,9 @@ If it reports violations, run `eru okf fix <domain folder> --dry-run` to
 preview the mechanical repairs (index frontmatter, missing `type`), then
 `eru okf fix <domain folder>` to apply them. Fix by hand anything `fix`
 reports as needing manual attention (e.g. malformed YAML in a note), and
-re-run `eru okf validate` until it exits 0. Archived items under `inbox/` are
+re-run `eru okf validate` until it exits 0. Also clear any `⚠` warnings it
+prints for your notes: they mean a field is not OKF v0.2-shaped (e.g. a bare
+date in `generated`, a boolean `verified`, string entries in `sources`). Archived items under `inbox/` are
 not validated. If `eru` is not available, re-read the rules above (no
 frontmatter in folder indexes, `okf_version` only at the root, a non-empty
 `type` on every note) and check your files against them.

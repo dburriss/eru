@@ -23,22 +23,28 @@ let (|OkfValidateCmd|_|) (r: ParseResults<EruArgs>) =
 let private renderText (result: OkfValidate.ValidateResult) =
     for v in result.Violations do
         eprintfn $"✗ {v.Path} — {v.Message}"
+    for w in result.Warnings do
+        eprintfn $"⚠ {w.Path} — {w.Message}"
     if result.Violations.IsEmpty then
         printfn $"✓ {result.TotalConcepts} concepts conformant"
     else
         eprintfn $"{result.Violations.Length} violation(s) found; {result.TotalConcepts} concept(s) conformant."
+    if not result.Warnings.IsEmpty then
+        eprintfn $"{result.Warnings.Length} warning(s)."
 
 let private renderJson (result: OkfValidate.ValidateResult) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
     printfn "%s" (JsonSerializer.Serialize(result, opts))
 
 let private renderTable (result: OkfValidate.ValidateResult) =
-    if result.Violations.IsEmpty then
+    if result.Violations.IsEmpty && result.Warnings.IsEmpty then
         printfn $"✓ {result.TotalConcepts} concepts conformant"
     else
         let t = makeTable ["Status"; "Path"; "Rule"; "Message"]
         for v in result.Violations do
             t.AddRow("✗", v.Path, v.Rule, v.Message) |> ignore
+        for w in result.Warnings do
+            t.AddRow("⚠", w.Path, w.Rule, w.Message) |> ignore
         AnsiConsole.Write(t)
         eprintfn $"{result.Violations.Length} violation(s) found; {result.TotalConcepts} concept(s) conformant."
 

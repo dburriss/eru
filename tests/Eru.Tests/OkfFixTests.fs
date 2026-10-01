@@ -69,7 +69,7 @@ let private validateAfter (files: (string * string) list) (writes: Dictionary<st
     | Error e -> failwith e
 
 let private concept = "---\ntype: table\n---\n# Orders\n"
-let private rootIndex = "---\nokf_version: \"0.1\"\n---\n# Index\n"
+let private rootIndex = "---\nokf_version: \"0.2\"\n---\n# Index\n"
 
 [<Fact>]
 let ``root index frontmatter with extra keys is reduced to okf_version`` () =
@@ -81,7 +81,7 @@ let ``root index frontmatter with extra keys is reduced to okf_version`` () =
 [<Fact>]
 let ``root index without frontmatter gets okf_version`` () =
     let _, writes = fix [ "index.md", "# Hi\n"; "a.md", concept ]
-    Assert.StartsWith("---\nokf_version:", writes.["index.md"])
+    Assert.StartsWith("---\nokf_version: \"0.2\"\n---\n", writes.["index.md"])
     Assert.Contains("# Hi", writes.["index.md"])
 
 [<Fact>]

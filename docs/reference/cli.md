@@ -840,6 +840,8 @@ Check a directory tree for conformance with the Open Knowledge Format (OKF) spec
 
 Walk a directory tree and report violations of OKF §11 conformance: every concept `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, broken cross-links, or missing optional fields — those are explicitly permitted by the spec.
 
+Validation targets OKF v0.2. Separately, **warnings** (shown with `⚠`, never affecting the exit code) flag fields that are readable but not v0.2-shaped: a root `okf_version` other than `"0.2"`; `generated`/`verified` entries that are not `{by, at}` mappings or whose `at` lacks an ISO 8601 UTC offset; a legacy `timestamp`; `stale_after` without an offset; `status` outside `draft | stable | deprecated`; `sources` that are not a list of mappings with a `resource` (and integer `usage_count`); and `log.md` headings that are not newest-first.
+
 The bundle-root `index.md` frontmatter should contain only `okf_version`. That key is what makes eru detect a directory as an OKF bundle (see [`eru source bundle add`](#eru-source-bundle-add)).
 
 **What is not a concept file.** These are skipped, not validated or counted:
@@ -886,7 +888,7 @@ Repair a directory tree so it passes `eru okf validate`, and create any missing 
 
 | Problem | Repair |
 |---|---|
-| Root `index.md` has no `okf_version`, or other keys | Frontmatter set to exactly `okf_version` (an existing value is kept) |
+| Root `index.md` has no `okf_version`, or other keys | Frontmatter set to exactly `okf_version` (an existing value is kept; new bundles get `okf_version: "0.2"`) |
 | Non-root `index.md` has frontmatter | Frontmatter removed |
 | Concept has no frontmatter, or no/empty `type` | `type` added (text edit; other keys and order are preserved) |
 | `log.md` date heading is not `YYYY-MM-DD` | Rewritten when the heading parses as a date (invariant culture, so `03/04/2026` is read as March 4) |

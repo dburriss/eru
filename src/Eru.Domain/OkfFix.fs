@@ -12,7 +12,7 @@ open System.Text.RegularExpressions
 module OkfFix =
 
     /// Value written to the bundle-root `index.md` when none is present.
-    let okfVersion = "0.1"
+    let okfVersion = "0.2"
 
     type Mode =
         | CreateOnly

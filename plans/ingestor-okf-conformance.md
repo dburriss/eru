@@ -9,7 +9,7 @@ In dburriss/knowledge-base-demo, `eru okf validate` flags many violations in not
 eru now ships `okf init`, `fix` and `validate`, and the agent and skills should use them.
 
 Decisions (confirmed with user):
-- okf_version is `"0.1"` (`src/Eru.Domain/OkfFix.fs:15`). The agent prefers `eru okf init`, so the value is not hard-coded where avoidable.
+- okf_version is `"0.2"` (`src/Eru.Domain/OkfFix.fs:15`). The agent prefers `eru okf init`, so the value is not hard-coded where avoidable.
 - No apm package or version field exists in this repo; record the change in `CHANGELOG.md` only. The apm package must be bumped in its own repo.
 - Scope: agent, `skills/eru/SKILL.md`, `skills/organizing-documentation/SKILL.md`, and a docs page.
 
@@ -26,7 +26,7 @@ The agent is embedded in the CLI build (`Eru.Domain.fsproj:52`, `InboxProcess.fs
 ### 1. `agents/ingestor.agent.md`
 - **Step 2 (new top-level folder):** write `README.md` as plain prose. It is not part of the bundle (no `type`, so not a concept): no frontmatter, and no row in index.md. It exists only as the human description used for domain matching. Then run `eru okf init <repo-root>` to create the folder `index.md` and the root index.md if missing. Replace "same shape as existing, see any existing index.md". State: **folder index.md has NO YAML frontmatter**, just a heading and the catalog table `| Concept | Type | Tags | Stale after |`.
 - **New "Bundle root" rule** (after step 2 or as its own short section):
-  - If root index.md is missing, create it with only `---\nokf_version: "0.1"\n---` plus the top-level domain table (`eru okf init` does this).
+  - If root index.md is missing, create it with only `---\nokf_version: "0.2"\n---` plus the top-level domain table (`eru okf init` does this).
   - If it exists with other frontmatter, reduce it to `okf_version` only.
   - When adding a top-level folder, add a row to the root index.md.
 - **Step 5 (update index.md):** add or update the row by hand. Never add frontmatter. If an existing index has frontmatter, remove it (or run `eru okf fix <folder>`).

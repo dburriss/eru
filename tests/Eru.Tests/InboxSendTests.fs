@@ -194,7 +194,7 @@ let ``send writes url capture with resource set to the url and note appended`` (
     let cmd = { emptyCmd with Content = Some "https://example.com/x"; Note = Some "why this matters" }
     InboxSend.execute deps cmd |> ignore
     let _, body = state.WrittenFiles |> List.head
-    Assert.Contains("resource: https://example.com/x", body)
+    Assert.Contains("resource: \"https://example.com/x\"", body)
     Assert.EndsWith("https://example.com/x\n\nwhy this matters", body)
 
 [<Fact>]

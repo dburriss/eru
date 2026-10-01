@@ -204,6 +204,14 @@ eru okf fix ./my-bundle                  # apply them (--default-type <t> sets t
 eru okf validate ./my-bundle             # OKF §11 conformance; exits 1 if any violations are found
 ```
 
+**What valid OKF v0.2 looks like** (eru targets v0.2; new bundles get `okf_version: "0.2"`):
+
+- Every concept `.md` needs frontmatter with a non-empty `type`; that is the only hard requirement. Unknown keys and types are fine.
+- Optional keys, shaped as: `generated: { by, at }`; `verified: [{ by, at }, ...]` (or one mapping; omit when nobody has verified); `status: draft|stable|deprecated` (absent = stable); `stale_after: <ISO 8601 datetime with offset>`; `sources: [{ resource, id?, title?, author?, usage_count?, last_modified? }]`, with an optional top-level `usage_window: { from, to }`.
+- `by`/`author` are actors: `<producer>/<version>`, `human:<id>` or `process:<id>`. Only `human:` verifications make a note "human-reviewed" in the site; none = unverified.
+- Datetimes include a UTC offset (`2026-10-01T09:30:00Z`); a bare date is not v0.2-shaped. v0.1's `timestamp` and body `# Citations` are superseded by `generated.at` and `sources`; eru still reads `timestamp` as a fallback.
+- `validate` fails only on the hard rules; v0.2 shape problems print as `⚠` warnings and don't change the exit code.
+
 Run `validate` after adding or editing notes; use `init`/`fix` to resolve what it reports. Neither adds rows to an existing `index.md`. See `references/commands.md` for all flags and output formats.
 
 ---

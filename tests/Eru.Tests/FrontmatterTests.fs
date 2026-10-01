@@ -185,8 +185,8 @@ let ``tags merge deduplicates`` () =
 
 [<Fact>]
 let ``okfVersion reads the okf_version field`` () =
-    let result = parse "---\nokf_version: \"1.0\"\n---\n"
-    Assert.Equal(Some "1.0", Frontmatter.okfVersion result)
+    let result = parse "---\nokf_version: \"0.2\"\n---\n"
+    Assert.Equal(Some "0.2", Frontmatter.okfVersion result)
 
 [<Fact>]
 let ``okfVersion is None when the field is absent`` () =
@@ -222,3 +222,57 @@ let ``classifyFile treats README.md as ReadmeFile`` (path: string) =
 [<Fact>]
 let ``classifyFile still treats other files as concepts`` () =
     Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "docs/readme-first.md")
+
+[<Fact>]
+let ``generated falls back to a legacy timestamp`` () =
+    let result = parse "---\ntimestamp: 2026-01-02T03:04:05Z\n---\n"
+    match Frontmatter.generated result with
+    | Some g ->
+        Assert.Equal("unknown", g.By)
+        Assert.Equal(Some (System.DateTimeOffset.Parse "2026-01-02T03:04:05Z"), g.At)
+    | None -> Assert.Fail "expected Some generated"
+
+[<Fact>]
+let ``generated scalar is not v0.2 shaped and reads as None`` () =
+    let result = parse "---\ngenerated: 2026-10-01\ntimestamp: 2026-01-02T03:04:05Z\n---\n"
+    Assert.Equal(None, Frontmatter.generated result)
+
+[<Fact>]
+let ``sources reads object entries and tolerates bare strings`` () =
+    let content =
+        "---\nsources:\n  - id: a\n    resource: https://x.test/a\n    title: A\n    author: team:x\n    usage_count: 5000\n    last_modified: 2026-05-30T00:00:00Z\n  - inbox/b.md\n  - title: no resource\nusage_window: { from: 2026-06-01T00:00:00Z, to: 2026-06-30T00:00:00Z }\n---\n"
+    let result = parse content
+    match Frontmatter.sources result with
+    | [ a; b ] ->
+        Assert.Equal("https://x.test/a", a.Resource)
+        Assert.Equal(Some "a", a.Id)
+        Assert.Equal(Some 5000, a.UsageCount)
+        Assert.Equal(Some "team:x", a.Author)
+        Assert.True a.LastModified.IsSome
+        Assert.Equal("inbox/b.md", b.Resource)
+    | other -> Assert.Fail $"expected 2 sources, got {other.Length}"
+    Assert.True((Frontmatter.usageWindow result).Value.From.IsSome)
+
+[<Fact>]
+let ``shapeWarnings is empty for a v0.2 shaped note`` () =
+    let content =
+        "---\ntype: x\ngenerated: { by: a/1, at: 2026-06-20T22:53:05Z }\nverified:\n  - { by: human:me, at: 2026-06-21T00:00:00Z }\nstale_after: 2027-01-01T00:00:00Z\nstatus: stable\nsources:\n  - resource: https://x.test\n---\n"
+    Assert.Empty(Frontmatter.shapeWarnings (parse content))
+
+[<Fact>]
+let ``shapeWarnings flags v0.1 and malformed shapes`` () =
+    let content =
+        "---\ntype: x\ngenerated: 2026-10-01\nverified: false\nstale_after: 2027-01-01\nstatus: wip\nsources: [a.md]\n---\n"
+    let rules = Frontmatter.shapeWarnings (parse content) |> List.map fst |> Set.ofList
+    Assert.Contains("generated-shape", rules)
+    Assert.Contains("verified-shape", rules)
+    Assert.Contains("stale-after-shape", rules)
+    Assert.Contains("status-value", rules)
+    Assert.Contains("sources-shape", rules)
+
+[<Fact>]
+let ``shapeWarnings flags legacy timestamp and offset-less at`` () =
+    let legacy = Frontmatter.shapeWarnings (parse "---\ntype: x\ntimestamp: 2026-01-02T03:04:05Z\n---\n")
+    Assert.Equal("legacy-timestamp", fst legacy.Head)
+    let noOffset = Frontmatter.shapeWarnings (parse "---\ntype: x\ngenerated: { by: a/1, at: 2026-06-20T22:53:05 }\n---\n")
+    Assert.Equal("generated-shape", fst noOffset.Head)

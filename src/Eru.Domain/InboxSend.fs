@@ -84,7 +84,8 @@ module InboxSend =
         now.ToString("yyyy-MM-ddTHHmmss")
 
     let private renderFrontmatter (resource: string option) (now: DateTimeOffset) : string =
-        let resourceLine = match resource with Some r -> $"resource: {r}" | None -> "resource: null"
+        let quote (r: string) = "\"" + r.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\""
+        let resourceLine = match resource with Some r -> "resource: " + quote r | None -> "resource: null"
         let atStr = now.ToString("yyyy-MM-ddTHH:mm:ssZ")
         $"---\ntype: raw\n{resourceLine}\ngenerated:\n  by: eru inbox send\n  at: {atStr}\n---\n\n"
 

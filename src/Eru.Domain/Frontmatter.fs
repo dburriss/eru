@@ -6,6 +6,18 @@ module Frontmatter =
 
     type ActorAt = { By: string; At: System.DateTimeOffset option }
 
+    /// One entry of the OKF v0.2 `sources` list (§5.1).
+    type SourceRef =
+        { Resource: string
+          Id: string option
+          Title: string option
+          Author: string option
+          UsageCount: int option
+          LastModified: System.DateTimeOffset option }
+
+    /// The top-level OKF v0.2 `usage_window` that frames `usage_count`.
+    type UsageWindow = { From: System.DateTimeOffset option; To: System.DateTimeOffset option }
+
     let empty : FrontmatterMap = Map.empty
 
     /// Locates the "---"..."---" delimited block at the start of `content`
@@ -100,8 +112,15 @@ module Frontmatter =
             | _ -> None
         | _ -> None
 
+    /// `generated: {by, at}`. When `generated` is absent, falls back to a
+    /// legacy v0.1 scalar `timestamp` (OKF v0.2 §13) with an unknown producer.
     let generated (fm: FrontmatterMap) : ActorAt option =
-        Map.tryFind "generated" fm |> Option.bind actorAt
+        match Map.tryFind "generated" fm with
+        | Some node -> actorAt node
+        | None ->
+            scalar "timestamp" fm
+            |> Option.bind parseDate
+            |> Option.map (fun d -> { By = "unknown"; At = Some d })
 
     let verified (fm: FrontmatterMap) : ActorAt list =
         match Map.tryFind "verified" fm with
@@ -111,6 +130,113 @@ module Frontmatter =
 
     let staleAfter (fm: FrontmatterMap) : System.DateTimeOffset option =
         scalar "stale_after" fm |> Option.bind parseDate
+
+    let private sourceRef (node: Yaml.Node) : SourceRef option =
+        let empty r = { Resource = r; Id = None; Title = None; Author = None; UsageCount = None; LastModified = None }
+        match node with
+        | Yaml.Scalar s when s <> "" -> Some (empty s)   // tolerated; not spec-shaped
+        | Yaml.Map kvs ->
+            let m = Map.ofList kvs
+            match scalar "resource" m with
+            | None -> None
+            | Some r ->
+                Some { Resource = r
+                       Id = scalar "id" m
+                       Title = scalar "title" m
+                       Author = scalar "author" m
+                       UsageCount =
+                           scalar "usage_count" m
+                           |> Option.bind (fun s -> match System.Int32.TryParse s with | true, n -> Some n | _ -> None)
+                       LastModified = scalar "last_modified" m |> Option.bind parseDate }
+        | _ -> None
+
+    /// `sources`: list of `{resource, id?, title?, author?, usage_count?, last_modified?}`.
+    let sources (fm: FrontmatterMap) : SourceRef list =
+        match Map.tryFind "sources" fm with
+        | Some (Yaml.Seq items) -> items |> List.choose sourceRef
+        | Some (Yaml.Map _ as m) -> sourceRef m |> Option.toList
+        | _ -> []
+
+    let usageWindow (fm: FrontmatterMap) : UsageWindow option =
+        match Map.tryFind "usage_window" fm with
+        | Some (Yaml.Map kvs) ->
+            let m = Map.ofList kvs
+            Some { From = scalar "from" m |> Option.bind parseDate
+                   To = scalar "to" m |> Option.bind parseDate }
+        | _ -> None
+
+    // --- v0.2 shape diagnostics (non-fatal; consumers must not reject on these) ---
+
+    let private hasUtcOffset (s: string) =
+        System.Text.RegularExpressions.Regex.IsMatch(s, @"^\d{4}-\d{2}-\d{2}[Tt ].*(Z|z|[+-]\d{2}:?\d{2})$")
+
+    let private checkDateTime (field: string) (s: string) : string option =
+        if (parseDate s).IsNone then Some $"`{field}` \"{s}\" is not a valid ISO 8601 datetime"
+        elif not (hasUtcOffset s) then Some $"`{field}` \"{s}\" must be an ISO 8601 datetime with an explicit UTC offset"
+        else None
+
+    let private checkActorAt (field: string) (node: Yaml.Node) : string list =
+        match node with
+        | Yaml.Map kvs ->
+            let m = Map.ofList kvs
+            [ if (scalar "by" m).IsNone then Some $"`{field}.by` is required"
+              match scalar "at" m with
+              | None -> Some $"`{field}.at` is required"
+              | Some at -> checkDateTime $"{field}.at" at ]
+            |> List.choose id
+        | _ -> [ $"`{field}` must be a mapping with `by` and `at`" ]
+
+    /// Warnings about frontmatter that is readable but not OKF v0.2-shaped.
+    /// Returns (rule, message) pairs.
+    let shapeWarnings (fm: FrontmatterMap) : (string * string) list =
+        [ match Map.tryFind "generated" fm with
+          | Some node -> for m in checkActorAt "generated" node -> "generated-shape", m
+          | None when Map.containsKey "timestamp" fm ->
+              yield "legacy-timestamp", "legacy `timestamp` is superseded by `generated: {by, at}` in OKF v0.2"
+          | None -> ()
+
+          match Map.tryFind "verified" fm with
+          | Some (Yaml.Seq items) ->
+              for item in items do
+                  for m in checkActorAt "verified[]" item -> "verified-shape", m
+          | Some (Yaml.Map _ as node) ->
+              for m in checkActorAt "verified" node -> "verified-shape", m
+          | Some _ -> yield "verified-shape", "`verified` must be a list of `{by, at}` entries (or a single `{by, at}` mapping)"
+          | None -> ()
+
+          match scalar "stale_after" fm with
+          | Some s ->
+              match checkDateTime "stale_after" s with
+              | Some m -> yield "stale-after-shape", m
+              | None -> ()
+          | None -> ()
+
+          match scalar "status" fm with
+          | Some s when not (List.contains s [ "draft"; "stable"; "deprecated" ]) ->
+              yield "status-value", $"`status` \"{s}\" is not one of draft | stable | deprecated"
+          | _ -> ()
+
+          match Map.tryFind "sources" fm with
+          | Some (Yaml.Seq items) ->
+              for item in items do
+                  match item with
+                  | Yaml.Map kvs ->
+                      let m = Map.ofList kvs
+                      if (scalar "resource" m).IsNone then
+                          yield "sources-shape", "each `sources` entry requires a `resource`"
+                      match scalar "usage_count" m with
+                      | Some uc when not (fst (System.Int32.TryParse uc)) ->
+                          yield "sources-shape", $"`sources[].usage_count` \"{uc}\" must be an integer"
+                      | _ -> ()
+                      match scalar "last_modified" m with
+                      | Some lm ->
+                          match checkDateTime "sources[].last_modified" lm with
+                          | Some msg -> yield "sources-shape", msg
+                          | None -> ()
+                      | None -> ()
+                  | _ -> yield "sources-shape", "each `sources` entry must be a mapping with a `resource`"
+          | Some _ -> yield "sources-shape", "`sources` must be a list of mappings, each with a `resource`"
+          | None -> () ]
 
     type FileClass =
         | IndexFile
