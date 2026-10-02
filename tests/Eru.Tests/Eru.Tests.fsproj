@@ -49,5 +49,6 @@
     <Compile Include="LinkGraphTests.fs" />
     <Compile Include="SiteGeneratorGraphTests.fs" />
     <Compile Include="VersionCliTests.fs" />
+    <Compile Include="DomainPathConventionTests.fs" />
   </ItemGroup>
 </Project>

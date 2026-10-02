@@ -94,7 +94,7 @@ module OkfFix =
             match Frontmatter.tryParse deps.ParseYamlBlock content with
             | Frontmatter.Parsed m -> m
             | _ -> Frontmatter.empty
-        let file = Path.GetFileName rel
+        let file = PathUtil.fileName rel
         let title = Frontmatter.title fm |> Option.defaultValue (Path.GetFileNameWithoutExtension file)
         let typ = Frontmatter.type_ fm |> Option.defaultValue ""
         let tags = Frontmatter.tags fm |> String.concat ", "
@@ -106,13 +106,13 @@ module OkfFix =
         $"| [{cell title}]({href}) | {cell typ} | {cell tags} | {cell stale} |"
 
     let private catalogBody (dir: string) (rows: string list) (subdirs: string list) =
-        let heading = if dir = "" then "Index" else Path.GetFileName dir
+        let heading = if dir = "" then "Index" else PathUtil.fileName dir
         let sb = Text.StringBuilder()
         sb.Append($"# {heading}\n\n") |> ignore
         if not subdirs.IsEmpty then
             sb.Append("## Folders\n\n") |> ignore
             for s in subdirs do
-                let name = Path.GetFileName s
+                let name = PathUtil.fileName s
                 let href = name.Replace(" ", "%20")
                 sb.Append($"- [{name}/]({href}/index.md)\n") |> ignore
             sb.Append("\n") |> ignore
@@ -189,13 +189,13 @@ module OkfFix =
             let write (rel: string) (content: string) (rule: string) (description: string) (created: bool) =
                 let result =
                     if cmd.DryRun then Ok ()
-                    else deps.WriteLocalFile (Path.Combine(cmd.Path, rel)) content
+                    else deps.WriteLocalFile (PathJoin.Combine(cmd.Path, rel)) content
                 match result with
                 | Ok () -> changes.Add { Path = rel; Rule = rule; Description = description; Created = created }
                 | Error e -> manual.Add { Path = rel; Rule = "write-error"; Message = e }
 
             for rel in rels do
-                match deps.ReadLocalFile (Path.Combine(cmd.Path, rel)) with
+                match deps.ReadLocalFile (PathJoin.Combine(cmd.Path, rel)) with
                 | Error e -> manual.Add { Path = rel; Rule = "read-error"; Message = e }
                 | Ok None -> ()
                 | Ok (Some content) ->

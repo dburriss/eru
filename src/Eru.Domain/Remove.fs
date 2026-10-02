@@ -36,7 +36,7 @@ module Remove =
             match deps.WriteLockEntries eff.StateFile remaining with
             | Error e -> Error e
             | Ok () ->
-            let fullPath = System.IO.Path.Combine(deps.GetCwd(), entry.LocalPath)
+            let fullPath = PathJoin.Combine(deps.GetCwd(), entry.LocalPath)
             match deps.DeleteLocalFile fullPath with
             | Error e -> Error $"Lock entry removed but could not delete file: {e}"
             | Ok () -> Ok $"Removed '{entry.LocalPath}'."

@@ -22,7 +22,7 @@ module OkfValidate =
         | Frontmatter.MalformedYaml msg ->
             Some { Path = rel; Rule = "index-frontmatter"; Message = $"index.md frontmatter is not valid YAML: {msg}" }
         | Frontmatter.Parsed map ->
-            let isRoot = Path.GetDirectoryName(rel: string) = ""
+            let isRoot = PathUtil.dirName rel = ""
             let keys = map |> Map.toList |> List.map fst
             if isRoot && keys = [ "okf_version" ] then
                 None
@@ -56,7 +56,7 @@ module OkfValidate =
 
     let private versionWarning (rel: string) (fm: Frontmatter.ParseOutcome) : Violation option =
         match fm with
-        | Frontmatter.Parsed map when Path.GetDirectoryName(rel: string) = "" ->
+        | Frontmatter.Parsed map when PathUtil.dirName rel = "" ->
             match Frontmatter.okfVersion map with
             | Some "0.2" | None -> None
             | Some v -> Some { Path = rel; Rule = "okf-version"; Message = $"`okf_version` \"{v}\" is not \"0.2\", the version eru targets" }
@@ -83,7 +83,7 @@ module OkfValidate =
             let mutable totalConcepts = 0
 
             for rel in relFiles do
-                let fullPath = Path.Combine(cmd.Path, rel)
+                let fullPath = PathJoin.Combine(cmd.Path, rel)
                 match deps.ReadLocalFile fullPath with
                 | Error e -> violations.Add { Path = rel; Rule = "read-error"; Message = e }
                 | Ok None -> ()

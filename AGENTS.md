@@ -75,4 +75,5 @@ The lock file is the source of truth for what knowledge lives in a given repo. C
 - All CLI argument types are defined as Argu `IArgParserTemplate` discriminated unions.
 - Side-effectful operations (git, filesystem) are isolated from pure domain logic.
 - SimpleExec is used for shelling out to `git` (cloning, fetching, reading blobs).
+- **Domain paths are always `/`-separated.** Remote paths, bundle-relative paths and anything compared against mocked `Deps` paths must never be built or split with `System.IO.Path.Combine`, `GetDirectoryName` or `GetFileName` inside `src/Eru.Domain` — on Windows those emit `\` and break tests and CI (the Windows publish job fails while Linux/macOS pass). Use `PathJoin.Combine`, `PathUtil.dirName` and `PathUtil.fileName` from `src/Eru.Domain/PathUtil.fs`. `System.IO.Path` is fine only in the adapters/CLI layer for real OS paths. Tests must use `/` literals, not `Path.Combine`.
 - Configuration is read from `.eru/config.json` in the repo's `.eru/` directory (using standard `System.Text.Json` — no third-party JSON libs).

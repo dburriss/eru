@@ -91,7 +91,7 @@ module InboxSend =
 
     let rec private uniquePath (deps: Deps) (dir: string) (stem: string) (ext: string) (attempt: int) : string =
         let candidateStem = if attempt = 1 then stem else $"{stem}-{attempt}"
-        let path = Path.Combine(dir, candidateStem + ext)
+        let path = PathJoin.Combine(dir, candidateStem + ext)
         match deps.ReadLocalFile path with
         | Ok (Some _) -> uniquePath deps dir stem ext (attempt + 1)
         | _ -> path
@@ -144,7 +144,7 @@ module InboxSend =
         let channel   = cmd.Channel |> Option.orElse inbox.DefaultChannel |> Option.defaultValue "default"
         let rawPath   = inbox.RawPath |> Option.defaultValue "inbox/raw"
         // Remote inboxes use repo-relative '/' paths; the adapter refuses to overwrite an existing file.
-        let targetDir = if isRemote then $"{rawPath.Trim('/')}/{channel}" else Path.Combine(inbox.Path, rawPath, channel)
+        let targetDir = if isRemote then $"{rawPath.Trim('/')}/{channel}" else PathJoin.Combine(inbox.Path, rawPath, channel)
         let now       = deps.GetUtcNow ()
         let ts        = timestamp now
         let pending   = System.Collections.Generic.List<string * string>()

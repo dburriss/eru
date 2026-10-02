@@ -82,18 +82,18 @@ module InboxProcess =
 
     let private listChannelItems (deps: Deps) (inbox: InboxConfig) (channel: string) (agent: AgentConfig) : Result<PooledItem list, string> =
         let rawPath = inbox.RawPath |> Option.defaultValue "inbox/raw"
-        let dir = Path.Combine(inbox.Path, rawPath, channel)
+        let dir = PathJoin.Combine(inbox.Path, rawPath, channel)
         match deps.ListLocalFiles dir with
         | Error e -> Error e
         | Ok files ->
-            let names = files |> List.map Path.GetFileName
+            let names = files |> List.map PathUtil.fileName
             let nameSet = Set.ofList names
             names
             |> List.filter (fun name -> not (isSidecar name) && not (isHidden name))
             |> List.map (fun name ->
                 let sidecarName = name + ".meta.json"
-                let sidecar = if Set.contains sidecarName nameSet then Some (Path.Combine(dir, sidecarName)) else None
-                { Channel = channel; Agent = agent; FileName = name; FullPath = Path.Combine(dir, name); SidecarPath = sidecar })
+                let sidecar = if Set.contains sidecarName nameSet then Some (PathJoin.Combine(dir, sidecarName)) else None
+                { Channel = channel; Agent = agent; FileName = name; FullPath = PathJoin.Combine(dir, name); SidecarPath = sidecar })
             |> Ok
 
     let private pool (deps: Deps) (inbox: InboxConfig) (scope: (string * AgentConfig) list) : Result<PooledItem list, string> =
@@ -148,7 +148,7 @@ module InboxProcess =
     // `AgentConfig.Command` string, so "claude", "/usr/local/bin/claude" and
     // "C:\tools\claude.exe" all resolve to the same apm lookup key.
     let private commandBasename (command: string) : string =
-        let name = Path.GetFileName command
+        let name = PathUtil.fileName command
         if name.EndsWith(".exe", System.StringComparison.OrdinalIgnoreCase)
         then name.Substring(0, name.Length - 4)
         else name
@@ -181,13 +181,13 @@ module InboxProcess =
     let private resolveInstructions (deps: Deps) (inbox: InboxConfig) (agent: AgentConfig) : Result<string, string> =
         match agent.InstructionsPath with
         | Some p ->
-            let path = if Path.IsPathRooted p then p else Path.Combine(inbox.Path, p)
+            let path = if Path.IsPathRooted p then p else PathJoin.Combine(inbox.Path, p)
             match deps.ReadLocalFile path with
             | Error e -> Error e
             | Ok (Some content) -> Ok content
             | Ok None -> Error $"agent instructions file '{path}' not found."
         | None ->
-            let defaultPath = Path.Combine(inbox.Path, defaultInstructionsRelPath)
+            let defaultPath = PathJoin.Combine(inbox.Path, defaultInstructionsRelPath)
             match deps.ReadLocalFile defaultPath with
             | Error e -> Error e
             | Ok (Some content) -> Ok content
@@ -195,7 +195,7 @@ module InboxProcess =
                 match Map.tryFind (commandBasename agent.Command) apmInstructionsPaths with
                 | None -> Ok defaultInstructions.Value
                 | Some apmRelPath ->
-                    let apmPath = Path.Combine(inbox.Path, apmRelPath)
+                    let apmPath = PathJoin.Combine(inbox.Path, apmRelPath)
                     match deps.ReadLocalFile apmPath with
                     | Error e -> Error e
                     | Ok (Some content) -> Ok content
@@ -208,7 +208,7 @@ module InboxProcess =
         if raw.StartsWith "@@" then Ok (raw.Substring 1)
         elif raw.StartsWith "@" then
             let p = raw.Substring 1
-            let path = if Path.IsPathRooted p then p else Path.Combine(deps.GetCwd (), p)
+            let path = if Path.IsPathRooted p then p else PathJoin.Combine(deps.GetCwd (), p)
             match deps.ReadLocalFile path with
             | Error e -> Error e
             | Ok None -> Error $"append file '{path}' not found."
@@ -253,7 +253,7 @@ module InboxProcess =
             Error $"inbox rawPath '{rawPath}' does not end in a 'raw' segment — archiving is not supported for this layout."
         else
             let archiveRawPath = (Array.toList segments.[.. segments.Length - 2] @ [ "archive" ]) |> String.concat "/"
-            Ok (Path.Combine(inbox.Path, archiveRawPath, channel))
+            Ok (PathJoin.Combine(inbox.Path, archiveRawPath, channel))
 
     // An agent driven with real curation instructions (e.g. `ingestor.md`) may well archive
     // (and commit) the raw item itself as part of following them — its own doc says exactly
@@ -280,7 +280,7 @@ module InboxProcess =
         match deps.RunAgent item.Agent inbox.Path prompt onChunk with
         | Error e -> Error e
         | Ok runResult ->
-        let archivePath = Path.Combine(archiveDir, item.FileName)
+        let archivePath = PathJoin.Combine(archiveDir, item.FileName)
         match moveOrAcceptAlreadyDone deps item.FullPath archivePath with
         | Error e -> Error e
         | Ok () ->
@@ -306,7 +306,7 @@ module InboxProcess =
     let private previewOne (inbox: InboxConfig) (item: PooledItem) : Result<ProcessedItem, string> =
         archiveChannelDir inbox item.Channel
         |> Result.map (fun archiveDir ->
-            { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = Path.Combine(archiveDir, item.FileName); Agent = item.Agent; Timings = None })
+            { Channel = item.Channel; ItemPath = item.FullPath; ArchivePath = PathJoin.Combine(archiveDir, item.FileName); Agent = item.Agent; Timings = None })
 
     let private executeCore (deps: Deps) (opts: Options) (onItemStart: int -> int -> string -> unit) (onChunk: string -> unit) : Result<ProcessedItem list, string> =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
@@ -400,7 +400,7 @@ module InboxProcess =
 
         let rawPath = inbox.RawPath |> Option.defaultValue "inbox/raw"
         Ok {
-            RawRootDir = Path.Combine(inbox.Path, rawPath)
+            RawRootDir = PathJoin.Combine(inbox.Path, rawPath)
             InboxName  = inboxName
             Channels   = scope |> List.map fst
         }
@@ -432,7 +432,7 @@ module InboxProcess =
         | Ok (_, inbox) ->
 
         let rawPath = inbox.RawPath |> Option.defaultValue "inbox/raw"
-        let rawRoot = Path.Combine(inbox.Path, rawPath)
+        let rawRoot = PathJoin.Combine(inbox.Path, rawPath)
 
         match deps.ListLocalDirectories rawRoot with
         | Error e -> Error e
@@ -445,15 +445,15 @@ module InboxProcess =
             |> Set.ofList
 
         dirs
-        |> List.map Path.GetFileName
+        |> List.map PathUtil.fileName
         |> List.filter (fun name -> not (Set.contains name agentChannels))
         |> List.fold (fun acc name ->
             match acc with
             | Error e -> Error e
             | Ok pairs ->
-                match deps.ListLocalFiles (Path.Combine(rawRoot, name)) with
+                match deps.ListLocalFiles (PathJoin.Combine(rawRoot, name)) with
                 | Error e -> Error e
                 | Ok files ->
-                    let count = files |> List.map Path.GetFileName |> List.filter (fun n -> not (isSidecar n) && not (isHidden n)) |> List.length
+                    let count = files |> List.map PathUtil.fileName |> List.filter (fun n -> not (isSidecar n) && not (isHidden n)) |> List.length
                     Ok (if count > 0 then pairs @ [ (name, count) ] else pairs))
             (Ok [])

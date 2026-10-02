@@ -50,7 +50,7 @@ module LinkGraph =
             let targetPath = if anchorIdx >= 0 then target.Substring(0, anchorIdx) else target
             if targetPath = "" then None
             else
-                let dir = Path.GetDirectoryName(currentPath: string) |> Option.ofObj |> Option.defaultValue ""
+                let dir = PathUtil.dirName currentPath
                 let combined =
                     if targetPath.StartsWith("/") then targetPath.TrimStart('/')
                     elif dir = "" then targetPath
