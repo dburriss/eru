@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-02
+
 ### Added
 
 - `eru source add --scan` detects OKF bundles (any `index.md` with `okf_version`; a root marker covers nested ones) and falls back to the `knowledge/` convention. **Breaking:** without `--scan`, `eru source add` no longer auto-detects the `knowledge/` bundle; register bundles with `eru source bundle add`
