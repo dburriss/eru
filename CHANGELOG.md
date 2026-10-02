@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-02
+
 ### Fixed
 
 - Path handling on Windows: domain code built and split `/`-separated bundle and remote paths with `System.IO.Path`, which emits `\` on Windows and broke 69 tests in the release build; it now uses `/`-only helpers, and a test guards against reintroducing `Path.Combine`/`GetDirectoryName`/`GetFileName` in `Eru.Domain`
