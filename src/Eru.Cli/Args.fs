@@ -597,17 +597,34 @@ type OkfFixArgs =
             | Default_Type _ -> "`type` to give concept files that have none (default: reference)."
             | Output _       -> "Output format: table (default), text, json."
 
+type OkfVerifyArgs =
+    | [<MainCommand; ExactlyOnce>] File of file: string
+    | [<Unique>]                   By of actor: string
+    | [<Unique>]                   At of timestamp: string
+    | [<Unique>]                   Dry_Run
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | File _   -> "Concept .md file to record a verification on."
+            | By _     -> "Verifying actor: human:<id> or a machine actor name (default: human:<git user.email>)."
+            | At _     -> "ISO 8601 timestamp with a UTC offset (default: now)."
+            | Dry_Run  -> "Report what would change without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
 [<CliPrefix(CliPrefix.None)>]
 type OkfArgs =
     | [<SubCommand>] Validate of ParseResults<OkfValidateArgs>
     | [<SubCommand>] Init     of ParseResults<OkfInitArgs>
     | [<SubCommand>] Fix      of ParseResults<OkfFixArgs>
+    | [<SubCommand>] Verify   of ParseResults<OkfVerifyArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Validate _ -> "Validate a directory tree for OKF conformance (§11)."
             | Init _     -> "Create missing OKF index.md files (never overwrites)."
             | Fix _      -> "Repair a directory tree so it passes OKF conformance."
+            | Verify _   -> "Record a verification (by, at) on a concept file."
 
 type GraphArgs =
     | [<Unique; AltCommandLine("-o")>] Output of format: string

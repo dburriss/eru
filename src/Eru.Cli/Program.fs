@@ -41,6 +41,7 @@ open Eru.Cli.SiteServeCli
 open Eru.Cli.OkfValidateCli
 open Eru.Cli.OkfFixCli
 open Eru.Cli.OkfInitCli
+open Eru.Cli.OkfVerifyCli
 open Eru.Cli.GraphCli
 open Eru.Cli.VersionCli
 
@@ -97,6 +98,7 @@ let main argv =
         | OkfValidateCmd cmd          -> OkfValidateCli.run deps cmd
         | OkfFixCmd cmd               -> OkfFixCli.run deps cmd
         | OkfInitCmd cmd              -> OkfInitCli.run deps cmd
+        | OkfVerifyCmd cmd            -> OkfVerifyCli.run deps cmd
         | GraphCmd cmd                -> GraphCli.run deps cmd
         | VersionCmd ()               -> VersionCli.run ()
         | _ ->

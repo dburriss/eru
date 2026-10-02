@@ -276,3 +276,10 @@ let ``shapeWarnings flags legacy timestamp and offset-less at`` () =
     Assert.Equal("legacy-timestamp", fst legacy.Head)
     let noOffset = Frontmatter.shapeWarnings (parse "---\ntype: x\ngenerated: { by: a/1, at: 2026-06-20T22:53:05 }\n---\n")
     Assert.Equal("generated-shape", fst noOffset.Head)
+
+[<Fact>]
+let ``shapeWarnings flags placeholder verified scalar and by`` () =
+    let scalar = Frontmatter.shapeWarnings (parse "---\ntype: x\nverified: unknown\n---\n")
+    Assert.Contains(scalar, fun (rule, msg) -> rule = "verified-shape" && msg.Contains "eru okf fix")
+    let by = Frontmatter.shapeWarnings (parse "---\ntype: x\nverified:\n  - { by: unknown, at: 2026-06-21T00:00:00Z }\n---\n")
+    Assert.Contains(by, fun (rule, msg) -> rule = "verified-shape" && msg.Contains "placeholder")

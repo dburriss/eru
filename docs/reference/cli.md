@@ -840,7 +840,7 @@ Check a directory tree for conformance with the Open Knowledge Format (OKF) spec
 
 Walk a directory tree and report violations of OKF §11 conformance: every concept `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, broken cross-links, or missing optional fields — those are explicitly permitted by the spec.
 
-Validation targets OKF v0.2. Separately, **warnings** (shown with `⚠`, never affecting the exit code) flag fields that are readable but not v0.2-shaped: a root `okf_version` other than `"0.2"`; `generated`/`verified` entries that are not `{by, at}` mappings or whose `at` lacks an ISO 8601 UTC offset; a legacy `timestamp`; `stale_after` without an offset; `status` outside `draft | stable | deprecated`; `sources` that are not a list of mappings with a `resource` (and integer `usage_count`); and `log.md` headings that are not newest-first.
+Validation targets OKF v0.2. Separately, **warnings** (shown with `⚠`, never affecting the exit code) flag fields that are readable but not v0.2-shaped: a root `okf_version` other than `"0.2"`; `generated`/`verified` entries that are not `{by, at}` mappings or whose `at` lacks an ISO 8601 UTC offset; a `verified` that is a placeholder scalar (`unknown`, `false`, …) or has a placeholder `by` (the message points at `eru okf fix` and `eru okf verify`); a legacy `timestamp`; `stale_after` without an offset; `status` outside `draft | stable | deprecated`; `sources` that are not a list of mappings with a `resource` (and integer `usage_count`); and `log.md` headings that are not newest-first.
 
 The bundle-root `index.md` frontmatter should contain only `okf_version`. That key is what makes eru detect a directory as an OKF bundle (see [`eru source bundle add`](#eru-source-bundle-add)).
 
@@ -891,6 +891,7 @@ Repair a directory tree so it passes `eru okf validate`, and create any missing 
 | Root `index.md` has no `okf_version`, or other keys | Frontmatter set to exactly `okf_version` (an existing value is kept; new bundles get `okf_version: "0.2"`) |
 | Non-root `index.md` has frontmatter | Frontmatter removed |
 | Concept has no frontmatter, or no/empty `type` | `type` added (text edit; other keys and order are preserved) |
+| `verified` is not a list of well-formed `{by, at}` entries (a placeholder like `unknown`/`false`, a missing `by`/`at`, an `at` without a UTC offset, `by: unknown`) | Malformed entries are stripped, valid ones kept; the key is removed when none remain (absent = unverified). Use `eru okf verify` to record a confirmation |
 | `log.md` date heading is not `YYYY-MM-DD` | Rewritten when the heading parses as a date (invariant culture, so `03/04/2026` is read as March 4) |
 | Folder with concepts has no `index.md` | Catalog index created |
 
@@ -906,6 +907,31 @@ eru okf fix <path> [--dry-run] [--default-type <type>] [-o <format>]
 | `--dry-run` | Report what would change without writing |
 | `--default-type` | `type` for concepts that have none (default: `reference`) |
 | `-o` / `--output` | Output format: table (default), text, json |
+
+### `eru okf verify`
+
+Record a confirmation in a concept file's `verified` list (OKF v0.2 §5.2). This is the only eru-supported way to set `verified`; `init`, `fix` and agents never write it. The edit is a text edit, so other keys, order and comments are preserved.
+
+```
+eru okf verify <file> [--by <actor>] [--at <timestamp>] [--dry-run] [-o <format>]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<file>` | Concept `.md` file (required; a single file) |
+| `--by` | `human:<id>` or a machine actor name. Default: `human:<git config user.email>` |
+| `--at` | ISO 8601 timestamp with a UTC offset. Default: now (UTC) |
+| `--dry-run` | Report what would change without writing |
+| `-o` / `--output` | Output format: table (default), text, json |
+
+An existing well-formed list gets the new entry appended; a bare `{by, at}` mapping is normalized to a list first; a malformed value (e.g. `verified: unknown`) is replaced and the output says so. Fails if the file has no frontmatter or `type` (run `eru okf fix`), is `index.md`/`log.md`/`README.md`, or if `--by` is empty or a placeholder.
+
+**Examples**
+
+```bash
+eru okf verify KNOWLEDGE/orders.md                       # human:<your git email>, now
+eru okf verify KNOWLEDGE/orders.md --by nightly-checker  # machine-confirmed
+```
 
 ---
 

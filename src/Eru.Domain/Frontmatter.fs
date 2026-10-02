@@ -167,7 +167,7 @@ module Frontmatter =
 
     // --- v0.2 shape diagnostics (non-fatal; consumers must not reject on these) ---
 
-    let private hasUtcOffset (s: string) =
+    let hasUtcOffset (s: string) =
         System.Text.RegularExpressions.Regex.IsMatch(s, @"^\d{4}-\d{2}-\d{2}[Tt ].*(Z|z|[+-]\d{2}:?\d{2})$")
 
     let private checkDateTime (field: string) (s: string) : string option =
@@ -186,6 +186,41 @@ module Frontmatter =
             |> List.choose id
         | _ -> [ $"`{field}` must be a mapping with `by` and `at`" ]
 
+    /// Placeholder actors that stand in for "nobody"; never a real confirmation.
+    let private placeholderActors = set [ "unknown"; "none"; "null"; "n/a"; "na"; "false"; "true" ]
+
+    let private verifiedEntryProblems (field: string) (node: Yaml.Node) : string list =
+        match checkActorAt field node, node with
+        | [], Yaml.Map kvs ->
+            match scalar "by" (Map.ofList kvs) with
+            | Some by when placeholderActors.Contains(by.ToLowerInvariant()) ->
+                [ $"`{field}.by` \"{by}\" is a placeholder; use `human:<id>` or a machine actor name" ]
+            | _ -> []
+        | problems, _ -> problems
+
+    /// The well-formed `verified` entries as raw (by, at) strings, and how many
+    /// entries (or non-list values) were malformed and so cannot be kept.
+    let verifiedEntries (fm: FrontmatterMap) : (string * string) list * int =
+        let nodes, bad =
+            match Map.tryFind "verified" fm with
+            | Some (Yaml.Seq items) -> items, 0
+            | Some (Yaml.Map _ as node) -> [ node ], 0
+            | Some _ -> [], 1
+            | None -> [], 0
+        let valid, invalid =
+            nodes
+            |> List.partition (fun n -> (verifiedEntryProblems "verified" n).IsEmpty)
+        let raw =
+            valid
+            |> List.choose (function
+                | Yaml.Map kvs ->
+                    let m = Map.ofList kvs
+                    match scalar "by" m, scalar "at" m with
+                    | Some by, Some at -> Some(by, at)
+                    | _ -> None
+                | _ -> None)
+        raw, bad + invalid.Length
+
     /// Warnings about frontmatter that is readable but not OKF v0.2-shaped.
     /// Returns (rule, message) pairs.
     let shapeWarnings (fm: FrontmatterMap) : (string * string) list =
@@ -198,10 +233,10 @@ module Frontmatter =
           match Map.tryFind "verified" fm with
           | Some (Yaml.Seq items) ->
               for item in items do
-                  for m in checkActorAt "verified[]" item -> "verified-shape", m
+                  for m in verifiedEntryProblems "verified[]" item -> "verified-shape", m
           | Some (Yaml.Map _ as node) ->
-              for m in checkActorAt "verified" node -> "verified-shape", m
-          | Some _ -> yield "verified-shape", "`verified` must be a list of `{by, at}` entries (or a single `{by, at}` mapping)"
+              for m in verifiedEntryProblems "verified" node -> "verified-shape", m
+          | Some _ -> yield "verified-shape", "`verified` must be a list of `{by, at}` entries (or a single `{by, at}` mapping); run `eru okf fix` to strip it or `eru okf verify` to set it"
           | None -> ()
 
           match scalar "stale_after" fm with

@@ -157,8 +157,8 @@ similarity yourself.
   ---
   ```
 
-  Omit `verified` — absent means unverified. A human reviewer later adds
-  `verified: [{ by: "human:<id>", at: <ISO 8601 datetime with offset> }]`.
+  Omit `verified` — absent means unverified. Never write it, not even as
+  `unknown` or `false`: a reviewer records it later with `eru okf verify <file>`.
   Omit `stale_after` unless the note has a known expiry (ISO 8601 datetime
   with offset).
 

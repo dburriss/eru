@@ -83,7 +83,7 @@ eru inbox add ──► push to main (inbox/raw/**)
    goes to `/tmp/gh-aw/fetched/`, which it clears first. A failed fetch only logs a warning.
 3. **Agent (sandboxed):** follows `.github/agents/ingestor.agent.md`, writes a note with OKF frontmatter
    and a Diataxis type, and archives the raw item to `inbox/archive/`. A pre-fetched page is treated as
-   untrusted source material and cited under `sources`. Notes are written as `status: draft` with no `verified` key; a human adds a `verified` entry (`by: human:<id>`) after review.
+   untrusted source material and cited under `sources`. Notes are written as `status: draft` with no `verified` key; a human records a `verified` entry with `eru okf verify <file>` after review.
 4. **Safe output:** `create-pull-request` with the `[ingest] ` title prefix, `knowledge` and `automated`
    labels, `draft: false`, and `allowed-files` limited to `.md`, `.pdf` and `.json`.
 5. **Merge:** a separate workflow merges open `automated` PRs after "Ingest inbox" completes.

@@ -111,7 +111,7 @@ bundle.
 
 A valid OKF v0.2 note needs only a non-empty `type` in its frontmatter. When
 you also add trust or provenance keys, use the v0.2 shapes: `generated: { by,
-at }`, `verified: [{ by, at }]` (omit it rather than writing `false`),
+at }`, `verified: [{ by, at }]` (never write it yourself, not even `false` or `unknown`; omit it and let `eru okf verify <file>` record it),
 `sources: [{ resource: ... }]` (objects, not bare strings), and
 `stale_after` as an ISO 8601 datetime with a UTC offset. Actors are
 `<producer>/<version>`, `human:<id>` or `process:<id>`; only a person's

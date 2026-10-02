@@ -159,9 +159,22 @@ module OkfFix =
                 manual.Add { Path = rel; Rule = "malformed-yaml"; Message = $"frontmatter is not valid YAML ({msg}); fix it by hand" }
                 None
             | Frontmatter.Parsed m ->
-                match Frontmatter.type_ m with
-                | Some _ -> None
-                | None -> Some(setType cmd.DefaultType content, "missing-type", $"added type: {cmd.DefaultType}")
+                let typed, typeNote =
+                    match Frontmatter.type_ m with
+                    | None -> setType cmd.DefaultType content, [ $"added type: {cmd.DefaultType}" ]
+                    | Some _ -> content, []
+                let valid, invalid = Frontmatter.verifiedEntries m
+                let final, verifiedNote =
+                    if invalid = 0 then typed, []
+                    else
+                        let kept = if valid.IsEmpty then "removed" else $"kept {valid.Length} valid"
+                        OkfVerify.setVerified valid typed,
+                        [ $"stripped {invalid} malformed `verified` value(s) ({kept}); use `eru okf verify` to record a confirmation" ]
+                match typeNote, verifiedNote with
+                | [], [] -> None
+                | _, [] -> Some(final, "missing-type", String.Join("; ", typeNote))
+                | [], _ -> Some(final, "verified-shape", String.Join("; ", verifiedNote))
+                | _ -> Some(final, "missing-type", String.Join("; ", typeNote @ verifiedNote))
 
     let execute (deps: Deps) (cmd: Command) : Result<FixResult, string> =
         match deps.ListMarkdownFiles cmd.Path with

@@ -391,7 +391,7 @@ No arguments. Exits 0 if all entries resolve to at least one local file, 1 other
 eru okf validate <path>
 ```
 
-Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okfIgnorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise. Also prints non-fatal `⚠` warnings (never affecting the exit code) for fields that are not OKF v0.2-shaped: `generated`/`verified` that are not `{by, at}` or whose `at` lacks a UTC offset, a legacy `timestamp`, `stale_after` without an offset, `status` outside `draft|stable|deprecated`, `sources` that are not mappings with a `resource` (integer `usage_count`), a root `okf_version` other than `"0.2"`, and `log.md` headings not newest-first.
+Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okfIgnorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise. Also prints non-fatal `⚠` warnings (never affecting the exit code) for fields that are not OKF v0.2-shaped: `generated`/`verified` that are not `{by, at}` or whose `at` lacks a UTC offset (also a placeholder `verified` such as `unknown`/`false`), a legacy `timestamp`, `stale_after` without an offset, `status` outside `draft|stable|deprecated`, `sources` that are not mappings with a `resource` (integer `usage_count`), a root `okf_version` other than `"0.2"`, and `log.md` headings not newest-first.
 
 ---
 
@@ -402,7 +402,17 @@ eru okf init <path> [--dry-run] [-o <format>]
 eru okf fix  <path> [--dry-run] [--default-type <type>] [-o <format>]
 ```
 
-`init` creates missing `index.md` files (root gets `okf_version`, each folder with concepts gets a catalog table); it never overwrites and never creates `log.md`. `fix` also repairs index frontmatter, missing concept frontmatter/`type` (default `reference`) and non-ISO `log.md` date headings so `eru okf validate` passes. Both write by default; `--dry-run` previews. `fix` exits 1 if anything needs manual attention (invalid concept YAML, unparseable log dates).
+`init` creates missing `index.md` files (root gets `okf_version`, each folder with concepts gets a catalog table); it never overwrites and never creates `log.md`. `fix` also repairs index frontmatter, missing concept frontmatter/`type` (default `reference`) and non-ISO `log.md` date headings so `eru okf validate` passes. Both write by default; `--dry-run` previews. `fix` also strips a malformed `verified` (placeholder scalars, entries missing `by`/`at`), keeping valid entries. `fix` exits 1 if anything needs manual attention (invalid concept YAML, unparseable log dates).
+
+---
+
+## `eru okf verify`
+
+```
+eru okf verify <file> [--by <actor>] [--at <timestamp>] [--dry-run] [-o <format>]
+```
+
+Appends `{ by, at }` to one concept file's `verified` list. `--by` is `human:<id>` or a machine actor name (default `human:<git user.email>`); `--at` is an ISO 8601 datetime with a UTC offset (default now). This is the only way `verified` should be set: never write it by hand or from an agent.
 
 ---
 

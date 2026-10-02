@@ -5,7 +5,7 @@ open Xunit
 open Eru
 open Eru.Adapters
 
-let private makeDeps (files: Map<string, string>) (writes: Dictionary<string, string>) : Deps =
+let makeDeps (files: Map<string, string>) (writes: Dictionary<string, string>) : Deps =
     {
         ReadGlobalConfig   = fun () -> Ok None
         ReadLocalConfig    = fun () -> Ok None
@@ -172,3 +172,51 @@ let ``fix is idempotent and result validates`` () =
     let merged = writes |> Seq.fold (fun m kv -> Map.add kv.Key kv.Value m) (Map.ofList files) |> Map.toList
     let r2, _ = fix merged
     Assert.Empty(r2.Changes)
+
+let private withVerified (v: string) = $"---\ntype: table\n{v}---\nbody\n"
+
+[<Fact>]
+let ``scalar placeholder verified is stripped`` () =
+    let r, writes = fix [ "index.md", rootIndex; "a.md", withVerified "verified: unknown\n" ]
+    Assert.Contains(r.Changes, fun c -> c.Rule = "verified-shape")
+    Assert.Equal("---\ntype: table\n---\nbody\n", writes.["a.md"])
+
+[<Fact>]
+let ``boolean verified is stripped`` () =
+    let _, writes = fix [ "index.md", rootIndex; "a.md", withVerified "verified: false\n" ]
+    Assert.Equal("---\ntype: table\n---\nbody\n", writes.["a.md"])
+
+[<Fact>]
+let ``bad verified entries are dropped and valid ones kept`` () =
+    let v = "verified:\n  - { by: human:me, at: 2026-06-21T00:00:00Z }\n  - { by: unknown, at: 2026-06-21T00:00:00Z }\n  - { by: bot/1 }\n"
+    let _, writes = fix [ "index.md", rootIndex; "a.md", withVerified v ]
+    Assert.Equal(withVerified "verified:\n  - { by: \"human:me\", at: \"2026-06-21T00:00:00Z\" }\n", writes.["a.md"])
+
+[<Fact>]
+let ``valid verified is untouched`` () =
+    let v = "verified:\n  - { by: human:me, at: 2026-06-21T00:00:00Z }\n"
+    let r, writes = fix [ "index.md", rootIndex; "a.md", withVerified v ]
+    Assert.False(writes.ContainsKey "a.md")
+    Assert.DoesNotContain(r.Changes, fun c -> c.Rule = "verified-shape")
+
+[<Fact>]
+let ``stripping verified preserves keys that follow it`` () =
+    let _, writes = fix [ "index.md", rootIndex; "a.md", "---\ntype: table\nverified: unknown\nstatus: draft\n---\nbody\n" ]
+    Assert.Equal("---\ntype: table\nstatus: draft\n---\nbody\n", writes.["a.md"])
+
+[<Fact>]
+let ``missing type and bad verified are repaired together`` () =
+    let _, writes = fix [ "index.md", rootIndex; "a.md", "---\nverified: unknown\n---\nbody\n" ]
+    Assert.Equal("---\ntype: reference\n---\nbody\n", writes.["a.md"])
+
+[<Fact>]
+let ``dry run does not strip verified`` () =
+    let r, writes = runWith OkfFix.Fix true [ "index.md", rootIndex; "a.md", withVerified "verified: unknown\n" ]
+    Assert.Contains(r.Changes, fun c -> c.Rule = "verified-shape")
+    Assert.Empty writes
+
+[<Fact>]
+let ``init never touches verified`` () =
+    let r, writes = runWith OkfFix.CreateOnly false [ "a.md", withVerified "verified: unknown\n" ]
+    Assert.DoesNotContain(r.Changes, fun c -> c.Rule = "verified-shape")
+    Assert.False(writes.ContainsKey "a.md")
