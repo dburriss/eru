@@ -83,6 +83,17 @@ let ``walkBundle extracts frontmatter from concept files`` () =
     | Ok other -> Assert.Fail $"expected exactly one file, got {other.Length}"
 
 [<Fact>]
+let ``walkBundle skips concept files without a type`` () =
+    let listFiles _ _ _ = Ok [ "typed.md"; "untyped.md"; "index.md" ]
+    let fetch _ _ paths =
+        Ok (paths |> List.map (fun p -> p, if p = "untyped.md" then "---\ntitle: No type\n---\n" else "---\ntype: ADR\n---\n"))
+    let deps = makeDeps listFiles fetch
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
+    | Error e -> Assert.Fail e
+    | Ok files ->
+        Assert.Equal<string list>([ "typed.md"; "index.md" ], files |> List.map (fun f -> f.RemotePath))
+
+[<Fact>]
 let ``walkBundle re-prefixes bundle-relative paths with the bundle's own path`` () =
     // ListRemoteFiles returns paths relative to the bundle root; RemotePath on the
     // returned DiscoveredFile must be repo-root-relative.

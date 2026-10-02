@@ -55,6 +55,7 @@ let private simpleCmd url : SourceAdd.Command = {
     Name     = None
     Branch   = None
     BasePath = None
+    Scan     = false
     IsGlobal = false
     DryRun   = false
 }
@@ -132,7 +133,7 @@ let ``creates empty global config when none exists`` () =
 let ``detects KNOWLEDGE basePath from top-level listing`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None ["README.md"; "KNOWLEDGE"; "src"] written (ref None)
-    SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
+    SourceAdd.execute deps ({ simpleCmd "https://github.com/acme/kb.git" with Scan = true }) |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal<Bundle list>([ { Path = "KNOWLEDGE"; Kind = Manifest } ], cfg.Sources[0].Bundles)
@@ -141,7 +142,7 @@ let ``detects KNOWLEDGE basePath from top-level listing`` () =
 let ``detects lowercase knowledge basePath`` () =
     let written = ref None
     let deps = makeDeps (Some emptyLocal) None ["README.md"; "knowledge"] written (ref None)
-    SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
+    SourceAdd.execute deps ({ simpleCmd "https://github.com/acme/kb.git" with Scan = true }) |> ignore
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal<Bundle list>([ { Path = "knowledge"; Kind = Manifest } ], cfg.Sources[0].Bundles)
@@ -154,6 +155,43 @@ let ``no basePath when top-level listing returns empty`` () =
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Empty(cfg.Sources[0].Bundles)
+
+[<Fact>]
+let ``registers no bundles without --scan even when knowledge folder exists`` () =
+    let written = ref None
+    let deps = makeDeps (Some emptyLocal) None ["knowledge"] written (ref None)
+    SourceAdd.execute deps (simpleCmd "https://github.com/acme/kb.git") |> ignore
+    match written.Value with
+    | None     -> Assert.Fail "nothing written"
+    | Some cfg -> Assert.Empty(cfg.Sources[0].Bundles)
+
+let private okfDeps (files: (string * string) list) written =
+    let deps = makeDeps (Some emptyLocal) None [] written (ref None)
+    { deps with
+        ListRemoteFiles    = fun _ _ _ -> Ok (files |> List.map fst)
+        FetchRemoteContent = fun _ _ paths -> Ok (files |> List.filter (fun (p, _) -> List.contains p paths))
+        ParseYamlBlock     = fun y -> if y.Contains "okf_version" then Ok (Yaml.Map [ "okf_version", Yaml.Scalar "0.2" ]) else Ok Yaml.Null }
+
+let private okfIndex = "---\nokf_version: \"0.2\"\n---\n"
+
+[<Fact>]
+let ``--scan registers a root okf bundle and skips nested ones`` () =
+    let written = ref None
+    let deps = okfDeps [ "index.md", okfIndex; "a/index.md", okfIndex; "a/n.md", "x" ] written
+    SourceAdd.execute deps ({ simpleCmd "https://github.com/acme/kb.git" with Scan = true }) |> ignore
+    match written.Value with
+    | None     -> Assert.Fail "nothing written"
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = ""; Kind = Okf } ], cfg.Sources[0].Bundles)
+
+[<Fact>]
+let ``--scan registers each nested okf bundle when there is no root marker`` () =
+    let written = ref None
+    let deps = okfDeps [ "index.md", "# no fm"; "kb/alpha/index.md", okfIndex; "kb/beta/index.md", okfIndex; "kb/plain/index.md", "# x" ] written
+    SourceAdd.execute deps ({ simpleCmd "https://github.com/acme/kb.git" with Scan = true }) |> ignore
+    match written.Value with
+    | None     -> Assert.Fail "nothing written"
+    | Some cfg ->
+        Assert.Equal<Bundle list>([ { Path = "kb/alpha"; Kind = Okf }; { Path = "kb/beta"; Kind = Okf } ], cfg.Sources[0].Bundles)
 
 [<Fact>]
 let ``explicit --basepath overrides auto-detection and skips remote listing`` () =

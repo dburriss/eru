@@ -135,7 +135,7 @@ Manage knowledge sources.
 Register a git repository or local path as a knowledge source.
 
 ```
-eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
+eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -143,7 +143,8 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
 | `<url>` | Git URL or local path of the knowledge source (required) |
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
-| `-p <basepath>` | Explicitly set the base path, skipping auto-detection |
+| `-p <basepath>` | Explicitly register this path as a manifest bundle |
+| `--scan` | Detect bundles: every `index.md` with `okf_version` becomes an `okf` bundle (a root marker covers nested ones), falling back to the `knowledge/` convention. Without `--scan` no bundles are registered — add them with `eru source bundle add` |
 | `--branch <branch>` | Remote inbox only: branch `inbox send` pushes to (default: the repo's default branch). Must be the default branch or a branch that doesn't exist yet — an existing non-default branch is refused so it can't be overwritten. |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
 | `--dryrun` | Preview without writing |
@@ -155,6 +156,7 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
 ```bash
 eru source add https://github.com/my-org/knowledge
 eru source add https://github.com/my-org/knowledge -n org-knowledge -b main
+eru source add https://github.com/my-org/knowledge --scan   # detect OKF bundles
 eru source add https://github.com/my-org/knowledge -g   # add to global config
 ```
 

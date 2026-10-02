@@ -105,7 +105,7 @@ Removes the lock file entry without touching the local file.
 ## `eru source add`
 
 ```
-eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
+eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -113,7 +113,8 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [-g] [--dryrun]
 | `<url>` | Git URL or local path of the knowledge source (required) |
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
-| `-p <basepath>` | Explicitly set the base path, skipping auto-detection |
+| `-p <basepath>` | Explicitly register this path as a manifest bundle |
+| `--scan` | Detect bundles: every `index.md` with `okf_version` becomes an `okf` bundle (a root marker covers nested ones), falling back to the `knowledge/` convention. Without `--scan` no bundles are registered — add them with `eru source bundle add <source> <path>`. OKF discovery (and the site) only indexes concept files that have a `type` |
 | `-g` | Write to global config |
 | `--dryrun` | Show what would be added without writing anything |
 

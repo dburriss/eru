@@ -136,6 +136,10 @@ folder `index.md` files have no frontmatter, and `README.md` files are not part 
 creates a new top-level folder it runs [`eru okf init`](../reference/cli.md), and before finishing it
 runs `eru okf validate` on every folder it touched, fixing violations (with `eru okf fix` where possible).
 
+To consume the bundle from another repo, register the source with `eru source add <url> --scan` (or
+`eru source bundle add <source> <path>`); `eru sync` and `eru site generate` then pick up its concept files. Only files
+with a `type` are indexed, so keep `eru okf validate` clean.
+
 ## 5. Verify
 
 ```bash

@@ -112,6 +112,7 @@ Manage knowledge sources.
 ```bash
 eru source add https://github.com/my-org/knowledge
 eru source add https://github.com/my-org/knowledge --name org-knowledge --branch main --global
+eru source add https://github.com/my-org/knowledge --scan   # also detect OKF bundles (index.md with okf_version); without --scan none are registered
 eru source list
 eru source view knowledge
 eru source view knowledge --full

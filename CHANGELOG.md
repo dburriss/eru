@@ -4,6 +4,8 @@
 
 ### Added
 
+- `eru source add --scan` detects OKF bundles (any `index.md` with `okf_version`; a root marker covers nested ones) and falls back to the `knowledge/` convention. **Breaking:** without `--scan`, `eru source add` no longer auto-detects the `knowledge/` bundle; register bundles with `eru source bundle add`
+- OKF bundle discovery (and so `eru site generate`) now indexes only concept files that have a non-empty `type` frontmatter; untyped markdown is skipped
 - `eru okf verify <file>` records a `{ by, at }` confirmation in a concept file's `verified` list (`--by` defaults to `human:<git user.email>`, `--at` to now); `eru okf fix` now strips a malformed `verified` (placeholders like `unknown`/`false`, entries missing `by`/`at`), keeping valid entries; `eru okf validate` warns on placeholder `verified` values and `by: unknown`, pointing at `fix` and `verify`
 - OKF v0.2 alignment: `eru okf init`/`fix` write `okf_version: "0.2"`; `eru okf validate` reports non-fatal v0.2 shape warnings (`generated`, `verified`, `stale_after`, `status`, `sources`, legacy `timestamp`, `log.md` order); eru reads `sources` and falls back to a legacy `timestamp` when `generated` is absent; the ingestor agent template now writes spec-shaped `generated`/`sources` and omits `verified` until a human reviews; `eru inbox send` quotes `resource` in its frontmatter
 - `eru okf init <path>` creates missing `index.md` files (root with `okf_version`, plus a catalog table per folder), never overwriting; `eru okf fix <path>` repairs a tree so `eru okf validate` passes (index frontmatter, missing concept frontmatter/`type`, non-ISO `log.md` date headings, missing indexes). Both write by default; `--dry-run` previews, `--default-type` sets the type for untyped concepts

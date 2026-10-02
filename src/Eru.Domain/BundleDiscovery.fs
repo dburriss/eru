@@ -69,4 +69,12 @@ module BundleDiscovery =
             | _  ->
                 match deps.FetchRemoteContent sourceUrl branch candidatePaths with
                 | Error e -> Error e
-                | Ok files -> files |> List.map (fun (remotePath, content) -> toDiscoveredFile deps.ParseYamlBlock remotePath content) |> Ok
+                | Ok files ->
+                    // OKF concepts are typed files: untyped concept files are not published.
+                    files
+                    |> List.map (fun (remotePath, content) -> toDiscoveredFile deps.ParseYamlBlock remotePath content)
+                    |> List.filter (fun d ->
+                        match Frontmatter.classifyFile d.RemotePath with
+                        | Frontmatter.ConceptFile -> d.Type |> Option.exists (fun t -> not (System.String.IsNullOrWhiteSpace t))
+                        | _ -> true)
+                    |> Ok
