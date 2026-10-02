@@ -49,6 +49,25 @@ Add to `.vscode/mcp.json`:
 }
 ```
 
+## Wire it up for GitHub Copilot
+
+Add to `.github/mcp.json`. Without the .NET tool installed, `dnx` runs it on demand:
+
+```json
+{
+  "mcpServers": {
+    "eru": {
+      "type": "local",
+      "tools": ["*"],
+      "command": "dnx",
+      "args": ["Eru.Tool", "--", "mcp"]
+    }
+  }
+}
+```
+
+The same `dnx` command and args work for Claude Code's `.mcp.json` (with `"type": "stdio"`).
+
 ## Tune the collection cache refresh interval
 
 The server merges the same global (`~/.config/eru/config.json`) and local (`.eru/config.json`) configuration as

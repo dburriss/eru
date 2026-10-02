@@ -17,7 +17,7 @@ Do not write or scaffold any code unless the user explicitly uses the word **imp
 - **CLI parsing**: [Argu](https://fsprojects.github.io/Argu/)
 - **Test framework**: xUnit v3
 - **Shell commands**: [SimpleExec](https://github.com/adamralph/simple-exec)
-- **Console UI**: [Spectre.Console](https://spectreconsole.net/) for tables, spinners, and prompts; [Terminal.Gui](https://gui-cs.github.io/Terminal.Gui/) for more complex interactive browsing (planned)
+- **Console UI**: [Spectre.Console](https://spectreconsole.net/) for tables, spinners, and prompts; [Terminal.Gui](https://gui-cs.github.io/Terminal.Gui/) for interactive browsing (`eru browse`)
 ## Commands
 
 ```bash
@@ -31,12 +31,32 @@ dotnet test --solution eru.slnx
 dotnet test --solution eru.slnx -- --filter-method "*TestName*"
 
 # Run the tool locally
-dotnet run --project src/Eru -- <args>
+dotnet run --project src/Eru.Cli -- <args>   # or: mise run eru -- <args>
 
 # Pack as a global tool
-dotnet pack src/Eru
-dotnet tool install --global --add-source ./src/Eru/nupkg eru
+dotnet pack src/Eru.Cli
+dotnet tool install --global --add-source ./src/Eru.Cli/nupkg Eru.Tool
+
+# Install a patch-bumped alpha build of the current checkout (mise task, wraps scripts/install-alpha.fsx)
+mise run install-alpha            # add --dry-run via ./install-alpha.sh --dry-run
+
+# Start the MCP server from source
+mise run mcp
+
+# Cut a release (interactive; bumps version, rolls CHANGELOG, tags, optionally pushes)
+dotnet fsi scripts/publish.fsx --fsproj src/Eru.Cli/Eru.Cli.fsproj --solution eru.slnx
 ```
+
+## Project layout
+
+`src/` holds `Eru.Domain` (pure logic), `Eru.Adapters` (git/filesystem), `Eru.Cli` (Argu entry point, packed as the `Eru.Tool` NuGet package with command `eru`), `Eru.Mcp`, `Eru.Search`, `Eru.Site`, `Eru.Serve` and `Eru.Tui` (Terminal.Gui browser behind `eru browse`). Design notes live in `plans/`, user docs in `docs/` (Diataxis), agent skills in `skills/`, and the built-in ingestor template in `agents/`.
+
+## CI and releases
+
+- `.github/workflows/build.yml` — restore, build and test (Release) on Ubuntu for every push and PR. It does not run on Windows or macOS, so OS-specific bugs (e.g. path separators) only surface in the publish workflows.
+- `publish-gh.yml` — on `v*` tags (or manual dispatch): builds and tests on Linux, Windows and macOS, publishes trimmed single-file self-contained binaries (`linux-x64`, `win-x64`, `osx-x64`) and attaches them to a GitHub Release. Release notes come from the matching `## [x.y.z]` section of `CHANGELOG.md`; tags containing `-` are marked prerelease.
+- `publish-nuget.yml` — on `v*` tags (or manual dispatch): builds, tests, packs `src/Eru.Cli` and pushes to nuget.org using the `NUGET_DEPLOY_KEY` secret.
+- Keep `CHANGELOG.md` `## [Unreleased]` up to date; the publish script and release notes depend on it.
 
 ## Architecture
 
@@ -51,6 +71,7 @@ The tool is structured around three core concepts:
    - `add` — pull a specific file/snippet into the repo ad-hoc and record it in the state file
    - `sync` — reconcile the state file against knowledge sources (pull updates or push local changes back)
    - `init` — scaffold a configuration file for a new repo
+   - plus `source`, `collection`, `manifest`, `inbox`, `site`, `okf`, `cache`, `browse`, `remove`, `disconnect`, `mcp` and `version` — see `docs/reference/cli.md` for the full list
 
 ### Data flow
 
