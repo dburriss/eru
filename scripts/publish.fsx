@@ -168,7 +168,9 @@ let runReleaseBuild () =
 
 let runReleaseTests () =
     printfn "Running release tests..."
-    runProcess "dotnet" ["test"; solutionPath; "-c"; "Release"; "--no-build"; "--nologo"] rootPath |> ignore
+    // .NET 10 + Microsoft.Testing.Platform: the solution must be passed via --solution, and
+    // --nologo makes the test host report "Zero tests ran" (exit 5), so don't pass it.
+    runProcess "dotnet" ["test"; "--solution"; solutionPath; "-c"; "Release"; "--no-build"] rootPath |> ignore
 
 // ---------------------------------------------------------------------------
 // Retag path — no unreleased changes
@@ -192,7 +194,7 @@ if unreleasedContent.IsEmpty then
 
     if isDryRun then
         printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
-        printfn "[Dry Run] Would run: dotnet test \"%s\" -c Release --no-build --nologo" solutionPath
+        printfn "[Dry Run] Would run: dotnet test --solution \"%s\" -c Release --no-build" solutionPath
     else
         runReleaseBuild ()
         runReleaseTests ()
@@ -238,7 +240,7 @@ if unreleasedContent.IsEmpty then
 
 if isDryRun then
     printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
-    printfn "[Dry Run] Would run: dotnet test \"%s\" -c Release --no-build --nologo" solutionPath
+    printfn "[Dry Run] Would run: dotnet test --solution \"%s\" -c Release --no-build" solutionPath
 else
     runReleaseBuild ()
     runReleaseTests ()

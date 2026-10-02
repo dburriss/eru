@@ -25,10 +25,10 @@ Do not write or scaffold any code unless the user explicitly uses the word **imp
 dotnet build
 
 # Run all tests
-dotnet test
+dotnet test --solution eru.slnx
 
 # Run a single test (by name filter)
-dotnet test --filter "FullyQualifiedName~TestName"
+dotnet test --solution eru.slnx -- --filter-method "*TestName*"
 
 # Run the tool locally
 dotnet run --project src/Eru -- <args>
