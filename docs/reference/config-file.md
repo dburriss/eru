@@ -183,7 +183,7 @@ Both blocks hold the same set of overridable options. `settings` (local) takes p
 | `AllowBinaries` | `allowBinaries` | No | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
 | `SiteIgnorePatterns` | `siteIgnorePatterns` | No | `["index.md", "log.md", "README.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
 | `OkfIgnorePatterns` | `okfIgnorePatterns` | No | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) and `README.md` are always skipped and need no pattern. Use `**/inbox/**` to match nested directories. |
-| `DefaultInbox` | `defaultInbox` | No | — | Name of the inbox `eru inbox send -i` falls back to when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
+| `DefaultInbox` | `defaultInbox` | No | — | Name of the inbox `eru inbox send -i` falls back to (set with `eru inbox default <name>`) when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 | `InboxWatchIntervalSeconds` | `inboxWatchIntervalSeconds` | No | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
 
 Notes:

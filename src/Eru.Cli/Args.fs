@@ -225,6 +225,19 @@ type InboxRemoveArgs =
             | Dryrun   -> "Show what would be removed without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
+type InboxDefaultArgs =
+    | [<MainCommand; ExactlyOnce>] Name of name: string
+    | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name _   -> "Name of the configured inbox to use as the default."
+            | Global   -> "Set in global config (~/.config/eru/config.json)."
+            | Dryrun   -> "Show what would be set without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
 type InboxChannelAddArgs =
     | [<MainCommand; ExactlyOnce>] Inbox_And_Channel of inbox: string * channel: string
     | [<Unique>]                    Agent_Protocol     of protocol: string
@@ -340,6 +353,7 @@ type InboxArgs =
     | [<SubCommand>] Add     of ParseResults<InboxAddArgs>
     | [<SubCommand>] List    of ParseResults<InboxListArgs>
     | [<SubCommand>] Remove  of ParseResults<InboxRemoveArgs>
+    | [<SubCommand>] Default of ParseResults<InboxDefaultArgs>
     | [<SubCommand>] Channel of ParseResults<InboxChannelArgs>
     | [<SubCommand>] Send    of ParseResults<InboxSendArgs>
     | [<SubCommand>] Process of ParseResults<InboxProcessArgs>
@@ -350,6 +364,7 @@ type InboxArgs =
             | Add     _ -> "Register a local directory as an inbox."
             | List    _ -> "List configured inboxes."
             | Remove  _ -> "Remove an inbox."
+            | Default _ -> "Set the inbox used when -i is omitted."
             | Channel _ -> "Manage an inbox's channels."
             | Send    _ -> "Send a message, file, or URL into a configured inbox."
             | Process _ -> "Curate a raw inbox item via its channel's configured agent."

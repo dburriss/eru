@@ -279,3 +279,61 @@ let ``InboxChannelRemove errors when channel not found`` () =
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelRemove.Command = { InboxName = "kb"; ChannelName = "missing"; DryRun = false }
     InboxChannelRemove.execute deps cmd |> assertError
+
+// ── InboxDefault ──
+
+[<Fact>]
+let ``InboxDefault sets local default and preserves settings`` () =
+    let state = newState ()
+    let settings : LocalSettings =
+        { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None
+          SiteIgnorePatterns = None; OkfIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None }
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = Some settings }
+    let deps = makeDeps None (Some local) [] state
+    let r = InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false }
+    Assert.True(Result.isOk r)
+    let s = state.WrittenLocalConfig.Value.Settings.Value
+    Assert.Equal(Some "kb", s.DefaultInbox)
+    Assert.Equal(Some true, s.CommitOnPull)
+
+[<Fact>]
+let ``InboxDefault works with no settings`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let deps = makeDeps None (Some local) [] state
+    InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false } |> ignore
+    Assert.Equal(Some "kb", state.WrittenLocalConfig.Value.Settings.Value.DefaultInbox)
+
+[<Fact>]
+let ``InboxDefault global writes global defaults`` () =
+    let state = newState ()
+    let g = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Defaults = None }
+    let deps = makeDeps (Some g) None [] state
+    let r = InboxDefault.execute deps { Name = "kb"; IsGlobal = true; DryRun = false }
+    Assert.True(Result.isOk r)
+    Assert.Equal(Some "kb", state.WrittenGlobalConfig.Value.Defaults.Value.DefaultInbox)
+
+[<Fact>]
+let ``InboxDefault local may point at a global inbox`` () =
+    let state = newState ()
+    let g = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Defaults = None }
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let deps = makeDeps (Some g) (Some local) [] state
+    Assert.True(Result.isOk (InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false }))
+
+[<Fact>]
+let ``InboxDefault rejects unknown inbox`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let deps = makeDeps None (Some local) [] state
+    let r = InboxDefault.execute deps { Name = "nope"; IsGlobal = false; DryRun = false }
+    Assert.True(Result.isError r)
+    Assert.True(state.WrittenLocalConfig.IsNone)
+
+[<Fact>]
+let ``InboxDefault dry run does not write`` () =
+    let state = newState ()
+    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let deps = makeDeps None (Some local) [] state
+    Assert.True(Result.isOk (InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = true }))
+    Assert.True(state.WrittenLocalConfig.IsNone)

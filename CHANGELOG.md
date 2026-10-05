@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `eru inbox default <name>` sets `settings.defaultInbox` (`-g` for global).
+
 ## [0.9.1] - 2026-10-02
 
 ### Fixed

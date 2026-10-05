@@ -112,7 +112,7 @@ module InboxSend =
                 | []         -> Error "no inbox configured. Run 'eru inbox add <name> <path>' first."
                 | many       ->
                     let names = many |> List.map fst |> String.concat ", "
-                    Error $"multiple inboxes configured ({names}) — specify one with -i/--inbox or set settings.defaultInbox."
+                    Error $"multiple inboxes configured ({names}) — specify one with -i/--inbox or run 'eru inbox default <name>'."
 
     let execute (deps: Deps) (cmd: Command) : Result<SendResult, string> =
         match cmd.Content with

@@ -103,7 +103,7 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru disconnect <path>` | Stop tracking a file but keep it on disk |
 | `eru browse` | Browse the knowledge cache in an interactive terminal UI |
 | `eru cache prune` / `eru cache clear` | Manage the local knowledge cache |
-| `eru inbox add/list/remove` | Manage inboxes (local, or remote git repos) |
+| `eru inbox add/list/remove/default` | Manage inboxes (local, or remote git repos) |
 | `eru inbox channel add/list/remove` | Manage channels and their ACP agents |
 | `eru inbox send` | Send an item to an inbox |
 | `eru inbox process` / `eru inbox watch` | Run inbox items through the channel's agent, once or continuously |

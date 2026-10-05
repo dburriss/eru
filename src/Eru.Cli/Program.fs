@@ -18,6 +18,7 @@ open Eru.Cli.SourceBundleRemoveCli
 open Eru.Cli.InboxAddCli
 open Eru.Cli.InboxListCli
 open Eru.Cli.InboxRemoveCli
+open Eru.Cli.InboxDefaultCli
 open Eru.Cli.InboxChannelAddCli
 open Eru.Cli.InboxChannelListCli
 open Eru.Cli.InboxChannelRemoveCli
@@ -75,6 +76,7 @@ let main argv =
         | InboxAddCmd cmd             -> InboxAddCli.run deps cmd
         | InboxListCmd cmd            -> InboxListCli.run deps cmd
         | InboxRemoveCmd cmd          -> InboxRemoveCli.run deps cmd
+        | InboxDefaultCmd cmd         -> InboxDefaultCli.run deps cmd
         | InboxChannelAddCmd cmd      -> InboxChannelAddCli.run deps cmd
         | InboxChannelListCmd cmd     -> InboxChannelListCli.run deps cmd
         | InboxChannelRemoveCmd cmd   -> InboxChannelRemoveCli.run deps cmd

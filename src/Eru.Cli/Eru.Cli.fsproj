@@ -57,6 +57,7 @@
     <Compile Include="InboxAddCli.fs" />
     <Compile Include="InboxListCli.fs" />
     <Compile Include="InboxRemoveCli.fs" />
+    <Compile Include="InboxDefaultCli.fs" />
     <Compile Include="InboxChannelAddCli.fs" />
     <Compile Include="InboxChannelListCli.fs" />
     <Compile Include="InboxChannelRemoveCli.fs" />

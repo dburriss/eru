@@ -312,6 +312,22 @@ eru inbox remove <name> [-g] [--dryrun]
 | `-g` | Remove from global config |
 | `--dryrun` | Preview without writing |
 
+### `eru inbox default`
+
+Set the inbox that `eru inbox send` / `process` use when `-i` is omitted and more than one inbox is
+configured. Writes `settings.defaultInbox` (local), or `defaults.defaultInbox` with `-g`. The inbox
+must already be configured (local or global).
+
+```
+eru inbox default <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of a configured inbox (required) |
+| `-g` | Set in global config |
+| `--dryrun` | Preview without writing |
+
 ### `eru inbox channel add`
 
 Register a channel on an existing inbox — only needed for a channel that wants extra config (a
