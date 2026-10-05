@@ -6,6 +6,10 @@
 
 - `eru inbox default <name>` sets `settings.defaultInbox` (`-g` for global).
 
+### Changed
+
+- `eru inbox channel add` no longer copies the agent onto a `default` channel; it sets the inbox's `defaultChannel` to the new channel when none is set
+
 ## [0.9.1] - 2026-10-02
 
 ### Fixed

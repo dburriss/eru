@@ -28,22 +28,6 @@ module InboxChannelAdd =
             else
                 Ok (Some { Protocol = protocol; Command = command; Args = cmd.AgentArgs; InstructionsPath = cmd.AgentInstructions; Timeout = cmd.AgentTimeout })
 
-    // `inbox send` falls back to the literal channel "default" whenever no `-c` is given
-    // (InboxSend.fs) — so an item can land there without the user ever having run
-    // `channel add` for it. Configuring an agent on any OTHER channel silently wires the
-    // same agent onto "default" too, as long as "default" doesn't already have one of its
-    // own (never overwrites an explicit choice), so `inbox process`'s default scope doesn't
-    // quietly skip whatever landed in the fallback channel.
-    let private withDefaultAgentFallback (channelName: string) (agent: AgentConfig option) (channels: Map<string, InboxChannelConfig>) : Map<string, InboxChannelConfig> =
-        match agent with
-        | None -> channels
-        | Some _ when channelName = "default" -> channels
-        | Some a ->
-            match Map.tryFind "default" channels with
-            | Some existing when existing.Agent.IsSome -> channels
-            | Some existing -> Map.add "default" { existing with Agent = Some a } channels
-            | None -> Map.add "default" { Description = None; Agent = Some a } channels
-
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
         match buildAgent cmd with
         | Error e -> Error e
@@ -64,26 +48,23 @@ module InboxChannelAdd =
             Error $"channel '{cmd.ChannelName}' already exists on inbox '{cmd.InboxName}'."
         else
 
-        let defaultAutoPopulated =
-            agent.IsSome
-            && cmd.ChannelName <> "default"
-            && (inbox.Channels |> Map.tryFind "default" |> Option.forall (fun c -> c.Agent.IsNone))
+        // The first agent channel becomes the inbox's default channel, so `inbox send` without
+        // `-c` lands somewhere `inbox process` looks — without duplicating the agent elsewhere.
+        let setsDefault = agent.IsSome && inbox.DefaultChannel.IsNone
 
         let successMessage =
             let baseMsg = $"Added channel '{cmd.ChannelName}' to inbox '{cmd.InboxName}'."
-            if defaultAutoPopulated then
-                baseMsg + " Also wired channel 'default' to the same agent, since it had none configured."
+            if setsDefault then baseMsg + " Set it as the inbox's default channel."
             else baseMsg
 
         if cmd.DryRun then
             Ok ("Would do the following: " + successMessage)
         else
             let newChannel : InboxChannelConfig = { Description = cmd.Description; Agent = agent }
-            let updatedChannels =
-                inbox.Channels
-                |> Map.add cmd.ChannelName newChannel
-                |> withDefaultAgentFallback cmd.ChannelName agent
-            let updatedInbox = { inbox with Channels = updatedChannels }
+            let updatedInbox =
+                { inbox with
+                    Channels = Map.add cmd.ChannelName newChannel inbox.Channels
+                    DefaultChannel = if setsDefault then Some cmd.ChannelName else inbox.DefaultChannel }
 
             let writeResult =
                 // The channel is written to whichever config (local or global) already

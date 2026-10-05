@@ -361,10 +361,9 @@ through a fallback chain, using whichever tier finds a file first:
 An *explicitly* configured `--agent-instructions <path>` that doesn't resolve to a file **is** an error
 (this fallback chain only applies when `--agent-instructions` is omitted).
 
-Since `inbox send` falls back to the literal channel `"default"` whenever no `-c` is given, configuring
-an agent on any *other* channel also wires that same agent onto `default` — but only if `default` isn't
-already configured with one of its own (never overwrites an explicit choice). This keeps items sent
-without `-c` from silently falling outside every channel `inbox process` knows to look at.
+When the inbox has no `defaultChannel` yet, the first channel added with an agent becomes the inbox's
+default channel, so `inbox send` without `-c` lands in a channel `inbox process` looks at. An existing
+`defaultChannel` is never changed, and no `default` channel is created.
 
 **Examples**
 
