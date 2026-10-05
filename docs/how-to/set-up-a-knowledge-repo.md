@@ -134,11 +134,13 @@ The ingestor keeps the notes it writes a valid [OKF](https://github.com/GoogleCl
 bundle. The repo root `index.md` is the bundle marker and carries only `okf_version` frontmatter,
 folder `index.md` files have no frontmatter, and `README.md` files are not part of the bundle. When it
 creates a new top-level folder it runs [`eru okf init`](../reference/cli.md), and before finishing it
-runs `eru okf validate` on every folder it touched, fixing violations (with `eru okf fix` where possible).
+runs `eru okf validate` on every folder it touched, fixing violations (with `eru okf fix` where possible) and
+rewriting any note that links to something missing from the bundle (relative links in a raw item rarely survive the move) so the notes stay self-contained.
 
 To consume the bundle from another repo, register the source with `eru source add <url> --scan` (or
 `eru source bundle add <source> <path>`); `eru sync` and `eru site generate` then pick up its concept files. Only files
-with a `type` are indexed, so keep `eru okf validate` clean.
+with a `type` are indexed, so keep `eru okf validate` clean. It warns about broken links, images, wikilinks and anchors; add `--strict-links` to
+fail on them, for example in CI.
 
 ## 5. Verify
 

@@ -5,6 +5,7 @@
 ### Added
 
 - `eru inbox default <name>` sets `settings.defaultInbox` (`-g` for global).
+- `eru okf validate` warns on broken links in concept and `index.md` files: `broken-link`, `broken-image`, `broken-wikilink` and `broken-anchor` (heading missing from the target note; GitHub-style and generated-site anchors both accepted), each with its line number and the link as written. They never change the exit code unless `--strict-links` is given, which reports them as violations. The ingestor template now writes self-contained notes and rewrites links that point outside the bundle
 
 ### Changed
 

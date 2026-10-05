@@ -64,7 +64,7 @@ let private validateAfter (files: (string * string) list) (writes: Dictionary<st
     let merged =
         writes |> Seq.fold (fun m kv -> Map.add kv.Key kv.Value m) (Map.ofList files)
     let deps = makeDeps merged (Dictionary())
-    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = [] } with
+    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = []; StrictLinks = false } with
     | Ok r -> r
     | Error e -> failwith e
 

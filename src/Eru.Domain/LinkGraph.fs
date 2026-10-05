@@ -64,11 +64,15 @@ module LinkGraph =
 
     let private emptyTitleIndex = { KnownPaths = Set.empty; ByKey = Map.empty }
 
-    let private buildTitleIndex (entries: (string * IndexEntry) list) : TitleIndex =
+    /// Builds a `TitleIndex` from `(remotePath, title)` pairs: wikilinks resolve by file stem or title.
+    let titleIndexOf (entries: (string * string option) list) : TitleIndex =
         let knownPaths = entries |> List.map fst |> Set.ofList
         let byStem = entries |> List.map (fun (path, _) -> slug (Path.GetFileNameWithoutExtension path), path)
-        let byTitle = entries |> List.choose (fun (path, e) -> e.Title |> Option.map (fun t -> slug t, path))
+        let byTitle = entries |> List.choose (fun (path, title) -> title |> Option.map (fun t -> slug t, path))
         { KnownPaths = knownPaths; ByKey = Map.ofList (byStem @ byTitle) }
+
+    let private buildTitleIndex (entries: (string * IndexEntry) list) : TitleIndex =
+        titleIndexOf (entries |> List.map (fun (path, e) -> path, e.Title))
 
     let resolveWikilink (source: string) (currentPath: string) (titleIndex: TitleIndex) (target: string) : NodeId option =
         match resolveLink source currentPath target with

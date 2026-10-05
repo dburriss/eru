@@ -855,9 +855,20 @@ Check a directory tree for conformance with the Open Knowledge Format (OKF) spec
 
 ### `eru okf validate`
 
-Walk a directory tree and report violations of OKF §11 conformance: every concept `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, broken cross-links, or missing optional fields — those are explicitly permitted by the spec.
+Walk a directory tree and report violations of OKF §11 conformance: every concept `.md` file must have parseable YAML frontmatter with a non-empty `type`, and `index.md`/`log.md` must follow the §8/§9 structure where present. Does not flag unknown types, unknown extra keys, or missing optional fields — those are explicitly permitted by the spec. Broken links are reported separately, as warnings (see below).
 
 Validation targets OKF v0.2. Separately, **warnings** (shown with `⚠`, never affecting the exit code) flag fields that are readable but not v0.2-shaped: a root `okf_version` other than `"0.2"`; `generated`/`verified` entries that are not `{by, at}` mappings or whose `at` lacks an ISO 8601 UTC offset; a `verified` that is a placeholder scalar (`unknown`, `false`, …) or has a placeholder `by` (the message points at `eru okf fix` and `eru okf verify`); a legacy `timestamp`; `stale_after` without an offset; `status` outside `draft | stable | deprecated`; `sources` that are not a list of mappings with a `resource` (and integer `usage_count`); and `log.md` headings that are not newest-first.
+
+**Link warnings.** The body of every concept and `index.md` file is checked for references that point at something that is not in the bundle. Each warning carries the line number and the link as written, so it can be found and edited:
+
+| Rule | Reported when |
+|---|---|
+| `broken-link` | `[text](target)` points at a file or folder that does not exist (a `.md` target is looked up in the bundle; a path that climbs out of `<path>` is also broken) |
+| `broken-image` | `![alt](target)` points at a file that does not exist |
+| `broken-wikilink` | `[[Title]]` / `[[Title\|alias]]` matches no note by file name or `title` |
+| `broken-anchor` | `[text](note.md#heading)` or `[[Note#heading]]` names a heading the target note does not have. GitHub-style and generated-site heading anchors are both accepted |
+
+External URLs (`https:`, `mailto:`, …), same-page `#anchor` links, and anything in fenced code or inline code are not checked. Like the other warnings these never affect the exit code, because OKF permits dangling links; pass `--strict-links` to report them as violations (exit 1) instead, for example in CI. `log.md` and `README.md` are not link-checked.
 
 The bundle-root `index.md` frontmatter should contain only `okf_version`. That key is what makes eru detect a directory as an OKF bundle (see [`eru source bundle add`](#eru-source-bundle-add)).
 
@@ -871,18 +882,20 @@ The bundle-root `index.md` frontmatter should contain only `okf_version`. That k
 The same rules apply when eru discovers files in a remote OKF bundle.
 
 ```
-eru okf validate <path>
+eru okf validate <path> [--strict-links] [-o <format>]
 ```
 
 | Argument / Flag | Description |
 |---|---|
 | `<path>` | Directory to validate (required) |
+| `--strict-links` | Report broken links, images, wikilinks and anchors as violations (exit 1) instead of warnings |
 | `-o` / `--output` | Output format: table (default), text, json |
 
 **Examples**
 
 ```bash
-eru okf validate ./my-bundle   # exits 0 if conformant, 1 if any violations found
+eru okf validate ./my-bundle                  # exits 0 if conformant, 1 if any violations found
+eru okf validate ./my-bundle --strict-links   # also exits 1 on broken links, images, wikilinks and anchors
 ```
 
 ### `eru okf init`

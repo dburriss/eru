@@ -47,7 +47,7 @@ let private makeDeps (files: Map<string, string>) : Deps =
 
 let private run (files: (string * string) list) : OkfValidate.ValidateResult =
     let deps = makeDeps (Map.ofList files)
-    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = [] } with
+    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = []; StrictLinks = false } with
     | Error e -> Assert.Fail($"expected Ok, got Error {e}"); failwith "unreachable"
     | Ok result -> result
 
@@ -165,7 +165,7 @@ let ``files under dot-directories are skipped`` () =
 [<Fact>]
 let ``files matching ignore patterns are skipped`` () =
     let deps = makeDeps (Map.ofList [ "apm_modules/p/x.md", "no frontmatter"; "inbox/note.md", "no frontmatter"; "tables/orders.md", conceptWithType ])
-    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = Config.defaultOkfIgnorePatterns } with
+    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = Config.defaultOkfIgnorePatterns; StrictLinks = false } with
     | Error e -> Assert.Fail e
     | Ok result ->
         Assert.Empty(result.Violations)
@@ -205,3 +205,102 @@ let ``log.md oldest-first headings warn`` () =
     let result = run [ "log.md", "# Log\n\n## 2026-01-01\n* a\n\n## 2026-02-01\n* b\n" ]
     Assert.Empty(result.Violations)
     Assert.Equal("log-order", result.Warnings.Head.Rule)
+
+// --- link checks ----------------------------------------------------------------------------
+
+let private note (body: string) = "---\ntype: note\n---\n" + body
+
+/// `others` are non-markdown files that exist in the bundle (e.g. images); `dirs` are folders.
+let private runLinks (strict: bool) (files: (string * string) list) (others: string list) (dirs: string list) : OkfValidate.ValidateResult =
+    let baseDeps = makeDeps (Map.ofList files)
+    let deps =
+        { baseDeps with
+            DirectoryExists = fun p -> dirs |> List.exists (fun d -> p = "/bundle/" + d)
+            ListLocalFiles  = fun dir ->
+                others
+                |> List.map (fun f -> "/bundle/" + f)
+                |> List.filter (fun full -> PathUtil.dirName full = dir)
+                |> Ok }
+    match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = []; StrictLinks = strict } with
+    | Error e -> Assert.Fail($"expected Ok, got Error {e}"); failwith "unreachable"
+    | Ok result -> result
+
+let private linkWarnings files = (runLinks false files [] []).Warnings
+
+[<Fact>]
+let ``valid relative links produce no warnings`` () =
+    let result = runLinks false [ "a/x.md", note "[b](../b/y.md) [c](c.md) [root](/b/y.md)"; "b/y.md", note "ok"; "a/c.md", note "ok" ] [] []
+    Assert.Empty(result.Warnings)
+    Assert.Empty(result.Violations)
+
+[<Fact>]
+let ``missing page link warns with line and text`` () =
+    let w = linkWarnings [ "a.md", note "intro\nsee [gone](gone.md) now\n" ] |> List.exactlyOne
+    Assert.Equal("broken-link", w.Rule)
+    Assert.Equal("a.md", w.Path)
+    Assert.Contains("line 5:", w.Message)
+    Assert.Contains("[gone](gone.md)", w.Message)
+
+[<Fact>]
+let ``broken links never fail validation by default`` () =
+    let result = runLinks false [ "a.md", note "[gone](gone.md)" ] [] []
+    Assert.Empty(result.Violations)
+    Assert.Equal(1, result.Warnings.Length)
+
+[<Fact>]
+let ``strict links turns broken links into violations`` () =
+    let result = runLinks true [ "a.md", note "[gone](gone.md) ![i](i.png) [[Nope]]"; "b.md", note "[x](a.md#nope)" ] [] []
+    Assert.Empty(result.Warnings)
+    let rules = result.Violations |> List.map (fun v -> v.Rule) |> List.sort
+    Assert.Equal<string list>([ "broken-anchor"; "broken-image"; "broken-link"; "broken-wikilink" ], rules)
+
+[<Fact>]
+let ``link escaping the bundle root warns`` () =
+    let w = linkWarnings [ "a.md", note "[up](../../outside.md)" ] |> List.exactlyOne
+    Assert.Equal("broken-link", w.Rule)
+
+[<Fact>]
+let ``image that exists passes and a missing one warns`` () =
+    let result = runLinks false [ "docs/a.md", note "![ok](img/p.png) ![bad](img/q.png)" ] [ "docs/img/p.png" ] []
+    let w = result.Warnings |> List.exactlyOne
+    Assert.Equal("broken-image", w.Rule)
+    Assert.Contains("img/q.png", w.Message)
+
+[<Fact>]
+let ``link to a non-markdown file or folder that exists passes`` () =
+    let result = runLinks false [ "a.md", note "[pdf](spec.pdf) [dir](assets/) [missing](other.pdf)" ] [ "spec.pdf" ] [ "assets" ]
+    let w = result.Warnings |> List.exactlyOne
+    Assert.Contains("other.pdf", w.Message)
+
+[<Fact>]
+let ``wikilinks resolve by file stem and by title`` () =
+    let files =
+        [ "a.md", note "[[Orders]] [[order records]] [[Orders|the orders]] [[Missing note]]"
+          "tables/Orders.md", "---\ntype: table\ntitle: Order Records\n---\nbody" ]
+    let w = linkWarnings files |> List.exactlyOne
+    Assert.Equal("broken-wikilink", w.Rule)
+    Assert.Contains("[[Missing note]]", w.Message)
+
+[<Fact>]
+let ``anchors match github or markdig slugs and missing ones warn separately from missing files`` () =
+    let files =
+        [ "a.md", note "[ok1](t.md#hello-world) [ok2](t.md#v1.2-notes) [bad](t.md#nope) [nofile](zzz.md#top)"
+          "t.md", note "# Hello, World!\n## v1.2 Notes\n" ]
+    let ws = linkWarnings files |> List.sortBy (fun w -> w.Rule)
+    Assert.Equal<string list>([ "broken-anchor"; "broken-link" ], ws |> List.map (fun w -> w.Rule))
+    Assert.Contains("heading 'nope' not found in t.md", ws.[0].Message)
+
+[<Fact>]
+let ``external, mailto, anchor-only links and code samples are not checked`` () =
+    let body = "[a](https://x.test) [b](mailto:m@x.test) [c](#here)\n`[d](nope.md)`\n```\n[e](nope.md)\n```\n"
+    Assert.Empty(linkWarnings [ "a.md", note body ])
+
+[<Fact>]
+let ``index files are link-checked too`` () =
+    let w = linkWarnings [ "tables/index.md", "# Tables\n* [Orders](orders.md) - gone\n" ] |> List.exactlyOne
+    Assert.Equal("tables/index.md", w.Path)
+    Assert.Equal("broken-link", w.Rule)
+
+[<Fact>]
+let ``links in log and README files are not checked`` () =
+    Assert.Empty(linkWarnings [ "log.md", "# Directory Update Log\n\n## 2026-05-22\n* [x](gone.md)\n"; "README.md", "[x](gone.md)" ])

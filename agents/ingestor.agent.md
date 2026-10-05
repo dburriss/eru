@@ -195,6 +195,14 @@ similarity yourself.
     `okf_version: "0.2"`); folder `index.md` files have none; `log.md` date
     headings are `## YYYY-MM-DD`, newest first.
 
+  **Notes must be self-contained.** A raw item's relative links (`./other.md`,
+  `../img/x.png`) and `[[wikilinks]]` were written against the author's
+  original folder, which is not part of this bundle. Do not carry them over
+  as they are. Keep a link only if its target exists in the bundle (check the
+  path from the note's own folder) or it is an external `http(s)` URL; otherwise
+  keep the link text and drop the link, and drop images you cannot include.
+  `eru okf validate` reports the ones that slip through (step 7).
+
 ### 5. Update the folder's index.md
 
 Add a new row, or update the existing row (`tags`, `stale_after`) if you
@@ -227,7 +235,22 @@ preview the mechanical repairs (index frontmatter, missing `type`), then
 reports as needing manual attention (e.g. malformed YAML in a note), and
 re-run `eru okf validate` until it exits 0. Also clear any `⚠` warnings it
 prints for your notes: they mean a field is not OKF v0.2-shaped (e.g. a bare
-date in `generated`, a boolean `verified`, string entries in `sources`). Archived items under `inbox/` are
-not validated. If `eru` is not available, re-read the rules above (no
+date in `generated`, a boolean `verified`, string entries in `sources`).
+
+Broken links also show up as `⚠` warnings (`broken-link`, `broken-image`,
+`broken-wikilink`, `broken-anchor`), each with the line number and the link as
+written. Fix every one by editing the note so it no longer points at something
+missing:
+
+| Warning | Rewrite |
+|---|---|
+| `broken-link` | `[text](missing.md)` becomes `text` |
+| `broken-wikilink` | `[[Title\|alias]]` becomes `alias`; `[[Title]]` becomes `Title` |
+| `broken-image` | delete the `![alt](missing.png)` |
+| `broken-anchor` | keep the link to the file, drop the `#fragment` |
+
+If the target should exist (for example a note you are creating from the same
+raw item), create it instead of removing the link. Re-run `eru okf validate`
+until no warnings remain. Archived items under `inbox/` are not validated. If `eru` is not available, re-read the rules above (no
 frontmatter in folder indexes, `okf_version` only at the root, a non-empty
 `type` on every note) and check your files against them.

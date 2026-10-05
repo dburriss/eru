@@ -118,6 +118,12 @@ at }`, `verified: [{ by, at }]` (never write it yourself, not even `false` or `u
 confirmation may use `human:`. Don't write v0.1 `timestamp` or a `# Citations`
 section. `eru okf validate` prints `⚠` warnings for non-v0.2 shapes.
 
+It also warns about links that point at something missing from the bundle
+(`broken-link`, `broken-image`, `broken-wikilink`, `broken-anchor`). Keep notes
+self-contained: link only to notes and files that exist in the docs tree,
+and when a link target is missing, keep the text and drop the link.
+`eru okf validate --strict-links` makes these failures.
+
 ## Anti-patterns to flag
 
 - A README that opens with installation steps (how-to), drifts into "how it

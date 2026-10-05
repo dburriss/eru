@@ -42,6 +42,7 @@
     <Compile Include="GitAdapterTests.fs" />
     <Compile Include="IndexBuilderTests.fs" />
     <Compile Include="HtmlTemplatesTests.fs" />
+    <Compile Include="OkfLinksTests.fs" />
     <Compile Include="OkfValidateTests.fs" />
     <Compile Include="OkfFixTests.fs" />
     <Compile Include="OkfVerifyTests.fs" />

@@ -113,7 +113,7 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru manifest validate` | Check all manifest entries resolve to local files (alias: `verify`) |
 | `eru site generate [-o <dir>]` | Generate a static HTML site for browsing the local knowledge cache |
 | `eru site serve [-p <port>]` | Serve the site locally with live reload and a search API |
-| `eru okf validate <path>` | Check a directory tree for OKF §11 conformance |
+| `eru okf validate <path>` | Check a directory tree for OKF §11 conformance, and warn on broken links (`--strict-links` to fail) |
 | `eru okf init <path>` | Create missing OKF `index.md` files |
 | `eru okf fix <path>` | Repair a directory tree so it passes OKF validation |
 | `eru okf verify <file>` | Record a human/machine verification on a concept file |

@@ -202,7 +202,8 @@ Create, repair and check an OKF bundle. `README.md` and dot-directories are not 
 eru okf init ./my-bundle                 # create missing index.md files (root with okf_version, catalog table per folder); never overwrites
 eru okf fix ./my-bundle --dry-run        # preview repairs: index frontmatter, missing type, log.md dates
 eru okf fix ./my-bundle                  # apply them (--default-type <t> sets the type for untyped concepts); exits 1 if manual fixes remain
-eru okf validate ./my-bundle             # OKF §11 conformance; exits 1 if any violations are found
+eru okf validate ./my-bundle             # OKF §11 conformance; exits 1 if any violations are found; warns on broken links/images/wikilinks/anchors
+eru okf validate ./my-bundle --strict-links   # treat those broken references as violations too
 ```
 
 **What valid OKF v0.2 looks like** (eru targets v0.2; new bundles get `okf_version: "0.2"`):

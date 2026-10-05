@@ -583,12 +583,14 @@ type SiteArgs =
 
 type OkfValidateArgs =
     | [<MainCommand; ExactlyOnce>] Path of path: string
+    | [<Unique>] Strict_Links
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Path _   -> "Directory to validate against OKF §11."
-            | Output _ -> "Output format: table (default), text, json."
+            | Path _        -> "Directory to validate against OKF §11."
+            | Strict_Links  -> "Fail (exit 1) on broken links, images, wikilinks and anchors instead of warning."
+            | Output _      -> "Output format: table (default), text, json."
 
 type OkfInitArgs =
     | [<MainCommand; ExactlyOnce>] Path of path: string

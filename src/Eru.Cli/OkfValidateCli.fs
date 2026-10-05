@@ -6,7 +6,7 @@ open System.Text.Json
 open Eru
 open Eru.Cli.OutputFormat
 
-type Cmd = { Path: string; Format: OutputFormat }
+type Cmd = { Path: string; Format: OutputFormat; StrictLinks: bool }
 
 let (|OkfValidateCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -16,6 +16,7 @@ let (|OkfValidateCmd|_|) (r: ParseResults<EruArgs>) =
                     Some {
                         Path   = validateArgs.GetResult OkfValidateArgs.Path
                         Format = parseFormat (validateArgs.TryGetResult OkfValidateArgs.Output)
+                        StrictLinks = validateArgs.Contains OkfValidateArgs.Strict_Links
                     }
                 | _ -> None)
         | _ -> None)
@@ -53,7 +54,7 @@ let run (deps: Eru.Deps) (cmd: Cmd) : int =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Ok g, Ok l -> Config.resolveOkfIgnorePatterns g l
         | _          -> Config.defaultOkfIgnorePatterns
-    match OkfValidate.execute deps { Path = cmd.Path; IgnorePatterns = ignorePatterns } with
+    match OkfValidate.execute deps { Path = cmd.Path; IgnorePatterns = ignorePatterns; StrictLinks = cmd.StrictLinks } with
     | Error e -> renderError e; 1
     | Ok result ->
         match cmd.Format with
