@@ -106,3 +106,25 @@ module GitAdapter =
                 Ok entries
             with ex ->
                 Error ex.Message)
+
+    /// Move a file, creating the destination's parent directory. Uses `git mv` (a staged rename)
+    /// when the source is tracked by git; falls back to a plain move when it is untracked or not in
+    /// a git repository. A destination that already exists is an error either way.
+    let moveFile (src: string) (dst: string) : Result<unit, string> =
+        try
+            let srcFull = Path.GetFullPath src
+            let dstFull = Path.GetFullPath dst
+            let dstDir = Path.GetDirectoryName dstFull
+            if dstDir <> null && dstDir <> "" then Directory.CreateDirectory dstDir |> ignore
+            let srcDir = Path.GetDirectoryName srcFull
+            let viaGit =
+                if File.Exists dstFull then Error "destination already exists"
+                else
+                    Forge.GitOps.moveFile srcDir (Path.GetFileName srcFull) (Path.GetRelativePath(srcDir, dstFull))
+                    |> Async.RunSynchronously
+            match viaGit with
+            | Ok () -> Ok ()
+            | Error _ ->
+                File.Move(srcFull, dstFull)
+                Ok ()
+        with ex -> Error ex.Message

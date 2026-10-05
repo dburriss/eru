@@ -189,3 +189,65 @@ let ``push creates a new branch but refuses an existing non-default one`` () =
         | Error _ -> ()
         | Ok _ -> Assert.Fail "expected an error"
     finally cleanup remote
+
+// ── moveFile ──────────────────────────────────────────────────────────────────
+
+let private gitOut (dir: string) (args: string) =
+    let psi = Diagnostics.ProcessStartInfo("git", args)
+    psi.WorkingDirectory <- dir
+    psi.UseShellExecute <- false
+    psi.RedirectStandardOutput <- true
+    use p = Diagnostics.Process.Start(psi)
+    let out = p.StandardOutput.ReadToEnd()
+    p.WaitForExit()
+    out
+
+[<Fact>]
+let ``moveFile stages a rename for a tracked file`` () =
+    let repo = makeRepo [ ("inbox/raw/default/a.md", "hello") ]
+    try
+        let src = Path.Combine(repo, "inbox/raw/default/a.md")
+        let dst = Path.Combine(repo, "inbox/archive/default/a.md")
+        Assert.Equal(Ok (), GitAdapter.moveFile src dst)
+        Assert.False(File.Exists src)
+        Assert.Equal("hello", File.ReadAllText dst)
+        Assert.StartsWith("R", (gitOut repo "status --porcelain").TrimStart())
+    finally cleanup repo
+
+[<Fact>]
+let ``moveFile falls back to a plain move for an untracked file`` () =
+    let repo = makeRepo [ ("README.md", "hi") ]
+    try
+        let src = Path.Combine(repo, "inbox/raw/default/b.md")
+        Directory.CreateDirectory(Path.GetDirectoryName src) |> ignore
+        File.WriteAllText(src, "x")
+        let dst = Path.Combine(repo, "inbox/archive/default/b.md")
+        Assert.Equal(Ok (), GitAdapter.moveFile src dst)
+        Assert.False(File.Exists src)
+        Assert.Equal("x", File.ReadAllText dst)
+    finally cleanup repo
+
+[<Fact>]
+let ``moveFile works outside a git repository`` () =
+    let dir = Path.Combine(Path.GetTempPath(), "eru-" + Guid.NewGuid().ToString("N"))
+    Directory.CreateDirectory dir |> ignore
+    try
+        let src = Path.Combine(dir, "raw/c.md")
+        Directory.CreateDirectory(Path.GetDirectoryName src) |> ignore
+        File.WriteAllText(src, "y")
+        let dst = Path.Combine(dir, "archive/c.md")
+        Assert.Equal(Ok (), GitAdapter.moveFile src dst)
+        Assert.Equal("y", File.ReadAllText dst)
+    finally cleanup dir
+
+[<Fact>]
+let ``moveFile errors and keeps the source when the destination exists`` () =
+    let repo = makeRepo [ ("raw/a.md", "new"); ("archive/a.md", "old") ]
+    try
+        let src = Path.Combine(repo, "raw/a.md")
+        match GitAdapter.moveFile src (Path.Combine(repo, "archive/a.md")) with
+        | Error _ ->
+            Assert.True(File.Exists src)
+            Assert.Equal("old", File.ReadAllText(Path.Combine(repo, "archive/a.md")))
+        | Ok _ -> Assert.Fail "expected an error"
+    finally cleanup repo

@@ -272,7 +272,7 @@ Run with the top-level `--debug` flag (`eru --debug inbox process ...`) to also 
 agent handshake timings (initialize/session/prompt, ms) in the output.
 
 Hands the oldest (or named) raw item to its channel's configured agent over the Agent Client Protocol
-to curate, then archives it (`.../raw/<channel>/` → `.../archive/<channel>/`) on success. Requires at
+to curate, then archives it (`.../raw/<channel>/` → `.../archive/<channel>/`, via `git mv` when the item is tracked) on success. Requires at
 least one channel in scope to have an `agent` configured via `inbox channel add`.
 
 Without `-c`, only agent-having channels are in scope, so a raw item in some other channel is invisible

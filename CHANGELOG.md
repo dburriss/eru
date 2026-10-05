@@ -10,6 +10,7 @@
 ### Changed
 
 - `eru inbox channel add` no longer copies the agent onto a `default` channel; it sets the inbox's `defaultChannel` to the new channel when none is set
+- `eru inbox process` archives tracked items with `git mv` (FsForge 0.0.1 `GitOps.moveFile`), so the archive shows as staged renames; untracked items and non-git directories still get a plain move
 
 ## [0.9.1] - 2026-10-02
 

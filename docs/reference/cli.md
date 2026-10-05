@@ -440,6 +440,8 @@ every channel in scope are pooled and sorted oldest-first by filename (capture f
 timestamp-prefixed, so this is also chronological order). On success, the raw item (and its
 `.meta.json` sidecar, if any) is moved from `.../raw/<channel>/` to `.../archive/<channel>/`, mirroring
 the layout a human-run curation pass already produces by hand.
+Tracked items are moved with `git mv`, so the archive shows up as staged renames; untracked items (and
+items outside a git repository) get a plain move.
 
 Without `-c`, only channels with an agent configured are in scope — a raw item sitting in some other
 channel (including `default`, which `inbox send` falls back to with no `-c`; see `inbox channel add`'s

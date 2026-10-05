@@ -93,13 +93,7 @@ module AdapterDeps =
                     if not (Directory.Exists dir) then Ok []
                     else Ok (Directory.GetDirectories dir |> Array.toList)
                 with ex -> Error ex.Message
-            MoveLocalFile            = fun src dst ->
-                try
-                    let dir = Path.GetDirectoryName dst
-                    if dir <> null && dir <> "" then Directory.CreateDirectory dir |> ignore
-                    File.Move(src, dst)
-                    Ok ()
-                with ex -> Error ex.Message
+            MoveLocalFile            = GitAdapter.moveFile
             PushToRemote             = RemoteInboxAdapter.push
             RunAgent                 = AcpAgentAdapter.run
         }
