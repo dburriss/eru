@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.9.1</Version>
+    <Version>0.10.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,7 +16,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Path handling on Windows: domain code built and split `/`-separated bundle and remote paths with `System.IO.Path`, which emits `\` on Windows and broke 69 tests in the release build; it now uses `/`-only helpers, and a test guards against reintroducing `Path.Combine`/`GetDirectoryName`/`GetFileName` in `Eru.Domain`</PackageReleaseNotes>
+    <PackageReleaseNotes>`eru inbox default &lt;name&gt;` sets `settings.defaultInbox` (`-g` for global).
+`eru okf validate` warns on broken links in concept and `index.md` files: `broken-link`, `broken-image`, `broken-wikilink` and `broken-anchor` (heading missing from the target note; GitHub-style and generated-site anchors both accepted), each with its line number and the link as written. They never change the exit code unless `--strict-links` is given, which reports them as violations. The ingestor template now writes self-contained notes and rewrites links that point outside the bundle
+`eru inbox channel add` no longer copies the agent onto a `default` channel; it sets the inbox's `defaultChannel` to the new channel when none is set
+`eru inbox process` archives tracked items with `git mv` (FsForge 0.0.1 `GitOps.moveFile`), so the archive shows as staged renames; untracked items and non-git directories still get a plain move</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
