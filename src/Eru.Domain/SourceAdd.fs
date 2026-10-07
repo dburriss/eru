@@ -8,6 +8,7 @@ module SourceAdd =
         Branch   : string option
         BasePath : string option
         Scan     : bool
+        Nested   : bool
         IsGlobal : bool
         DryRun   : bool
     }
@@ -42,9 +43,10 @@ module SourceAdd =
         | i  -> indexPath.Substring(0, i)
 
     // --scan: every index.md carrying okf_version marks an okf bundle. A root bundle
-    // covers its descendants, so nested ones are dropped. Falls back to the
+    // covers its descendants, so nested ones are dropped unless `nested` is set. Falls back to the
     // knowledge/ convention when no okf index is found.
-    let private scanBundles (deps: Deps) (url: string) (branch: string option) : Bundle list =
+    // With `nested`, every okf bundle is kept, even under a covering root bundle.
+    let private scanBundles (deps: Deps) (url: string) (branch: string option) (nested: bool) : Bundle list =
         let actualBranch = branch |> Option.defaultValue "HEAD"
         let indexPaths =
             match deps.ListRemoteFiles url branch None with
@@ -71,17 +73,17 @@ module SourceAdd =
             | d :: rest ->
                 let covered = kept |> List.exists (fun k -> k = "" || d = k || d.StartsWith(k + "/"))
                 dropNested rest (if covered then kept else d :: kept)
-        match dropNested okfDirs [] with
+        match (if nested then okfDirs else dropNested okfDirs []) with
         | [] -> detectConventionBundle deps url branch
         | dirs -> dirs |> List.map (fun d -> { Path = d; Kind = Okf })
 
-    let execute (deps: Deps) (cmd: Command) : Result<string, string> =
+    let private executeValid (deps: Deps) (cmd: Command) : Result<string, string> =
         let name = cmd.Name |> Option.defaultWith (fun () -> deriveNameFromUrl cmd.Url)
 
         let bundles =
             match cmd.BasePath with
             | Some bp -> [ { Path = bp; Kind = Manifest } ]
-            | None when cmd.Scan -> scanBundles deps cmd.Url cmd.Branch
+            | None when cmd.Scan -> scanBundles deps cmd.Url cmd.Branch cmd.Nested
             | None    -> []
 
         let newSource : SourceConfig = {
@@ -152,3 +154,7 @@ module SourceAdd =
                     | Ok () ->
                         cacheManifest ()
                         Ok $"Added source '{name}' to .eru/config.json.{detectionNote}"
+
+    let execute (deps: Deps) (cmd: Command) : Result<string, string> =
+        if cmd.Nested && not cmd.Scan then Error "--nested only applies together with --scan."
+        else executeValid deps cmd

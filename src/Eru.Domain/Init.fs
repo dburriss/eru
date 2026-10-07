@@ -16,6 +16,7 @@ module Init =
     "allowPatterns": null,
     "allowBinaries": null,
     "siteIgnorePatterns": ["index.md", "log.md", "README.md"],
+    "siteHideEmptyBundles": null,
     "okfIgnorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"],
     "defaultInbox": null,
     "inboxWatchIntervalSeconds": null
@@ -36,6 +37,7 @@ module Init =
               AllowPatterns = Some Config.defaultAllowPatterns
               AllowBinaries = Some Config.defaultAllowBinaries
               SiteIgnorePatterns = Some Config.defaultSiteIgnorePatterns
+              SiteHideEmptyBundles = None
               OkfIgnorePatterns = Some Config.defaultOkfIgnorePatterns
               DefaultInbox = None
               InboxWatchIntervalSeconds = None

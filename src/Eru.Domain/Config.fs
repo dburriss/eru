@@ -124,6 +124,7 @@ type GlobalDefaults = {
     AllowPatterns: string list option
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
+    SiteHideEmptyBundles: bool option
     OkfIgnorePatterns: string list option
     DefaultInbox: string option
     InboxWatchIntervalSeconds: int option
@@ -144,6 +145,7 @@ type LocalSettings = {
     AllowPatterns: string list option
     AllowBinaries: bool option
     SiteIgnorePatterns: string list option
+    SiteHideEmptyBundles: bool option
     OkfIgnorePatterns: string list option
     DefaultInbox: string option
     InboxWatchIntervalSeconds: int option
@@ -167,6 +169,7 @@ type EffectiveConfig = {
     AllowPatterns             : string list
     AllowBinaries             : bool
     SiteIgnorePatterns        : string list
+    SiteHideEmptyBundles      : bool
     OkfIgnorePatterns         : string list
     Inboxes                   : Map<string, InboxConfig>
     DefaultInbox              : string option
@@ -264,6 +267,13 @@ module Bundle =
     let coveringBundles (bundles: Bundle list) (path: string) : Bundle list =
         bundles |> List.filter (fun b -> covers b path)
 
+    // The most specific (longest Path) bundle of any kind covering `path`, if any.
+    let mostSpecificBundle (bundles: Bundle list) (path: string) : Bundle option =
+        bundles
+        |> List.filter (fun b -> covers b path)
+        |> List.sortByDescending (fun b -> b.Path.Length)
+        |> List.tryHead
+
     // The most specific (longest Path) Manifest-kind bundle covering `path`, if any.
     let mostSpecificManifestBundle (bundles: Bundle list) (path: string) : Bundle option =
         bundles
@@ -328,6 +338,7 @@ module Config =
     let defaultAllowPatterns : string list = []
     let defaultAllowBinaries = false
     let defaultSiteIgnorePatterns = ["index.md"; "log.md"; "README.md"]
+    let defaultSiteHideEmptyBundles = false
     // Repo conventions that hold non-concept markdown. Anchored at the bundle root;
     // dot-directories are always skipped separately (see Patterns.isOkfIgnored).
     let defaultOkfIgnorePatterns = ["apm_modules/**"; "inbox/**"; "node_modules/**"]
@@ -479,6 +490,15 @@ module Config =
                     |> Option.bind (fun d -> d.SiteIgnorePatterns)
                     |> Option.defaultValue defaultSiteIgnorePatterns
 
+            let siteHideEmptyBundles =
+                match localCfg |> Option.bind (fun l -> l.Settings) |> Option.bind (fun s -> s.SiteHideEmptyBundles) with
+                | Some b -> b
+                | None   ->
+                    globalCfg
+                    |> Option.bind (fun g -> g.Defaults)
+                    |> Option.bind (fun d -> d.SiteHideEmptyBundles)
+                    |> Option.defaultValue defaultSiteHideEmptyBundles
+
             let okfIgnorePatterns = resolveOkfIgnorePatterns globalCfg localCfg
 
             // Inboxes merge by key: a local inbox of a given name wins outright; any
@@ -521,6 +541,7 @@ module Config =
                 AllowPatterns = allowPatterns
                 AllowBinaries = allowBinaries
                 SiteIgnorePatterns = siteIgnorePatterns
+                SiteHideEmptyBundles = siteHideEmptyBundles
                 OkfIgnorePatterns = okfIgnorePatterns
                 Inboxes = mergedInboxes
                 DefaultInbox = defaultInbox

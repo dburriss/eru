@@ -501,3 +501,29 @@ let ``execute surfaces bundle discovery failures in SyncResult.Errors`` () =
     match Sync.execute deps { DryRun = false } with
     | Ok r -> Assert.Contains(r.Errors, fun e -> e.Contains "clone failed")
     | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``populateIndex walks a nested Okf bundle only once when a root bundle already covers it`` () =
+    let source =
+        makeSourceWithBundles "kb" "https://example.com/kb.git"
+            [ { Path = "sub"; Kind = Okf }; { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+
+    let walkedPaths = ResizeArray<string option>()
+    let listFiles _ _ (path: string option) =
+        walkedPaths.Add path
+        match path with
+        | None -> Ok [ "top.md"; "sub/inner.md" ]
+        | Some _ -> Ok [ "inner.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: note\n---\n"))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    Sync.populateIndex deps |> ignore
+
+    Assert.Equal<string option list>([ None ], List.ofSeq walkedPaths)
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx ->
+        Assert.True(Map.containsKey "top.md" idx.Entries)
+        Assert.True(Map.containsKey "sub/inner.md" idx.Entries)

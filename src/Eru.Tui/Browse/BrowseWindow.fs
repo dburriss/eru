@@ -176,6 +176,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
                 Branch   = input.Branch
                 BasePath = input.BasePath
                 Scan     = true
+                Nested   = false
                 IsGlobal = false
                 DryRun   = false
             }

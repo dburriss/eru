@@ -25,6 +25,10 @@ let private pageUrl (sourceName: string) (remotePath: string) (status: FileStatu
         Some $"files/{sourceName}/{slug}.html"
     | _ -> None
 
+let bundleDisplayName (sourceName: string) (bundlePath: string) : string =
+    let p = bundlePath.Trim('/')
+    if p = "" then sourceName else $"{sourceName}/{p}"
+
 let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
     let sources =
         cfg.Sources
@@ -74,6 +78,9 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
                             Verified    = entry.Verified
                             StaleAfter  = entry.StaleAfter
                             Resource    = entry.Resource
+                            Bundle      =
+                                Bundle.mostSpecificBundle src.Bundles remotePath
+                                |> Option.map (fun b -> bundleDisplayName src.Name b.Path)
                         })
 
                 Some {
@@ -105,6 +112,22 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
             let files = allDocs |> List.filter (fun d -> d.Type = Some t)
             { SiteType.Name = t; FileCount = files.Length; Files = files })
 
+    let bundles =
+        cfg.Sources
+        |> List.collect (fun src ->
+            src.Bundles
+            |> List.map (fun b ->
+                let name  = bundleDisplayName src.Name b.Path
+                let files = allDocs |> List.filter (fun d -> d.Bundle = Some name)
+                { SiteBundle.Name      = name
+                  Source    = src.Name
+                  Path      = b.Path.Trim('/')
+                  Kind      = (match b.Kind with Okf -> "okf" | Manifest -> "manifest")
+                  FileCount = files.Length
+                  Files     = files }))
+        |> List.filter (fun b -> not cfg.SiteHideEmptyBundles || b.FileCount > 0)
+        |> List.sortBy (fun b -> b.Name)
+
     let extensions =
         allDocs
         |> List.map (fun d -> d.Extension)
@@ -117,5 +140,6 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
         Sources       = sources
         Tags          = tags
         Types         = types
+        Bundles       = bundles
         AllExtensions = extensions
     }

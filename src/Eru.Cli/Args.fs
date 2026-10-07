@@ -62,6 +62,7 @@ type SourceAddArgs =
     | [<AltCommandLine("-b")>]     Branch   of branch: string
     | [<AltCommandLine("-p")>]     Basepath of path: string
     | [<Unique>]                   Scan
+    | [<Unique>]                   Nested
     | [<AltCommandLine("-g")>]     Global
     | [<Unique>]                   Dryrun
     | [<Unique; AltCommandLine("-o")>] Output of format: string
@@ -73,6 +74,7 @@ type SourceAddArgs =
             | Branch _   -> "Branch to track."
             | Basepath _ -> "Explicitly register this path as a manifest bundle."
             | Scan       -> "Scan the source for OKF bundles (index.md with okf_version) or the knowledge/ convention and register them."
+            | Nested     -> "With --scan, keep nested OKF bundles instead of letting a root bundle cover them."
             | Global     -> "Write to global config (~/.config/eru/config.json)."
             | Dryrun     -> "Show what would be added without writing anything."
             | Output _   -> "Output format: table (default), text, json."

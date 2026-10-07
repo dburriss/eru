@@ -135,7 +135,7 @@ Manage knowledge sources.
 Register a git repository or local path as a knowledge source.
 
 ```
-eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [-g] [--dryrun]
+eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [--nested] [-g] [--dryrun]
 ```
 
 | Argument / Flag | Description |
@@ -144,6 +144,7 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [-g] [--
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
 | `-p <basepath>` | Explicitly register this path as a manifest bundle |
+| `--nested` | With `--scan`, keep nested OKF bundles too, so a root marker no longer covers them. Each nested bundle gets its own page under the site's Bundles tab. Errors without `--scan` |
 | `--scan` | Detect bundles: every `index.md` with `okf_version` becomes an `okf` bundle (a root marker covers nested ones), falling back to the `knowledge/` convention. Without `--scan` no bundles are registered — add them with `eru source bundle add` |
 | `--branch <branch>` | Remote inbox only: branch `inbox send` pushes to (default: the repo's default branch). Must be the default branch or a branch that doesn't exist yet — an existing non-default branch is refused so it can't be overwritten. |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |

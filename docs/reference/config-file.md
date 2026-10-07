@@ -182,6 +182,7 @@ Both blocks hold the same set of overridable options. `settings` (local) takes p
 | `AllowPatterns` | `allowPatterns` | No | `[]` | Gitignore-style globs that override `BlockPatterns` for matching paths. |
 | `AllowBinaries` | `allowBinaries` | No | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
 | `SiteIgnorePatterns` | `siteIgnorePatterns` | No | `["index.md", "log.md", "README.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
+| `SiteHideEmptyBundles` | `siteHideEmptyBundles` | No | `false` | When `true`, `eru site generate` omits bundles that list no files (including ones whose files are all matched by `siteIgnorePatterns`) from the Bundles tab and the Browse sidebar. Empty bundles are shown, with a count of 0, by default — see [site generation](site-generation.md#bundles). |
 | `OkfIgnorePatterns` | `okfIgnorePatterns` | No | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) and `README.md` are always skipped and need no pattern. Use `**/inbox/**` to match nested directories. |
 | `DefaultInbox` | `defaultInbox` | No | — | Name of the inbox `eru inbox send -i` falls back to (set with `eru inbox default <name>`) when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 | `InboxWatchIntervalSeconds` | `inboxWatchIntervalSeconds` | No | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
@@ -209,6 +210,7 @@ Notes:
     "allowPatterns": [],
     "allowBinaries": false,
     "siteIgnorePatterns": ["index.md", "log.md", "README.md"],
+    "siteHideEmptyBundles": false,
     "okfIgnorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"],
     "inboxWatchIntervalSeconds": 30
   }
@@ -228,6 +230,7 @@ Notes:
     "allowPatterns": ["vendor/**/*.dll"],
     "allowBinaries": null,
     "siteIgnorePatterns": ["index.md", "log.md", "README.md"],
+    "siteHideEmptyBundles": null,
     "okfIgnorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"],
     "inboxWatchIntervalSeconds": null
   }

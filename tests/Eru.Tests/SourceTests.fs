@@ -56,6 +56,7 @@ let private simpleCmd url : SourceAdd.Command = {
     Branch   = None
     BasePath = None
     Scan     = false
+    Nested   = false
     IsGlobal = false
     DryRun   = false
 }
@@ -182,6 +183,25 @@ let ``--scan registers a root okf bundle and skips nested ones`` () =
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg -> Assert.Equal<Bundle list>([ { Path = ""; Kind = Okf } ], cfg.Sources[0].Bundles)
+
+[<Fact>]
+let ``--scan --nested keeps the root bundle and every nested okf bundle`` () =
+    let written = ref None
+    let deps = okfDeps [ "index.md", okfIndex; "a/index.md", okfIndex; "a/b/index.md", okfIndex; "c/index.md", "# x" ] written
+    SourceAdd.execute deps ({ simpleCmd "https://github.com/acme/kb.git" with Scan = true; Nested = true }) |> ignore
+    match written.Value with
+    | None     -> Assert.Fail "nothing written"
+    | Some cfg ->
+        Assert.Equal<Bundle list>(
+            [ { Path = ""; Kind = Okf }; { Path = "a"; Kind = Okf }; { Path = "a/b"; Kind = Okf } ],
+            cfg.Sources[0].Bundles)
+
+[<Fact>]
+let ``--nested without --scan is rejected`` () =
+    let written = ref None
+    let deps = makeDeps (Some emptyLocal) None [] written (ref None)
+    assertError (SourceAdd.execute deps ({ simpleCmd "https://github.com/acme/kb.git" with Nested = true }))
+    Assert.True(written.Value.IsNone)
 
 [<Fact>]
 let ``--scan registers each nested okf bundle when there is no root marker`` () =

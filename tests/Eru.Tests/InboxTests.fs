@@ -291,7 +291,7 @@ let ``InboxDefault sets local default and preserves settings`` () =
     let state = newState ()
     let settings : LocalSettings =
         { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None
-          SiteIgnorePatterns = None; OkfIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None }
+          SiteIgnorePatterns = None; SiteHideEmptyBundles = None; OkfIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None }
     let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = Some settings }
     let deps = makeDeps None (Some local) [] state
     let r = InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false }

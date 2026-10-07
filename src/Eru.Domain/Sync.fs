@@ -129,6 +129,7 @@ module Sync =
                            AllowPatterns = Config.defaultAllowPatterns
                            AllowBinaries = Config.defaultAllowBinaries
                            SiteIgnorePatterns = Config.defaultSiteIgnorePatterns
+                           SiteHideEmptyBundles = Config.defaultSiteHideEmptyBundles
                            OkfIgnorePatterns = Config.defaultOkfIgnorePatterns
                            Inboxes = Map.empty
                            DefaultInbox = None
@@ -201,12 +202,17 @@ module Sync =
                         else
                             let mutable idx = existingIdx
                             let mutable discoveryFailed = false
-                            for bundle in okfBundles do
+                            // A bundle nested under one already walked is skipped: the outer walk
+                            // listed every .md beneath it, so a second walk would repeat the work.
+                            let walked = System.Collections.Generic.List<Bundle>()
+                            for bundle in okfBundles |> List.sortBy (fun b -> b.Path.Length) do
+                              if not (walked |> Seq.exists (fun w -> Bundle.covers w bundle.Path)) then
                                 match BundleDiscovery.walkBundle deps eff.OkfIgnorePatterns src.Name url branch bundle with
                                 | Error e ->
                                     discoveryFailed <- true
                                     errors.Add($"source '{src.Name}': bundle discovery for '{bundle.Path}' failed: {e}")
                                 | Ok discovered ->
+                                    walked.Add bundle
                                     for d in discovered do
                                         let contentHash = deps.HashContent d.Content
                                         let cacheRelPath =

@@ -77,6 +77,7 @@ let private cfg : EffectiveConfig = {
     AllowPatterns = []
     AllowBinaries = false
     SiteIgnorePatterns = []
+    SiteHideEmptyBundles = false
     OkfIgnorePatterns = []
     Inboxes = Map.empty
     DefaultInbox = None
@@ -125,5 +126,46 @@ let ``generate writes graph json and renders linked documents on file pages`` ()
             let guideHtml = File.ReadAllText(Path.Combine(outDir, "files/src/docs_guide.md.html"))
             Assert.Contains("Links to this document", guideHtml)
             Assert.Contains("files/src/docs_index.md.html", guideHtml)
+    finally
+        if Directory.Exists outDir then Directory.Delete(outDir, true)
+
+[<Fact>]
+let ``generate writes the Bundles tab, an index page and one page per nested bundle`` () =
+    let sourceIndex =
+        Map.ofList [
+            "top.md", makeIndexEntry (Some "files/hash1") (Some "Top")
+            "sub/inner.md", makeIndexEntry (Some "files/hash2") (Some "Inner")
+        ]
+    let content = Map.ofList [ "files/hash1", "top"; "files/hash2", "inner" ]
+    let deps = makeDeps sourceIndex content
+    let bundleCfg =
+        { cfg with Sources = [ { makeSource "src" with Bundles = [ { Path = ""; Kind = Okf }; { Path = "sub"; Kind = Okf } ] } ] }
+
+    let outDir = Path.Combine(Path.GetTempPath(), "eru-bundles-test-" + System.Guid.NewGuid().ToString("N"))
+    try
+        let opts = { GenerateOptions.defaults with OutputDir = outDir }
+        match SiteGenerator.generate deps bundleCfg opts with
+        | Error e -> Assert.Fail e
+        | Ok () ->
+            let indexHtml = File.ReadAllText(Path.Combine(outDir, "index.html"))
+            Assert.Contains("""<a href="bundles/index.html">Bundles</a>""", indexHtml)
+
+            let bundlesHtml = File.ReadAllText(Path.Combine(outDir, "bundles/index.html"))
+            Assert.Contains("src/sub", bundlesHtml)
+
+            let rootHtml = File.ReadAllText(Path.Combine(outDir, "bundles/src/index.html"))
+            Assert.Contains("Top", rootHtml)
+            Assert.DoesNotContain("Inner", rootHtml)
+
+            let nestedHtml = File.ReadAllText(Path.Combine(outDir, "bundles/src/sub/index.html"))
+            Assert.Contains("Inner", nestedHtml)
+            Assert.Contains("../../../assets/css/style.css", nestedHtml)
+
+            let docs = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(outDir, "data/documents.json")))
+            let bundleOfInner =
+                docs.EnumerateArray()
+                |> Seq.find (fun d -> d.GetProperty("remotePath").GetString() = "sub/inner.md")
+                |> fun d -> d.GetProperty("bundle").GetString()
+            Assert.Equal("src/sub", bundleOfInner)
     finally
         if Directory.Exists outDir then Directory.Delete(outDir, true)

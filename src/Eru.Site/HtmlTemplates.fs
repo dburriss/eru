@@ -104,6 +104,7 @@ let layout (depth: int) (title: string) (body: string) : string =
     <a href="{p}sources/index.html">Sources</a>
     <a href="{p}tags/index.html">Tags</a>
     <a href="{p}types/index.html">Types</a>
+    <a href="{p}bundles/index.html">Bundles</a>
     <button id="theme-toggle" aria-label="Toggle theme" style="display:none"></button>
   </nav>
   <noscript><p class="noscript-note">Search requires JavaScript. Browse by source or tag using the navigation links.</p></noscript>
@@ -114,6 +115,14 @@ let layout (depth: int) (title: string) (body: string) : string =
   <script defer src="{p}js/graph.js"></script>
 </body>
 </html>"""
+
+let private bundleSegments (b: SiteBundle) : string list =
+    b.Source :: (if b.Path = "" then [] else b.Path.Split('/') |> Array.toList)
+    |> List.map Uri.EscapeDataString
+
+/// Site-root-relative URL of a bundle's page: bundles/<source>/<path>/index.html.
+let bundleUrl (b: SiteBundle) : string =
+    "bundles/" + String.Join("/", bundleSegments b) + "/index.html"
 
 let indexPage (model: SiteModel) : string =
     let p = prefixFor 0
@@ -137,6 +146,11 @@ let indexPage (model: SiteModel) : string =
         |> List.map (fun t ->
             $"""<li><a href="{p}types/{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount})</span></li>""")
         |> String.concat "\n"
+    let bundleLinks =
+        model.Bundles
+        |> List.map (fun b ->
+            $"""<li><a href="{p}{bundleUrl b}">{escapeHtml b.Name}</a> <span class="count">({b.FileCount})</span></li>""")
+        |> String.concat "\n"
     let cards =
         model.Documents
         |> List.map (fileCard p)
@@ -158,6 +172,10 @@ let indexPage (model: SiteModel) : string =
     <section class="sidebar-section">
       <h3>Types</h3>
       <ul id="type-filters">{typeLinks}</ul>
+    </section>
+    <section class="sidebar-section">
+      <h3>Bundles</h3>
+      <ul id="bundle-filters">{bundleLinks}</ul>
     </section>
   </aside>
   <section class="content">
@@ -249,6 +267,31 @@ let tagFilesPage (tag: SiteTag) : string =
 {tagTip}
 <div id="file-list">{cards}</div>"""
     layout 2 tag.Name body
+
+let bundlesPage (bundles: SiteBundle list) : string =
+    let rows =
+        bundles
+        |> List.map (fun b ->
+            $"""<li><a href="{(bundleUrl b).Substring("bundles/".Length)}">{escapeHtml b.Name}</a> <span class="badge">{b.Kind}</span> <span class="count">({b.FileCount} files)</span></li>""")
+        |> String.concat "\n"
+    let body = $"""<h1>Bundles</h1>
+<ul class="tag-list">{rows}</ul>"""
+    layout 1 "Bundles" body
+
+let bundleFilesPage (bundle: SiteBundle) : string =
+    let depth = 1 + (bundleSegments bundle).Length
+    let p = prefixFor depth
+    let cards =
+        bundle.Files
+        |> List.map (fileCard p)
+        |> String.concat "\n"
+    let crumbs = breadcrumbs ["Bundles", Some $"{p}bundles/index.html"; bundle.Name, None]
+    let body = $"""<div class="page-header">
+  {crumbs}
+  <h1>{escapeHtml bundle.Name}</h1>
+</div>
+<div id="file-list">{cards}</div>"""
+    layout depth bundle.Name body
 
 let typesPage (types: SiteType list) : string =
     let rows =

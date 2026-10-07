@@ -18,6 +18,7 @@ let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
                             SourceAdd.Command.Branch   = addArgs.TryGetResult SourceAddArgs.Branch
                             SourceAdd.Command.BasePath = addArgs.TryGetResult SourceAddArgs.Basepath
                             SourceAdd.Command.Scan     = addArgs.Contains     SourceAddArgs.Scan
+                            SourceAdd.Command.Nested   = addArgs.Contains     SourceAddArgs.Nested
                             SourceAdd.Command.IsGlobal = addArgs.Contains     SourceAddArgs.Global
                             SourceAdd.Command.DryRun   = addArgs.Contains     SourceAddArgs.Dryrun
                         }

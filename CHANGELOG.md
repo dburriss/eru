@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- `eru site generate` adds a **Bundles** tab after Types: `bundles/index.html` lists every registered bundle with its kind and file count, and `bundles/<source>/<path>/index.html` lists one bundle's files. A file appears under its most specific bundle only. Bundles are named `<source>` (root) or `<source>/<path>`, so nested bundles are namespaced by their parents. The Browse sidebar gains a Bundles section and `data/documents.json` carries a `bundle` field
+- `siteHideEmptyBundles` setting (default `false`): when `true`, `eru site generate` leaves bundles with no listed files out of the Bundles tab and Browse sidebar
+- `eru source add --scan --nested` keeps nested OKF bundles instead of letting a root bundle cover them
+
+### Changed
+
+- `eru sync` no longer walks an OKF bundle that is nested under another OKF bundle it already walked
+
 ## [0.10.0] - 2026-10-05
 
 ### Added

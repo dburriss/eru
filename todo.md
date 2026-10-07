@@ -34,3 +34,8 @@
 - [x] update docs
 - [x] fix: eru to use .agents/agents/ingestor.md or discover it
 - [x] remote git inbox send 
+- [ ] Group config settings into sections (breaking): `settings`/`defaults` are flat today with prefixed keys (`siteIgnorePatterns`, `siteHideEmptyBundles`, `okfIgnorePatterns`, `inbox*`, `mcp*`). Move to a nested `site` section first, e.g. `site: { ignorePatterns, hideEmptyBundles }`. Bump config `version` and migrate the old flat keys like the existing v1 -> v2 migration (`BasePath` -> `Bundles`). Do it before more `site*` keys land; give the config record types a shared `empty` value so fixtures stop breaking on every new field
+- [ ] Fix left column overflow on site
+- [ ] Configure top-bar navigation
+- [ ] Add navigation elements to left navigation bar
+- [ ] Possibly move tags to a right navigation bar with selector pills and links

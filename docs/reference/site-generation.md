@@ -23,6 +23,12 @@ searching your local knowledge cache. See [`eru site` in the CLI reference](cli.
 │   ├── index.html                # All tags with file counts
 │   └── <tag>/
 │       └── index.html            # Files carrying a given tag
+├── bundles/
+│   ├── index.html                # All registered bundles with kind and file counts
+│   └── <source>/
+│       ├── index.html            # Files in the source's root bundle
+│       └── <path>/
+│           └── index.html        # Files in a nested bundle (path segments become folders)
 ├── files/
 │   └── <source>/
 │       └── <slug>.html           # Rendered content page (cached/pulled .md files only)
@@ -37,6 +43,16 @@ searching your local knowledge cache. See [`eru site` in the CLI reference](cli.
     ├── sources.json              # Source list with manifest flags
     └── manifest.json            # Schema version and document count
 ```
+
+### Bundles
+
+The **Bundles** tab lists every bundle registered on a source (see `eru source bundle list`), including ones with no
+files yet. A bundle is named `<source>` for the repo root and `<source>/<path>` otherwise, so nested bundles carry
+their parents' path. Each file is listed under its **most specific** bundle (the longest path covering it), never
+also under an enclosing bundle. A bundle with no listed files still appears, with a count of 0, so a newly registered bundle is visible before its first
+sync. Set `siteHideEmptyBundles` to `true` in the config to omit those (see the
+[config reference](config-file.md#defaults-global-and-settings-local)). Files covered by no bundle appear in no bundle page but remain in Browse, Sources,
+Tags and Types. Register nested bundles with `eru source add --scan --nested` or `eru source bundle add`.
 
 Every page is fully navigable as plain HTML with no JavaScript. JS is loaded as an optional enhancement that adds
 in-place search and checkbox facet filtering. Dark/light theming works via CSS `prefers-color-scheme` even without

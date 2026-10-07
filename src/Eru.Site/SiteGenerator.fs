@@ -902,6 +902,7 @@ type DocDto = {
     status      : string
     body        : string option
     pageUrl     : string option
+    bundle      : string option
 }
 
 type SourceDto = {
@@ -945,6 +946,7 @@ let private toDocDto (d: SiteDocument) : DocDto = {
     status      = match d.SyncStatus with Pulled -> "pulled" | Cached -> "cached" | IndexOnly -> "index-only"
     body        = d.Body
     pageUrl     = d.PageUrl
+    bundle      = d.Bundle
 }
 
 // ── file helpers ──────────────────────────────────────────────────────────────
@@ -1075,6 +1077,12 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
         for typ in model.Types do
             let typeSlug = Uri.EscapeDataString typ.Name
             writeFileR (Path.Combine(out, $"types/{typeSlug}/index.html")) (HtmlTemplates.typeFilesPage typ)
+
+    // bundles/index.html + bundles/<source>/<path>/index.html
+    if opts.Features.TagPages then
+        writeFileR (Path.Combine(out, "bundles/index.html")) (HtmlTemplates.bundlesPage model.Bundles)
+        for bundle in model.Bundles do
+            writeFileR (Path.Combine(out, HtmlTemplates.bundleUrl bundle)) (HtmlTemplates.bundleFilesPage bundle)
 
     // files/<source>/<slug>.html
     if opts.Features.FilePages then

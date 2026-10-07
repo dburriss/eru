@@ -19,6 +19,7 @@ type SiteDocument = {
     Verified    : Eru.Frontmatter.ActorAt list
     StaleAfter  : System.DateTimeOffset option
     Resource    : string option
+    Bundle      : string option              // display name of the most specific covering bundle
 }
 
 type SiteSource = {
@@ -42,11 +43,21 @@ type SiteType = {
     Files     : SiteDocument list
 }
 
+type SiteBundle = {
+    Name      : string                       // "<source>" for a root bundle, else "<source>/<path>"
+    Source    : string
+    Path      : string                       // repo-relative; "" for the root bundle
+    Kind      : string                       // "okf" | "manifest"
+    FileCount : int
+    Files     : SiteDocument list
+}
+
 type SiteModel = {
     Documents     : SiteDocument list
     Sources       : SiteSource list
     Tags          : SiteTag list
     Types         : SiteType list
+    Bundles       : SiteBundle list
     AllExtensions : string list
 }
 

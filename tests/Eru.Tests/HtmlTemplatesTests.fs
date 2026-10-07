@@ -21,6 +21,7 @@ let private baseDoc : SiteDocument = {
     Verified    = []
     StaleAfter  = None
     Resource    = None
+    Bundle      = None
 }
 
 let private noRelated : RelatedLinks = { Incoming = []; Outgoing = [] }

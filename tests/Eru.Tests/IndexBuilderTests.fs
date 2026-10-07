@@ -69,6 +69,7 @@ let private cfg (sourceName: string) : EffectiveConfig = {
     AllowPatterns = []
     AllowBinaries = false
     SiteIgnorePatterns = []
+    SiteHideEmptyBundles = false
     OkfIgnorePatterns = []
     Inboxes = Map.empty
     DefaultInbox = None
@@ -163,4 +164,73 @@ let ``default SiteIgnorePatterns exclude README.md at any depth`` () =
     let cfgDefault = { cfg "src" with SiteIgnorePatterns = Config.defaultSiteIgnorePatterns }
     match IndexBuilder.buildModel deps cfgDefault with
     | Ok model -> Assert.Equal<string list>([ "content.md" ], model.Documents |> List.map (fun d -> d.RemotePath))
+    | Error e -> Assert.Fail e
+
+// ── Bundles ──────────────────────────────────────────────────────────────────
+
+let private cfgWithBundles (bundles: Bundle list) : EffectiveConfig =
+    let c = cfg "kb"
+    { c with Sources = [ { c.Sources.[0] with Bundles = bundles } ] }
+
+let private bundleIndex =
+    Map.ofList [
+        "top.md",           { emptyIndexEntry with LocalPath = Some "top.md" }
+        "sub/inner.md",     { emptyIndexEntry with LocalPath = Some "inner.md" }
+        "sub/deep/leaf.md", { emptyIndexEntry with LocalPath = Some "leaf.md" }
+    ]
+
+let private bundleOf (path: string) (model: SiteModel) =
+    (model.Documents |> List.find (fun d -> d.RemotePath = path)).Bundle
+
+[<Fact>]
+let ``a file belongs to its most specific bundle only`` () =
+    let bundles = [ { Path = ""; Kind = Okf }; { Path = "sub"; Kind = Okf }; { Path = "sub/deep"; Kind = Okf } ]
+    match IndexBuilder.buildModel (makeDeps bundleIndex) (cfgWithBundles bundles) with
+    | Ok model ->
+        Assert.Equal(Some "kb", bundleOf "top.md" model)
+        Assert.Equal(Some "kb/sub", bundleOf "sub/inner.md" model)
+        Assert.Equal(Some "kb/sub/deep", bundleOf "sub/deep/leaf.md" model)
+        let counts = model.Bundles |> List.map (fun b -> b.Name, b.FileCount)
+        Assert.Equal<(string * int) list>([ "kb", 1; "kb/sub", 1; "kb/sub/deep", 1 ], counts)
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``a nested okf bundle wins over a manifest root bundle`` () =
+    let bundles = [ { Path = ""; Kind = Manifest }; { Path = "sub"; Kind = Okf } ]
+    match IndexBuilder.buildModel (makeDeps bundleIndex) (cfgWithBundles bundles) with
+    | Ok model ->
+        Assert.Equal(Some "kb/sub", bundleOf "sub/inner.md" model)
+        Assert.Equal("manifest", (model.Bundles |> List.find (fun b -> b.Name = "kb")).Kind)
+        Assert.Equal("okf", (model.Bundles |> List.find (fun b -> b.Name = "kb/sub")).Kind)
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``a file outside every bundle has no bundle and an empty bundle is still listed`` () =
+    let bundles = [ { Path = "sub"; Kind = Okf }; { Path = "empty"; Kind = Okf } ]
+    match IndexBuilder.buildModel (makeDeps bundleIndex) (cfgWithBundles bundles) with
+    | Ok model ->
+        Assert.Equal(None, bundleOf "top.md" model)
+        Assert.Equal(0, (model.Bundles |> List.find (fun b -> b.Name = "kb/empty")).FileCount)
+        Assert.Equal(2, (model.Bundles |> List.find (fun b -> b.Name = "kb/sub")).FileCount)
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``bundleDisplayName namespaces by source and path`` () =
+    Assert.Equal("kb", IndexBuilder.bundleDisplayName "kb" "")
+    Assert.Equal("kb/knowledge/software", IndexBuilder.bundleDisplayName "kb" "knowledge/software/")
+
+[<Fact>]
+let ``siteHideEmptyBundles drops bundles with no listed files`` () =
+    let bundles = [ { Path = "sub"; Kind = Okf }; { Path = "empty"; Kind = Okf } ]
+    let hiding = { cfgWithBundles bundles with SiteHideEmptyBundles = true }
+    match IndexBuilder.buildModel (makeDeps bundleIndex) hiding with
+    | Ok model -> Assert.Equal<string list>([ "kb/sub" ], model.Bundles |> List.map (fun b -> b.Name))
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``siteHideEmptyBundles also hides a bundle whose files are all site-ignored`` () =
+    let bundles = [ { Path = "sub"; Kind = Okf } ]
+    let hiding = { cfgWithBundles bundles with SiteHideEmptyBundles = true; SiteIgnorePatterns = [ "sub/**" ] }
+    match IndexBuilder.buildModel (makeDeps bundleIndex) hiding with
+    | Ok model -> Assert.Empty model.Bundles
     | Error e -> Assert.Fail e
