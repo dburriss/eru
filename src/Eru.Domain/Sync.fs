@@ -177,7 +177,18 @@ module Sync =
                                     Tags          = blended.Tags
                                     Description   = blended.Description })
                 |> Map.ofList
-            deps.WriteSourceIndex src.Name { existingIdx with Entries = initialEntries } |> ignore
+            // Entries discovered from an Okf bundle are only rebuilt when the remote HEAD
+            // moves (Step 1d), so they must survive this reseed or an unchanged remote
+            // would leave the index empty.
+            let okfBundles = src.Bundles |> List.filter (fun b -> b.Kind = Okf)
+            let discovered =
+                existingIdx.Entries
+                |> Map.filter (fun path e ->
+                    not (Map.containsKey path initialEntries)
+                    && e.ContentHash.IsSome
+                    && okfBundles |> List.exists (fun b -> Bundle.covers b path))
+            let entries = discovered |> Map.fold (fun acc k v -> Map.add k v acc) initialEntries
+            deps.WriteSourceIndex src.Name { existingIdx with Entries = entries } |> ignore
 
         // Step 1d: OKF bundle discovery — SHA-gated, fails open, escalates after 3
         // consecutive GetRemoteHeadSha failures (decision #3).
@@ -202,6 +213,7 @@ module Sync =
                         else
                             let mutable idx = existingIdx
                             let mutable discoveryFailed = false
+                            let seen = System.Collections.Generic.HashSet<string>()
                             // A bundle nested under one already walked is skipped: the outer walk
                             // listed every .md beneath it, so a second walk would repeat the work.
                             let walked = System.Collections.Generic.List<Bundle>()
@@ -214,6 +226,7 @@ module Sync =
                                 | Ok discovered ->
                                     walked.Add bundle
                                     for d in discovered do
+                                        seen.Add d.RemotePath |> ignore
                                         let contentHash = deps.HashContent d.Content
                                         let cacheRelPath =
                                             match deps.CacheSourceContent src.Name contentHash d.Content with
@@ -243,6 +256,18 @@ module Sync =
                                         match cacheRelPath with
                                         | Some relPath -> deps.BuildSearchIndex src.Name relPath
                                         | None         -> ()
+                            // Only after every walk succeeded: drop previously discovered entries the
+                            // walk no longer saw, so files removed upstream disappear. A failed walk
+                            // keeps the old entries rather than leaving the index empty.
+                            if not discoveryFailed then
+                                idx <- { idx with
+                                            Entries =
+                                                idx.Entries
+                                                |> Map.filter (fun path e ->
+                                                    seen.Contains path
+                                                    || not (e.ContentHash.IsSome
+                                                            && e.Contributions |> Map.forall (fun k _ -> k = ContributionKey.frontmatter)
+                                                            && okfBundles |> List.exists (fun b -> Bundle.covers b path))) }
                             // Leave SourceHeadSha unset on failure so the next sync retries discovery.
                             let sha = if discoveryFailed then existingIdx.SourceHeadSha else Some headSha
                             deps.WriteSourceIndex src.Name { idx with SourceHeadSha = sha; ConsecutiveShaCheckFailures = 0 } |> ignore

@@ -491,6 +491,110 @@ let ``populateIndex reports bundle discovery failure immediately and does not pe
     Sync.populateIndex deps |> ignore
     Assert.Equal(2, listCalls.Value)
 
+let private okfGlobal (bundles: Bundle list) : GlobalConfig =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" bundles
+    { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+
+let private typedConcept = "---\ntype: explanation\ntags: [x]\n---\n"
+
+[<Fact>]
+let ``populateIndex keeps discovered Okf entries when the remote SHA is unchanged`` () =
+    // Regression: the manifest reseed used to wipe Entries every sync while the SHA
+    // gate skipped rediscovery, leaving an empty index from the second sync on.
+    let g = okfGlobal [ { Path = ""; Kind = Okf } ]
+    let listCalls = ref 0
+    let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "a.md"; "b.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, typedConcept))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    Sync.populateIndex deps |> ignore
+    Sync.populateIndex deps |> ignore
+    Sync.populateIndex deps |> ignore
+
+    Assert.Equal(1, listCalls.Value)
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx ->
+        Assert.Equal<string list>([ "a.md"; "b.md" ], idx.Entries |> Map.toList |> List.map fst)
+        Assert.All(idx.Entries |> Map.toList, fun (_, e) ->
+            Assert.True e.ContentHash.IsSome
+            Assert.Equal(Some "explanation", e.Type))
+        Assert.Equal(Some "sha-1", idx.SourceHeadSha)
+
+[<Fact>]
+let ``populateIndex drops discovered entries for files removed upstream when the SHA changes`` () =
+    let g = okfGlobal [ { Path = ""; Kind = Okf } ]
+    let files = ref [ "a.md"; "b.md" ]
+    let sha = ref "sha-1"
+    let listFiles _ _ _ = Ok files.Value
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, typedConcept))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok sha.Value) store
+
+    Sync.populateIndex deps |> ignore
+    files.Value <- [ "a.md" ]
+    sha.Value <- "sha-2"
+    Sync.populateIndex deps |> ignore
+
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx -> Assert.Equal<string list>([ "a.md" ], idx.Entries |> Map.toList |> List.map fst)
+
+[<Fact>]
+let ``populateIndex keeps previously discovered entries when a later re-walk fails`` () =
+    let g = okfGlobal [ { Path = ""; Kind = Okf } ]
+    let walk = ref (Ok [ "a.md"; "b.md" ] : Result<string list, string>)
+    let sha = ref "sha-1"
+    let listFiles _ _ _ = walk.Value
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, typedConcept))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok sha.Value) store
+
+    Sync.populateIndex deps |> ignore
+    walk.Value <- Error "clone failed"
+    sha.Value <- "sha-2"
+    let errors = Sync.populateIndex deps
+
+    Assert.Single(errors) |> ignore
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx ->
+        Assert.Equal<string list>([ "a.md"; "b.md" ], idx.Entries |> Map.toList |> List.map fst)
+        // SHA stays at the last successful walk so the next sync retries.
+        Assert.Equal(Some "sha-1", idx.SourceHeadSha)
+
+[<Fact>]
+let ``populateIndex keeps manifest-backed entries when an Okf re-walk runs`` () =
+    // A path covered by a Manifest bundle keeps its manifest contribution after the
+    // Okf walk refreshes (and prunes) discovered entries.
+    let docsManifest : SourceManifest =
+        { Version = 1
+          Description = None
+          Files = [ { Path = "m.md"; Tags = [ "mtag" ]; Description = Some "from manifest" } ] }
+    let g = okfGlobal [ { Path = ""; Kind = Okf }; { Path = "docs"; Kind = Manifest } ]
+    let files = ref [ "a.md" ]
+    let sha = ref "sha-1"
+    let listFiles _ _ _ = Ok files.Value
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, typedConcept))
+    let store = PersistentIndexStore()
+    let deps =
+        { makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok sha.Value) store with
+            ReadCachedManifest = fun key ->
+                if key.EndsWith "docs" then Ok (Some docsManifest) else Ok None }
+
+    Sync.populateIndex deps |> ignore
+    sha.Value <- "sha-2"
+    Sync.populateIndex deps |> ignore
+
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx ->
+        Assert.True(Map.containsKey "a.md" idx.Entries)
+        match Map.tryFind "docs/m.md" idx.Entries with
+        | None -> Assert.Fail "expected the manifest-backed entry to survive"
+        | Some e -> Assert.Contains("mtag", e.Tags)
+
 [<Fact>]
 let ``execute surfaces bundle discovery failures in SyncResult.Errors`` () =
     let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]

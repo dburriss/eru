@@ -12,6 +12,10 @@
 
 - `eru sync` no longer walks an OKF bundle that is nested under another OKF bundle it already walked
 
+### Fixed
+
+- `eru sync` no longer empties the index of OKF-bundle sources: the first sync after adding one populated it, but every later sync wiped it while the unchanged remote HEAD skipped rediscovery, so search found nothing. Discovered entries now persist between syncs, are pruned only when the remote changes and the re-walk succeeds, and a failed re-walk keeps the previous entries
+
 ## [0.10.0] - 2026-10-05
 
 ### Added
