@@ -164,7 +164,7 @@ printfn ""
 
 let runReleaseBuild () =
     printfn "Running release build..."
-    runProcess "dotnet" ["build"; solutionPath; "-c"; "Release"; "--nologo"] rootPath |> ignore
+    runProcess "dotnet" ["build"; solutionPath; "-c"; "Release"; "--nologo"; "--no-incremental"] rootPath |> ignore
 
 let runReleaseTests () =
     printfn "Running release tests..."
@@ -193,7 +193,7 @@ if unreleasedContent.IsEmpty then
         exit 1
 
     if isDryRun then
-        printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
+        printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
         printfn "[Dry Run] Would run: dotnet test --solution \"%s\" -c Release --no-build" solutionPath
     else
         runReleaseBuild ()
@@ -239,7 +239,7 @@ if unreleasedContent.IsEmpty then
 // ---------------------------------------------------------------------------
 
 if isDryRun then
-    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
+    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
     printfn "[Dry Run] Would run: dotnet test --solution \"%s\" -c Release --no-build" solutionPath
 else
     runReleaseBuild ()
@@ -330,7 +330,7 @@ else
         File.WriteAllLines(changelogPath, newChangelogLines)
 
 if isDryRun then
-    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo" solutionPath
+    printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
 else
     printfn "Running final release build..."
     runReleaseBuild ()
