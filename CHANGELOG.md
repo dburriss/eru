@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-08
+
 ### Added
 
 - `eru site generate` adds a **Bundles** tab after Types: `bundles/index.html` lists every registered bundle with its kind and file count, and `bundles/<source>/<path>/index.html` lists one bundle's files. A file appears under its most specific bundle only. Bundles are named `<source>` (root) or `<source>/<path>`, so nested bundles are namespaced by their parents. The Browse sidebar gains a Bundles section and `data/documents.json` carries a `bundle` field
