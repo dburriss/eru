@@ -146,7 +146,7 @@ main { padding: 1.5rem; }
 }
 
 /* sidebar */
-.sidebar { position: sticky; top: 1rem; }
+.sidebar { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; overscroll-behavior: contain; }
 .sidebar-section { margin-bottom: 1.5rem; }
 .sidebar-section ul { list-style: none; }
 .sidebar-section li { padding: 0.2rem 0; display: flex; align-items: center; gap: 0.4rem; }
