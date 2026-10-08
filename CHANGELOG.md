@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `eru sync` re-runs OKF bundle discovery when a source's index has no entries, even if the remote HEAD SHA is unchanged; previously an empty index with a current SHA stayed empty (`0 entries indexed`) until the remote moved. This recovers indexes left empty by builds from before "Do not empty index on failed sync"
+
 ## [0.11.0] - 2026-10-08
 
 ### Added

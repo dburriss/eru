@@ -387,7 +387,7 @@ let ``populateIndex skips re-walking an Okf bundle when the remote SHA is unchan
 
     let listCalls = ref 0
     let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
-    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\n---\n"))
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: note\ntags: [x]\n---\n"))
     let store = PersistentIndexStore()
     let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
 
@@ -396,6 +396,24 @@ let ``populateIndex skips re-walking an Okf bundle when the remote SHA is unchan
 
     Sync.populateIndex deps |> ignore
     Assert.Equal(1, listCalls.Value)
+
+[<Fact>]
+let ``populateIndex re-walks an Okf bundle when the SHA is unchanged but the index has no entries`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { Version = 1; DefaultSources = [ source ]; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+
+    let listCalls = ref 0
+    let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: note\n---\n"))
+    let store = PersistentIndexStore()
+    store.Write "kb" { Version = 1; SourceHeadSha = Some "sha-1"; ConsecutiveShaCheckFailures = 0; Entries = Map.empty } |> ignore
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(1, listCalls.Value)
+    match store.TryGet "kb" with
+    | None -> Assert.Fail "expected an index to have been written"
+    | Some idx -> Assert.Equal(1, idx.Entries.Count)
 
 [<Fact>]
 let ``populateIndex re-walks an Okf bundle when the remote SHA changes`` () =

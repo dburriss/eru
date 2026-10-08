@@ -224,7 +224,10 @@ module Sync =
                             errors.Add($"source '{src.Name}': discovery SHA check failed {failures} times in a row: {e}")
                         deps.WriteSourceIndex src.Name { existingIdx with ConsecutiveShaCheckFailures = failures } |> ignore
                     | Ok headSha ->
-                        if existingIdx.SourceHeadSha = Some headSha then
+                        // An index with no entries is never "up to date": a stale SHA over an empty
+                        // index (e.g. entries lost to an earlier run) would otherwise block discovery
+                        // until the remote moves.
+                        if existingIdx.SourceHeadSha = Some headSha && not existingIdx.Entries.IsEmpty then
                             if existingIdx.ConsecutiveShaCheckFailures <> 0 then
                                 deps.WriteSourceIndex src.Name { existingIdx with ConsecutiveShaCheckFailures = 0 } |> ignore
                         else
