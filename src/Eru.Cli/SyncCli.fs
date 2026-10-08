@@ -36,6 +36,20 @@ let private counts (entries: Sync.SyncEntry list) =
     let nSkipped = entries |> List.sumBy (function { Status = Sync.Skipped _ } -> 1 | _ -> 0)
     n Sync.Current, n Sync.Drifted, n Sync.LocalDrifted, n Sync.Missing, nSkipped, n Sync.Blocked
 
+let private indexLine (i: Sync.IndexSummary) =
+    let bundles = if i.Bundles.IsEmpty then "no bundles" else String.concat ", " i.Bundles
+    $"{i.Source}: {i.Entries} entries indexed ({bundles})"
+
+// Index sizes and zero-entry warnings; not shown on a dry run, which reports what would change.
+let private renderIndexes (result: Sync.SyncResult) =
+    if not result.DryRun && not result.Indexes.IsEmpty then
+        printfn ""
+        for i in result.Indexes do printfn "%s" (indexLine i)
+        for i in result.Indexes do
+            match Sync.indexWarning i with
+            | Some w -> eprintfn "warning: %s" w
+            | None -> ()
+
 let private renderText (result: Sync.SyncResult) =
     for e in result.Entries do
         let label = statusLabel result.DryRun e.Status
@@ -49,6 +63,7 @@ let private renderText (result: Sync.SyncResult) =
     else
         printfn "Sync complete: %d updated, %d restored, %d current, %d missing, %d skipped, %d blocked."
             nDrifted nLocalDrifted nCurrent nMissing nSkipped nBlocked
+    renderIndexes result
 
 let private renderJson (result: Sync.SyncResult) =
     let opts = JsonSerializerOptions(PropertyNamingPolicy = JsonNamingPolicy.CamelCase)
@@ -66,6 +81,7 @@ let private renderTable (result: Sync.SyncResult) =
     else
         printfn "\nSync complete: %d updated, %d restored, %d current, %d missing, %d skipped, %d blocked."
             nDrifted nLocalDrifted nCurrent nMissing nSkipped nBlocked
+    renderIndexes result
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
     let syncResult =

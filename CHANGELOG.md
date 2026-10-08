@@ -8,6 +8,8 @@
 - `siteHideEmptyBundles` setting (default `false`): when `true`, `eru site generate` leaves bundles with no listed files out of the Bundles tab and Browse sidebar
 - `eru source add --scan --nested` keeps nested OKF bundles instead of letting a root bundle cover them
 
+- `eru sync` reports the index size per source (`norms: 69 entries indexed (okf:/)`) and warns on stderr when a source indexed nothing, saying whether bundles are missing or OKF concept files lack a `type`; `--output json` gains an `indexes` array
+
 ### Changed
 
 - `eru sync` no longer walks an OKF bundle that is nested under another OKF bundle it already walked

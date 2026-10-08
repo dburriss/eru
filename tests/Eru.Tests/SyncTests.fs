@@ -607,6 +607,51 @@ let ``execute surfaces bundle discovery failures in SyncResult.Errors`` () =
     | Error e -> Assert.Fail e
 
 [<Fact>]
+let ``execute reports the index size per source, stable across repeated syncs`` () =
+    let g = okfGlobal [ { Path = ""; Kind = Okf } ]
+    let listFiles _ _ _ = Ok [ "a.md"; "b.md" ]
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, typedConcept))
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
+
+    for _ in 1 .. 2 do
+        match Sync.execute deps { DryRun = false } with
+        | Error e -> Assert.Fail e
+        | Ok r ->
+            let summary = Assert.Single r.Indexes
+            Assert.Equal("kb", summary.Source)
+            Assert.Equal(2, summary.Entries)
+            Assert.Equal<string list>([ "okf:/" ], summary.Bundles)
+            Assert.Equal(None, Sync.indexWarning summary)
+
+[<Fact>]
+let ``indexWarning flags a source that indexed nothing and says why`` () =
+    let withBundles = Sync.indexWarning { Source = "norms"; Entries = 0; Bundles = [ "okf:/" ] }
+    Assert.True(withBundles.IsSome)
+    Assert.Contains("norms", withBundles.Value)
+    Assert.Contains("okf:/", withBundles.Value)
+    Assert.Contains("type", withBundles.Value)
+
+    let noBundles = Sync.indexWarning { Source = "kb"; Entries = 0; Bundles = [] }
+    Assert.True(noBundles.IsSome)
+    Assert.Contains("no bundles registered", noBundles.Value)
+
+    Assert.Equal(None, Sync.indexWarning { Source = "kb"; Entries = 3; Bundles = [] })
+
+[<Fact>]
+let ``execute reports a zero-entry index for a source with no bundles`` () =
+    let g = okfGlobal []
+    let store = PersistentIndexStore()
+    let deps = makePopulateDeps (Some g) (fun _ _ _ -> Ok []) (fun _ _ _ -> Ok []) (fun _ _ -> Ok "sha-1") store
+
+    match Sync.execute deps { DryRun = false } with
+    | Error e -> Assert.Fail e
+    | Ok r ->
+        let summary = Assert.Single r.Indexes
+        Assert.Equal(0, summary.Entries)
+        Assert.True((Sync.indexWarning summary).IsSome)
+
+[<Fact>]
 let ``populateIndex walks a nested Okf bundle only once when a root bundle already covers it`` () =
     let source =
         makeSourceWithBundles "kb" "https://example.com/kb.git"

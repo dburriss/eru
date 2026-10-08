@@ -124,6 +124,8 @@ Each lock file entry is reported as one of: **current**, **drifted** (overwritte
 
 `eru sync` also rebuilds `~/.cache/eru/sources/<name>/index.json` for every configured source and pre-caches collection and lock file content for fast offline search.
 
+After the lock file summary, sync prints one line per source with the number of entries in its index and its registered bundles (`norms: 69 entries indexed (okf:/)`). A source that indexed nothing also gets a `warning:` on stderr explaining the likely cause (no bundles registered, or OKF concept files without a `type`). The line is omitted on `--dryrun`. With `--output json` the result carries an `indexes` array of `{ source, entries, bundles }`.
+
 ---
 
 ## `eru source`

@@ -17,11 +17,28 @@ module Sync =
         LocalPath : string
     }
 
+    // What a source's index holds after a sync. Bundles are "<kind>:<path>" ("/" = root).
+    type IndexSummary = {
+        Source  : string
+        Entries : int
+        Bundles : string list
+    }
+
     type SyncResult = {
         Entries : SyncEntry list
         DryRun  : bool
         Errors  : string list
+        Indexes : IndexSummary list
     }
+
+    // A source that indexed nothing is almost always a setup problem, so say why it might be.
+    let indexWarning (s: IndexSummary) : string option =
+        if s.Entries > 0 then None
+        elif s.Bundles.IsEmpty then
+            Some $"source '{s.Source}': 0 entries indexed and no bundles registered (use 'eru source bundle add' or 'eru source add --scan')"
+        else
+            let bundles = String.concat ", " s.Bundles
+            Some $"source '{s.Source}': 0 entries indexed (bundles: {bundles}); okf concept files need a non-empty 'type' frontmatter"
 
     type private EntryResult =
         | ECurrent      of LockEntry
@@ -531,7 +548,7 @@ module Sync =
                                     | _                                 -> ELocalDrifted (entry, content))
 
         if opts.DryRun then
-            Ok { Entries = classified |> List.map toSyncEntry; DryRun = true; Errors = [] }
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = true; Errors = []; Indexes = [] }
         else
 
         let drifted      = classified |> List.choose (function EDrifted (e, c)      -> Some (e, c) | _ -> None)
@@ -539,7 +556,7 @@ module Sync =
         let toWrite      = drifted @ localDrifted
 
         if toWrite.IsEmpty then
-            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = [] }
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = []; Indexes = [] }
         else
 
         let writeError =
@@ -553,7 +570,7 @@ module Sync =
         | None ->
 
         if drifted.IsEmpty then
-            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = [] }
+            Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = []; Indexes = [] }
         else
 
         let updatedEntries =
@@ -564,9 +581,28 @@ module Sync =
 
         match deps.WriteLockEntries eff.StateFile updatedEntries with
         | Error e -> Error $"Error writing lock file: {e}"
-        | Ok () -> Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = [] }
+        | Ok () -> Ok { Entries = classified |> List.map toSyncEntry; DryRun = false; Errors = []; Indexes = [] }
+
+    // One summary per configured source, read back from the index populateIndex just wrote.
+    let summarizeIndexes (deps: Deps) : IndexSummary list =
+        let globalCfg = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
+        let localCfg  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
+        match Config.merge globalCfg localCfg with
+        | Error _ -> []
+        | Ok eff ->
+            eff.Sources
+            |> List.map (fun src ->
+                { Source  = src.Name
+                  Entries = (readIndexOrEmpty deps src.Name).Entries.Count
+                  Bundles =
+                    src.Bundles
+                    |> List.map (fun b ->
+                        let kind = match b.Kind with Manifest -> "manifest" | Okf -> "okf"
+                        let path = if b.Path = "" then "/" else b.Path
+                        $"{kind}:{path}") })
 
     let execute (deps: Deps) (opts: Options) : Result<SyncResult, string> =
         // Populate index and cache; failures are reported on the result rather than aborting the lock sync.
         let errors = populateIndex deps
-        executeLocked deps opts |> Result.map (fun r -> { r with Errors = errors })
+        let indexes = summarizeIndexes deps
+        executeLocked deps opts |> Result.map (fun r -> { r with Errors = errors; Indexes = indexes })
