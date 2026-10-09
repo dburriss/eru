@@ -81,9 +81,9 @@ Read the full content of a knowledge artifact. Resolution order:
 
 1. Local file path (relative to CWD or absolute)
 2. Lock file `LocalPath` match
-3. Source index cache hit (`~/.cache/eru/sources/<name>/files/`)
-4. Live fetch via `sourceName:remotePath` reference
+3. Source index hit by `sourceName/remotePath` or bare remote path: local file, then cache (`~/.cache/eru/sources/<name>/files/`), then live fetch
+4. `sourceName:remotePath` or a path short hash (3-8 hex chars): same local, cache, live-fetch order (shared with `eru print`)
 
 | Parameter | Description |
 |---|---|
-| `path` | A local file path, `sourceName:remotePath`, or a path from `search_knowledge` results |
+| `path` | A local file path, `sourceName:remotePath`, a path short hash, or a path from `search_knowledge` results |

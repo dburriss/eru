@@ -39,6 +39,7 @@
     <Compile Include="ManifestTests.fs" />
     <Compile Include="RemoveTests.fs" />
     <Compile Include="DisconnectTests.fs" />
+    <Compile Include="ReadTests.fs" />
     <Compile Include="GitAdapterTests.fs" />
     <Compile Include="IndexBuilderTests.fs" />
     <Compile Include="HtmlTemplatesTests.fs" />

@@ -502,6 +502,15 @@ type RemoveArgs =
             | Dryrun   -> "Show what would be removed without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
+type PrintArgs =
+    | [<MainCommand; ExactlyOnce>]           Target of target: string
+    | [<Unique; AltCommandLine("-o")>]       Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Target _ -> "Full 'source:path' or path short hash (3-8 hex chars) of the document to print."
+            | Output _ -> "Output format: text (default, raw content), json."
+
 type DisconnectArgs =
     | [<MainCommand; ExactlyOnce>]           Target of target: string
     | [<Unique>]                             Dryrun
@@ -671,6 +680,7 @@ type EruArgs =
     | [<SubCommand>] Manifest   of ParseResults<ManifestArgs>
     | [<SubCommand>] Remove     of ParseResults<RemoveArgs>
     | [<SubCommand>] Disconnect of ParseResults<DisconnectArgs>
+    | [<SubCommand>] Print      of ParseResults<PrintArgs>
     | [<SubCommand>] Cache      of ParseResults<CacheArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
@@ -692,6 +702,7 @@ type EruArgs =
             | Manifest _   -> "Manage the .eru/manifest.json for this knowledge source."
             | Remove _     -> "Remove a tracked artifact from disk and the lock file."
             | Disconnect _ -> "Remove a tracked artifact from the lock file without deleting the local file."
+            | Print _      -> "Print the contents of a document by 'source:path' or path hash."
             | Cache _      -> "Manage the local knowledge cache."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
             | Browse _     -> "Interactively browse sources and tracked files."

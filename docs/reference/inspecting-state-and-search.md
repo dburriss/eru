@@ -15,6 +15,7 @@ Four commands let you read what eru knows without pulling any files: `source lis
 | `eru source files [name]` | No | Source index cache (`index.json`) |
 | `eru source files [name] --refresh` | **Yes** | Re-fetches from network, then reads index |
 | `eru search` | No | Source index cache, config collections, lock file |
+| `eru print` | Only if not cached | Local file, then source cache, then live fetch |
 
 ---
 

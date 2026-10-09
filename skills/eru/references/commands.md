@@ -72,6 +72,21 @@ Performs one git clone per source (not per file), refreshes all manifest caches,
 
 ---
 
+## `eru print`
+
+```
+eru print <target> [-o text|json]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<target>` | `source:path` or path short hash (3-8 hex chars) |
+| `-o` | `text` (default, raw content) or `json` |
+
+Reads the local file, then the source cache, then fetches live. An ambiguous hash fails and lists the candidates.
+
+---
+
 ## `eru remove`
 
 ```

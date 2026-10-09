@@ -52,6 +52,10 @@ module Patterns =
         let hex   = System.Convert.ToHexString(System.Security.Cryptography.SHA256.HashData bytes).ToLowerInvariant()
         hex.[..7]
 
+    // A path short hash, or a 3-8 char lowercase-hex prefix of one.
+    let isShortHash (s: string) =
+        s.Length >= 3 && s.Length <= 8 && s |> Seq.forall (fun c -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
+
     // allow wins over block; binary check applied when allowBinaries=false
     let isBlocked
         (blockPatterns : string list)

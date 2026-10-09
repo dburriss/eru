@@ -60,9 +60,6 @@ module Add =
         |> Option.map Ok
         |> Option.defaultWith (fun () -> Error $"source '{name}' not configured")
 
-    let private isShortHash (s: string) =
-        s.Length >= 3 && s.Length <= 8 && s |> Seq.forall (fun c -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
-
     let private listRemoteFilesAcrossBundles
         (deps: Deps) (url: string) (branch: string option) (bundles: Bundle list) : Result<string list, string> =
         let bundlePaths = match bundles with [] -> [None] | bs -> bs |> List.map (fun b -> if b.Path = "" then None else Some b.Path)
@@ -121,7 +118,7 @@ module Add =
         (remotePath: string) : Result<PullEntry list, string> =
         findSource sources sourceName
         |> Result.bind (fun source ->
-            (if isShortHash remotePath then resolveShortHash deps source remotePath
+            (if Patterns.isShortHash remotePath then resolveShortHash deps source remotePath
              else Ok remotePath)
             |> Result.bind (fun actualPath ->
             match source.Url with
@@ -283,7 +280,7 @@ module Add =
                     else
                         let embeddedSrc, remotePath = parseDiscriminator rawPath
                         let noSourceSpecified = embeddedSrc.IsNone && cmd.SourceName.IsNone
-                        if noSourceSpecified && isShortHash remotePath then
+                        if noSourceSpecified && Patterns.isShortHash remotePath then
                             if eff.Sources.IsEmpty then
                                 Error "no sources configured. Run 'eru source add' first"
                             else
@@ -306,7 +303,7 @@ module Add =
                             findSource eff.Sources sn
                             |> Result.bind (fun source ->
                                 let expandedPath =
-                                    if isShortHash remotePath then remotePath
+                                    if Patterns.isShortHash remotePath then remotePath
                                     else resolveRemotePath source remotePath
                                 pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn expandedPath))
 

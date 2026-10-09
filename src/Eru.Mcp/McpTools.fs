@@ -158,7 +158,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         )
 
     [<McpServerTool(Name = "read_artifact")>]
-    [<Description("Read the full content of a knowledge artifact by local path, lock-file path, cached collection path, or 'sourceName:remotePath' reference.")>]
+    [<Description("Read the full content of a knowledge artifact by local path, lock-file path, cached collection path, 'sourceName:remotePath' reference, or path short hash.")>]
     member _.Read(
         [<Description("Artifact path: a local file path (relative or absolute), 'sourceName:remotePath', or a path from search_knowledge results.")>] path: string) : string =
 
@@ -179,52 +179,33 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
         | Some entry when File.Exists(entry.LocalPath) -> File.ReadAllText(entry.LocalPath)
         | _ ->
 
-        // 3. Source index cache lookup (new cache structure)
-        let indexCacheHit =
+        // 3. Index lookup by "sourceName/remotePath" or a bare remotePath key
+        let indexId =
             eff.Sources |> List.tryPick (fun src ->
-                match SourceIndexAdapter.readIndex src.Name with
+                match deps.ReadSourceIndex src.Name with
                 | Ok (Some idx) ->
-                    // Try "sourceName/remotePath" format
                     let prefix = $"{src.Name}/"
                     let remotePath =
                         if path.StartsWith prefix then Some (path.[prefix.Length..])
-                        else
-                            // Try direct remotePath match
-                            if Map.containsKey path idx.Entries then Some path else None
-                    remotePath |> Option.bind (fun rp ->
-                        match Map.tryFind rp idx.Entries with
-                        | Some entry when entry.CacheRelPath.IsSome ->
-                            let absPath = Path.Combine(Paths.sourceCacheDir src.Name, entry.CacheRelPath.Value)
-                            if File.Exists absPath then Some (File.ReadAllText absPath)
-                            else None
-                        | _ -> None)
+                        elif Map.containsKey path idx.Entries then Some path
+                        else None
+                    remotePath
+                    |> Option.filter (fun rp -> Map.containsKey rp idx.Entries)
+                    |> Option.map (fun rp -> { Source = src.Name; RemotePath = rp })
                 | _ -> None)
 
-        match indexCacheHit with
-        | Some content -> content
-        | None ->
+        // 4. "sourceName:remotePath" or a path short hash
+        let target =
+            match indexId with
+            | Some id -> Ok id
+            | None ->
+                if (EntryId.tryParse path).IsNone && not (Patterns.isShortHash (path.ToLowerInvariant())) then
+                    Error $"artifact not found: {path}"
+                else Read.resolveTarget deps eff path
 
-        // 4. sourceName:remotePath — live fetch
-        let colonIdx = path.IndexOf(':')
-        if colonIdx > 0 then
-            let sourceName = path.[..colonIdx - 1]
-            let remotePath = path.[colonIdx + 1..]
-            match eff.Sources |> List.tryFind (fun s -> s.Name = sourceName) with
-            | None     -> $"Error: unknown source '{sourceName}'"
-            | Some src ->
-                match src.Url with
-                | None     -> $"Error: source '{sourceName}' has no URL configured"
-                | Some url ->
-                    let branch = src.Branch |> Option.defaultValue "HEAD"
-                    match deps.FetchRemoteContent url branch [remotePath] with
-                    | Ok ((_, content) :: _) ->
-                        if Patterns.isBlocked eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries remotePath content then
-                            $"Error: '{remotePath}' is blocked by the current block patterns"
-                        else content
-                    | Ok []   -> $"Error: no content returned for {path}"
-                    | Error e -> $"Error fetching {path}: {e}"
-        else
-            $"Error: artifact not found: {path}"
+        match target |> Result.bind (Read.readContent deps eff) with
+        | Ok content -> content
+        | Error e    -> $"Error: {e}"
 
     [<McpServerTool(Name = "refresh_knowledge")>]
     [<Description("Trigger a background refresh of the knowledge cache. Returns immediately; sync runs in the background and errors are written to the eru log file.")>]

@@ -73,6 +73,7 @@
     <Compile Include="ManifestValidateCli.fs" />
     <Compile Include="RemoveCli.fs" />
     <Compile Include="DisconnectCli.fs" />
+    <Compile Include="PrintCli.fs" />
     <Compile Include="CachePruneCli.fs" />
     <Compile Include="CacheClearCli.fs" />
     <Compile Include="BrowseCli.fs" />

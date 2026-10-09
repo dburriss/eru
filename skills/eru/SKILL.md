@@ -1,6 +1,6 @@
 ---
 name: eru
-description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru site", "eru remove", "eru disconnect", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "clear the cache", "generate a site", "list source files", or any question about using the eru CLI tool.
+description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru site", "eru remove", "eru disconnect", "eru print", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "clear the cache", "generate a site", "list source files", or any question about using the eru CLI tool.
 ---
 
 # eru
@@ -79,6 +79,18 @@ eru sync --dryrun
 ```
 
 Each file is reported as: **current**, **drifted** (overwritten), **missing** (remote gone), or **skipped** (source not configured).
+
+---
+
+### `eru print`
+
+Print a document's contents by `source:path` or path hash (no `eru add` needed).
+
+```bash
+eru print docs:adr/template.md
+eru print a1b2c3d4
+eru print a1b2c3d4 -o json
+```
 
 ---
 

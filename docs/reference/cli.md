@@ -675,6 +675,31 @@ Glob patterns are expanded against the current directory tree. An entry like `do
 
 ---
 
+## `eru print`
+
+Print a document's contents to stdout. The document does not need to be added first.
+
+```
+eru print <target> [-o text|json]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<target>` | Full `source:path`, or a path short hash (3-8 hex characters) (required) |
+| `-o`, `--output` | `text` (default, raw content) or `json` (`{source, path, hash, content}`) |
+
+Content is read from the local file if the document was added, else the source cache, else fetched live from the remote (subject to block patterns). A hash is matched against every source's index; if it matches more than one document the command fails and lists the `source:path` candidates.
+
+**Examples**
+
+```bash
+eru print docs:adr/template.md
+eru print a1b2c3d4                 # by path hash (see `eru search` or `eru source files`)
+eru print a1b2 -o json | jq -r .content
+```
+
+---
+
 ## `eru remove`
 
 Delete a locally pulled file from disk and remove its entry from `.eru/eru.lock`.
