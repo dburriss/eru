@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.11.1</Version>
+    <Version>0.12.0</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,7 +16,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>`eru sync` re-runs OKF bundle discovery when a source's index has no entries, even if the remote HEAD SHA is unchanged; previously an empty index with a current SHA stayed empty (`0 entries indexed`) until the remote moved. This recovers indexes left empty by builds from before "Do not empty index on failed sync"</PackageReleaseNotes>
+    <PackageReleaseNotes>`eru print &lt;source:path|hash&gt;` prints a document's contents to stdout (`-o json` for `{source, path, hash, content}`). It resolves from the source indexes, so documents need not be added first, and reads the local file, then the cache, then a live fetch. A 3-8 character path hash that matches several documents errors and lists the candidates</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

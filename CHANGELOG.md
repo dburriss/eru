@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-09
+
 ### Added
 
 - `eru print <source:path|hash>` prints a document's contents to stdout (`-o json` for `{source, path, hash, content}`). It resolves from the source indexes, so documents need not be added first, and reads the local file, then the cache, then a live fetch. A 3-8 character path hash that matches several documents errors and lists the candidates
