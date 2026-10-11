@@ -23,12 +23,12 @@ module CollectionAddFile =
             let cfg =
                 match deps.ReadGlobalConfig () with
                 | Ok (Some g) -> Ok g
-                | Ok None     -> Ok { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+                | Ok None     -> Ok GlobalConfig.empty
                 | Error e     -> Error e
             match cfg with
             | Error e -> Error e
             | Ok g ->
-                match g.Collections |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
+                match (GlobalConfig.collections g) |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
                 | None -> Error $"collection '{cmd.CollectionName}' not found in global config."
                 | Some col ->
                     if col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath) then
@@ -37,8 +37,8 @@ module CollectionAddFile =
                         Ok $"Would add '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in global config."
                     else
                         let updatedCol  = { col with Files = col.Files @ [fileRef] }
-                        let updatedCols = g.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then updatedCol else c)
-                        let updated     = { g with Collections = updatedCols }
+                        let updatedCols = (GlobalConfig.collections g) |> List.map (fun c -> if c.Name = cmd.CollectionName then updatedCol else c)
+                        let updated     = GlobalConfig.withCollections (updatedCols) g
                         match deps.WriteGlobalConfig updated with
                         | Ok ()   -> Ok $"Added '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in global config."
                         | Error e -> Error e
@@ -47,7 +47,7 @@ module CollectionAddFile =
             | Error e -> Error e
             | Ok None -> Error "no .eru/config.json found. Run 'eru init' first."
             | Ok (Some local) ->
-                match local.Collections |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
+                match (LocalConfig.collections local) |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
                 | None -> Error $"collection '{cmd.CollectionName}' not found in .eru/config.json."
                 | Some col ->
                     if col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath) then
@@ -56,8 +56,8 @@ module CollectionAddFile =
                         Ok $"Would add '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in .eru/config.json."
                     else
                         let updatedCol  = { col with Files = col.Files @ [fileRef] }
-                        let updatedCols = local.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then updatedCol else c)
-                        let updated     = { local with Collections = updatedCols }
+                        let updatedCols = (LocalConfig.collections local) |> List.map (fun c -> if c.Name = cmd.CollectionName then updatedCol else c)
+                        let updated     = LocalConfig.withCollections (updatedCols) local
                         match deps.WriteLocalConfig updated with
                         | Ok ()   -> Ok $"Added '{cmd.Source}:{cmd.RemotePath}' to collection '{cmd.CollectionName}' in .eru/config.json."
                         | Error e -> Error e

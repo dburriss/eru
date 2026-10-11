@@ -10,7 +10,7 @@ let private makeSource name url : SourceConfig =
     { Name = name; Url = Some url; Branch = None; Bundles = [] }
 
 let private makeGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+    { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
 
 let private makeIndexEntry cacheRelPath : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = None; CacheRelPath = cacheRelPath

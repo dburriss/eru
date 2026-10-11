@@ -16,7 +16,7 @@ module CollectionRemoveFile =
             | Error e -> Error e
             | Ok None -> Error "no global config found."
             | Ok (Some g) ->
-                match g.Collections |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
+                match (GlobalConfig.collections g) |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
                 | None -> Error $"collection '{cmd.CollectionName}' not found in global config."
                 | Some col ->
                     if not (col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath)) then
@@ -27,10 +27,10 @@ module CollectionRemoveFile =
                         let remaining   = col.Files |> List.filter (fun f -> not (f.Source = cmd.Source && f.RemotePath = cmd.RemotePath))
                         let updatedCols =
                             if remaining.IsEmpty then
-                                g.Collections |> List.filter (fun c -> c.Name <> cmd.CollectionName)
+                                (GlobalConfig.collections g) |> List.filter (fun c -> c.Name <> cmd.CollectionName)
                             else
-                                g.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then { col with Files = remaining } else c)
-                        let updated = { g with Collections = updatedCols }
+                                (GlobalConfig.collections g) |> List.map (fun c -> if c.Name = cmd.CollectionName then { col with Files = remaining } else c)
+                        let updated = GlobalConfig.withCollections (updatedCols) g
                         match deps.WriteGlobalConfig updated with
                         | Error e -> Error e
                         | Ok () ->
@@ -43,7 +43,7 @@ module CollectionRemoveFile =
             | Error e -> Error e
             | Ok None -> Error "no .eru/config.json found. Run 'eru init' first."
             | Ok (Some local) ->
-                match local.Collections |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
+                match (LocalConfig.collections local) |> List.tryFind (fun c -> c.Name = cmd.CollectionName) with
                 | None -> Error $"collection '{cmd.CollectionName}' not found in .eru/config.json."
                 | Some col ->
                     if not (col.Files |> List.exists (fun f -> f.Source = cmd.Source && f.RemotePath = cmd.RemotePath)) then
@@ -54,10 +54,10 @@ module CollectionRemoveFile =
                         let remaining   = col.Files |> List.filter (fun f -> not (f.Source = cmd.Source && f.RemotePath = cmd.RemotePath))
                         let updatedCols =
                             if remaining.IsEmpty then
-                                local.Collections |> List.filter (fun c -> c.Name <> cmd.CollectionName)
+                                (LocalConfig.collections local) |> List.filter (fun c -> c.Name <> cmd.CollectionName)
                             else
-                                local.Collections |> List.map (fun c -> if c.Name = cmd.CollectionName then { col with Files = remaining } else c)
-                        let updated = { local with Collections = updatedCols }
+                                (LocalConfig.collections local) |> List.map (fun c -> if c.Name = cmd.CollectionName then { col with Files = remaining } else c)
+                        let updated = LocalConfig.withCollections (updatedCols) local
                         match deps.WriteLocalConfig updated with
                         | Error e -> Error e
                         | Ok () ->

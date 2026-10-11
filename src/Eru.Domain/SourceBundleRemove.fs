@@ -18,8 +18,8 @@ module SourceBundleRemove =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        let localMatch  = localCfg  |> Option.bind (fun l -> l.Sources |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "local")
-        let globalMatch = globalCfg |> Option.bind (fun g -> g.DefaultSources |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "global")
+        let localMatch  = localCfg  |> Option.bind (fun l -> (LocalConfig.sources l) |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "local")
+        let globalMatch = globalCfg |> Option.bind (fun g -> (GlobalConfig.sources g) |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "global")
 
         match localMatch |> Option.orElse globalMatch with
         | None -> Error $"source '{cmd.SourceName}' not found."
@@ -38,11 +38,11 @@ module SourceBundleRemove =
             // contribution rebuild naturally drops the removed bundle's contributions.
             match scope, localCfg, globalCfg with
             | "local", Some local, _ ->
-                match deps.WriteLocalConfig { local with Sources = replaceSource local.Sources } with
+                match deps.WriteLocalConfig (LocalConfig.withSources (replaceSource (LocalConfig.sources local)) local) with
                 | Ok ()   -> Ok $"Removed bundle '{path}' from source '{cmd.SourceName}'."
                 | Error e -> Error e
             | _, _, Some g ->
-                match deps.WriteGlobalConfig { g with DefaultSources = replaceSource g.DefaultSources } with
+                match deps.WriteGlobalConfig (GlobalConfig.withSources (replaceSource (GlobalConfig.sources g)) g) with
                 | Ok ()   -> Ok $"Removed bundle '{path}' from source '{cmd.SourceName}'."
                 | Error e -> Error e
             | _ -> Error $"could not locate the config owning source '{cmd.SourceName}'."

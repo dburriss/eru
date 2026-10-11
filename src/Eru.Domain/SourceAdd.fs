@@ -122,17 +122,17 @@ module SourceAdd =
             let globalCfg =
                 match deps.ReadGlobalConfig () with
                 | Ok (Some g) -> Ok g
-                | Ok None     -> Ok { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+                | Ok None     -> Ok GlobalConfig.empty
                 | Error e     -> Error e
             match globalCfg with
             | Error e -> Error e
             | Ok g ->
-                if g.DefaultSources |> List.exists (fun s -> s.Name = name) then
+                if (GlobalConfig.sources g) |> List.exists (fun s -> s.Name = name) then
                     Error $"source '{name}' already exists."
                 elif cmd.DryRun then
                     Ok $"Would add source '{name}' to global config.{detectionNote}"
                 else
-                    let updated = { g with DefaultSources = g.DefaultSources @ [newSource] }
+                    let updated = GlobalConfig.withSources ((GlobalConfig.sources g) @ [newSource]) g
                     match deps.WriteGlobalConfig updated with
                     | Error e -> Error e
                     | Ok () ->
@@ -143,12 +143,12 @@ module SourceAdd =
             | Error e -> Error e
             | Ok None -> Error "no .eru/config.json found. Run 'eru init' first."
             | Ok (Some local) ->
-                if local.Sources |> List.exists (fun s -> s.Name = name) then
+                if (LocalConfig.sources local) |> List.exists (fun s -> s.Name = name) then
                     Error $"source '{name}' already exists."
                 elif cmd.DryRun then
                     Ok $"Would add source '{name}' to .eru/config.json.{detectionNote}"
                 else
-                    let updated = { local with Sources = local.Sources @ [newSource] }
+                    let updated = LocalConfig.withSources ((LocalConfig.sources local) @ [newSource]) local
                     match deps.WriteLocalConfig updated with
                     | Error e -> Error e
                     | Ok () ->

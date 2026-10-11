@@ -65,33 +65,33 @@ let private assertError (result: Result<'a, string>) = match result with Ok _ ->
 [<Fact>]
 let ``InboxAdd errors when path is not an existing directory`` () =
     let state = newState ()
-    let deps = makeDeps None (Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }) [] state
+    let deps = makeDeps None (Some LocalConfig.empty) [] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "/nope"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> assertError
 
 [<Fact>]
 let ``InboxAdd writes to local config by default`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let local = LocalConfig.empty
     let deps = makeDeps None (Some local) [ "/kb" ] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> ignore
     Assert.True(state.WrittenLocalConfig.IsSome)
-    Assert.Equal("/kb", state.WrittenLocalConfig.Value.Inboxes["kb"].Path)
+    Assert.Equal("/kb", (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"].Path)
 
 [<Fact>]
 let ``InboxAdd writes to global config when IsGlobal`` () =
     let state = newState ()
-    let deps = makeDeps (Some { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }) None [ "/kb" ] state
+    let deps = makeDeps (Some GlobalConfig.empty) None [ "/kb" ] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = true; DryRun = false }
     InboxAdd.execute deps cmd |> ignore
     Assert.True(state.WrittenGlobalConfig.IsSome)
-    Assert.Equal("/kb", state.WrittenGlobalConfig.Value.DefaultInboxes["kb"].Path)
+    Assert.Equal("/kb", (GlobalConfig.inboxes state.WrittenGlobalConfig.Value).["kb"].Path)
 
 [<Fact>]
 let ``InboxAdd errors when name already exists`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [ "/kb" ] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> assertError
@@ -99,7 +99,7 @@ let ``InboxAdd errors when name already exists`` () =
 [<Fact>]
 let ``InboxAdd dryrun does not write`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let local = LocalConfig.empty
     let deps = makeDeps None (Some local) [ "/kb" ] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = None; IsGlobal = false; DryRun = true }
     InboxAdd.execute deps cmd |> ignore
@@ -108,18 +108,18 @@ let ``InboxAdd dryrun does not write`` () =
 [<Fact>]
 let ``InboxAdd accepts a git URL without a directory check and records the branch`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let local = LocalConfig.empty
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "https://github.com/acme/knowledge"; RawPath = None; DefaultChannel = None; Branch = Some "inbox"; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> function Ok _ -> () | Error e -> failwith e
-    let written = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let written = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.Equal("https://github.com/acme/knowledge", written.Path)
     Assert.Equal(Some "inbox", written.Branch)
 
 [<Fact>]
 let ``InboxAdd rejects --branch for a local directory`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let local = LocalConfig.empty
     let deps = makeDeps None (Some local) [ "/kb" ] state
     let cmd : InboxAdd.Command = { Name = "kb"; Path = "/kb"; RawPath = None; DefaultChannel = None; Branch = Some "x"; IsGlobal = false; DryRun = false }
     InboxAdd.execute deps cmd |> assertError
@@ -129,8 +129,8 @@ let ``InboxAdd rejects --branch for a local directory`` () =
 [<Fact>]
 let ``InboxList merges local and global, local taking precedence by name`` () =
     let state = newState ()
-    let g = Some { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/g/kb"; "other", makeInbox "/g/other" ]; Defaults = None }
-    let l = Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/l/kb" ]; Settings = None }
+    let g = Some { GlobalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/g/kb"; "other", makeInbox "/g/other" ]) } }
+    let l = Some { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/l/kb" ]) } }
     let deps = makeDeps g l [] state
     let rows = InboxList.execute deps |> function Ok r -> r | Error e -> failwith e
     Assert.Equal(2, rows.Length)
@@ -145,16 +145,16 @@ let ``InboxList merges local and global, local taking precedence by name`` () =
 [<Fact>]
 let ``InboxRemove removes from local config`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxRemove.Command = { Name = "kb"; IsGlobal = false; DryRun = false }
     InboxRemove.execute deps cmd |> ignore
-    Assert.True(state.WrittenLocalConfig.Value.Inboxes.IsEmpty)
+    Assert.True((LocalConfig.inboxes state.WrittenLocalConfig.Value).IsEmpty)
 
 [<Fact>]
 let ``InboxRemove errors when inbox not found`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let local = LocalConfig.empty
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxRemove.Command = { Name = "missing"; IsGlobal = false; DryRun = false }
     InboxRemove.execute deps cmd |> assertError
@@ -164,28 +164,28 @@ let ``InboxRemove errors when inbox not found`` () =
 [<Fact>]
 let ``InboxChannelAdd adds a channel to the owning (local) config`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let updated = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.True(updated.Channels.ContainsKey "eru")
     Assert.Equal(Some { Protocol = "acp"; Command = "opencode"; Args = [ "acp" ]; InstructionsPath = None; Timeout = None }, updated.Channels["eru"].Agent)
 
 [<Fact>]
 let ``InboxChannelAdd stores an explicit --agent-timeout on the channel's AgentConfig`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = Some 300; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let updated = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.Equal(Some 300, updated.Channels["eru"].Agent.Value.Timeout)
 
 [<Fact>]
 let ``InboxChannelAdd errors when --agent-timeout is given without --agent-command`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = Some 300; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> assertError
@@ -194,11 +194,11 @@ let ``InboxChannelAdd errors when --agent-timeout is given without --agent-comma
 let ``InboxChannelAdd sets defaultChannel to the new agent channel instead of creating 'default'`` () =
     let state = newState ()
     let inbox = makeInbox "/kb"
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", inbox ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let updated = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.Equal(Some "eru", updated.DefaultChannel)
     Assert.False(updated.Channels.ContainsKey "default")
 
@@ -206,11 +206,11 @@ let ``InboxChannelAdd sets defaultChannel to the new agent channel instead of cr
 let ``InboxChannelAdd preserves an existing defaultChannel`` () =
     let state = newState ()
     let inbox = { makeInbox "/kb" with DefaultChannel = Some "norms" }
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", inbox ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let updated = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.Equal(Some "norms", updated.DefaultChannel)
     Assert.False(updated.Channels.ContainsKey "default")
 
@@ -218,39 +218,39 @@ let ``InboxChannelAdd preserves an existing defaultChannel`` () =
 let ``InboxChannelAdd treats a channel named 'default' like any other`` () =
     let state = newState ()
     let inbox = makeInbox "/kb"
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", inbox ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "default"; AgentProtocol = None; AgentCommand = Some "opencode"; AgentArgs = [ "acp" ]; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let updated = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.Equal(1, updated.Channels.Count)
     Assert.Equal(Some "default", updated.DefaultChannel)
 
 [<Fact>]
 let ``InboxChannelAdd does not auto-populate 'default' when the new channel has no agent`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    let updated = state.WrittenLocalConfig.Value.Inboxes["kb"]
+    let updated = (LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"]
     Assert.False(updated.Channels.ContainsKey "default")
     Assert.Equal(None, updated.DefaultChannel)
 
 [<Fact>]
 let ``InboxChannelAdd writes back to global config when inbox owned there`` () =
     let state = newState ()
-    let g = Some { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Defaults = None }
+    let g = Some { GlobalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps g None [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> ignore
-    Assert.True(state.WrittenGlobalConfig.Value.DefaultInboxes["kb"].Channels.ContainsKey "eru")
+    Assert.True((GlobalConfig.inboxes state.WrittenGlobalConfig.Value).["kb"].Channels.ContainsKey "eru")
 
 [<Fact>]
 let ``InboxChannelAdd errors when channel already exists`` () =
     let state = newState ()
     let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "eru", { Description = None; Agent = None } ] }
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", inbox ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelAdd.Command = { InboxName = "kb"; ChannelName = "eru"; AgentProtocol = None; AgentCommand = None; AgentArgs = []; AgentInstructions = None; AgentTimeout = None; Description = None; DryRun = false }
     InboxChannelAdd.execute deps cmd |> assertError
@@ -259,7 +259,7 @@ let ``InboxChannelAdd errors when channel already exists`` () =
 let ``InboxChannelList lists channels sorted by name`` () =
     let state = newState ()
     let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "z-chan", { Description = None; Agent = None }; "a-chan", { Description = None; Agent = Some { Protocol = "acp"; Command = "opencode"; Args = []; InstructionsPath = None; Timeout = None } } ] }
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", inbox ]) } }
     let deps = makeDeps None (Some local) [] state
     let rows = InboxChannelList.execute deps "kb" |> function Ok r -> r | Error e -> failwith e
     Assert.Equal(2, rows.Length)
@@ -270,16 +270,16 @@ let ``InboxChannelList lists channels sorted by name`` () =
 let ``InboxChannelRemove removes a channel`` () =
     let state = newState ()
     let inbox = { makeInbox "/kb" with Channels = Map.ofList [ "eru", { Description = None; Agent = None } ] }
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", inbox ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", inbox ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelRemove.Command = { InboxName = "kb"; ChannelName = "eru"; DryRun = false }
     InboxChannelRemove.execute deps cmd |> ignore
-    Assert.True(state.WrittenLocalConfig.Value.Inboxes["kb"].Channels.IsEmpty)
+    Assert.True((LocalConfig.inboxes state.WrittenLocalConfig.Value).["kb"].Channels.IsEmpty)
 
 [<Fact>]
 let ``InboxChannelRemove errors when channel not found`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let cmd : InboxChannelRemove.Command = { InboxName = "kb"; ChannelName = "missing"; DryRun = false }
     InboxChannelRemove.execute deps cmd |> assertError
@@ -289,46 +289,47 @@ let ``InboxChannelRemove errors when channel not found`` () =
 [<Fact>]
 let ``InboxDefault sets local default and preserves settings`` () =
     let state = newState ()
-    let settings : LocalSettings =
-        { CommitOnPull = Some true; StateFile = None; BlockPatterns = None; AllowPatterns = None; AllowBinaries = None
-          SiteIgnorePatterns = None; SiteHideEmptyBundles = None; OkfIgnorePatterns = None; DefaultInbox = None; InboxWatchIntervalSeconds = None }
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = Some settings }
+    let local =
+        { LocalConfig.empty with
+            Sync = Some { SyncSection.empty with CommitOnPull = Some true }
+            Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     let r = InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false }
     Assert.True(Result.isOk r)
-    let s = state.WrittenLocalConfig.Value.Settings.Value
-    Assert.Equal(Some "kb", s.DefaultInbox)
-    Assert.Equal(Some true, s.CommitOnPull)
+    let written = state.WrittenLocalConfig.Value
+    Assert.Equal(Some "kb", written.Inbox.Value.Default)
+    Assert.Equal(Some true, written.Sync.Value.CommitOnPull)
+    Assert.Equal(1, (LocalConfig.inboxes written).Count)
 
 [<Fact>]
 let ``InboxDefault works with no settings`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false } |> ignore
-    Assert.Equal(Some "kb", state.WrittenLocalConfig.Value.Settings.Value.DefaultInbox)
+    Assert.Equal(Some "kb", state.WrittenLocalConfig.Value.Inbox.Value.Default)
 
 [<Fact>]
 let ``InboxDefault global writes global defaults`` () =
     let state = newState ()
-    let g = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Defaults = None }
+    let g = { GlobalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps (Some g) None [] state
     let r = InboxDefault.execute deps { Name = "kb"; IsGlobal = true; DryRun = false }
     Assert.True(Result.isOk r)
-    Assert.Equal(Some "kb", state.WrittenGlobalConfig.Value.Defaults.Value.DefaultInbox)
+    Assert.Equal(Some "kb", state.WrittenGlobalConfig.Value.Inbox.Value.Default)
 
 [<Fact>]
 let ``InboxDefault local may point at a global inbox`` () =
     let state = newState ()
-    let g = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Defaults = None }
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let g = { GlobalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
+    let local = LocalConfig.empty
     let deps = makeDeps (Some g) (Some local) [] state
     Assert.True(Result.isOk (InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = false }))
 
 [<Fact>]
 let ``InboxDefault rejects unknown inbox`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
+    let local = LocalConfig.empty
     let deps = makeDeps None (Some local) [] state
     let r = InboxDefault.execute deps { Name = "nope"; IsGlobal = false; DryRun = false }
     Assert.True(Result.isError r)
@@ -337,7 +338,7 @@ let ``InboxDefault rejects unknown inbox`` () =
 [<Fact>]
 let ``InboxDefault dry run does not write`` () =
     let state = newState ()
-    let local = { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox "/kb" ]; Settings = None }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb" ]) } }
     let deps = makeDeps None (Some local) [] state
     Assert.True(Result.isOk (InboxDefault.execute deps { Name = "kb"; IsGlobal = false; DryRun = true }))
     Assert.True(state.WrittenLocalConfig.IsNone)

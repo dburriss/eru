@@ -64,7 +64,7 @@ let private makeInbox path : InboxConfig =
     { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty; Branch = None }
 
 let private singleInboxLocal (name: string) (inbox: InboxConfig) : LocalConfig option =
-    Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ name, inbox ]; Settings = None }
+    Some { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ name, inbox ]) } }
 
 let private emptyCmd : InboxSend.Command =
     { Content = None; InboxName = None; Channel = None; Title = None; Note = None; As = None; DryRun = false }
@@ -224,17 +224,13 @@ let ``send dryrun does not write any files`` () =
 [<Fact>]
 let ``send errors when no inbox is configured`` () =
     let state = newState ()
-    let deps = makeDeps None (Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }) [] Map.empty state
+    let deps = makeDeps None (Some LocalConfig.empty) [] Map.empty state
     InboxSend.execute deps { emptyCmd with Content = Some "hi" } |> assertError
 
 [<Fact>]
 let ``send errors listing names when multiple inboxes are configured and none specified`` () =
     let state = newState ()
-    let local = {
-        Version = 1; Sources = []; Collections = []
-        Inboxes = Map.ofList [ "kb", makeInbox "/kb"; "other", makeInbox "/other" ]
-        Settings = None
-    }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb"; "other", makeInbox "/other" ]) } }
     let deps = makeDeps None (Some local) [ "/kb"; "/other" ] Map.empty state
     match InboxSend.execute deps { emptyCmd with Content = Some "hi" } with
     | Ok _ -> Assert.Fail "expected error"
@@ -245,11 +241,7 @@ let ``send errors listing names when multiple inboxes are configured and none sp
 [<Fact>]
 let ``send uses the explicitly named inbox when multiple are configured`` () =
     let state = newState ()
-    let local = {
-        Version = 1; Sources = []; Collections = []
-        Inboxes = Map.ofList [ "kb", makeInbox "/kb"; "other", makeInbox "/other" ]
-        Settings = None
-    }
+    let local = { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox "/kb"; "other", makeInbox "/other" ]) } }
     let deps = makeDeps None (Some local) [ "/kb"; "/other" ] Map.empty state
     let result = InboxSend.execute deps { emptyCmd with Content = Some "hi"; InboxName = Some "other" } |> function Ok r -> r | Error e -> failwith e
     Assert.Equal("other", result.InboxName)

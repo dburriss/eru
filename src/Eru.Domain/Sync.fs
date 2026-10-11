@@ -140,17 +140,7 @@ module Sync =
         let baseEff =
             match Config.merge globalCfg localCfg with
             | Ok e  -> e
-            | Error _ -> { Sources = []; CommitOnPull = false; StateFile = "eru.lock"
-                           Collections = []; McpRefreshIntervalMinutes = 60
-                           BlockPatterns = Config.defaultBlockPatterns
-                           AllowPatterns = Config.defaultAllowPatterns
-                           AllowBinaries = Config.defaultAllowBinaries
-                           SiteIgnorePatterns = Config.defaultSiteIgnorePatterns
-                           SiteHideEmptyBundles = Config.defaultSiteHideEmptyBundles
-                           OkfIgnorePatterns = Config.defaultOkfIgnorePatterns
-                           Inboxes = Map.empty
-                           DefaultInbox = None
-                           InboxWatchIntervalSeconds = 30 }
+            | Error _ -> EffectiveConfig.empty
 
         let errors = System.Collections.Generic.List<string>()
 

@@ -206,15 +206,15 @@ module Add =
                 Bundles  = bundles
             }
             if isGlobal then
-                let g = globalCfg |> Option.defaultValue { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
-                let updated = { g with DefaultSources = g.DefaultSources @ [newSource] }
+                let g = globalCfg |> Option.defaultValue GlobalConfig.empty
+                let updated = GlobalConfig.withSources ((GlobalConfig.sources g) @ [newSource]) g
                 deps.WriteGlobalConfig updated
                 |> Result.map (fun () -> effSources @ [newSource])
             else
                 match localCfg with
                 | None -> Error "no .eru/config.json found. Run 'eru init' first."
                 | Some local ->
-                    let updated = { local with Sources = local.Sources @ [newSource] }
+                    let updated = LocalConfig.withSources ((LocalConfig.sources local) @ [newSource]) local
                     deps.WriteLocalConfig updated
                     |> Result.map (fun () -> effSources @ [newSource])
 
@@ -238,7 +238,7 @@ module Add =
                 | None -> Error "no global config found; collections require global config"
                 | Some gcfg ->
                     let filterSrc, colName = parseDiscriminator rawCol
-                    match gcfg.Collections |> List.tryFind (fun c -> c.Name = colName) with
+                    match (GlobalConfig.collections gcfg) |> List.tryFind (fun c -> c.Name = colName) with
                     | None -> Error $"collection '{colName}' not found in global config"
                     | Some col ->
                         let files =

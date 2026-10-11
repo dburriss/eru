@@ -11,7 +11,7 @@ let private makeSource name : SourceConfig =
     { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = [] }
 
 let private makeGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+    { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
 
 let private makeIndexEntry cacheRelPath title : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = Some "unused"; CacheRelPath = cacheRelPath
@@ -67,22 +67,12 @@ let private makeDeps
         RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
-let private cfg : EffectiveConfig = {
-    Sources = [ makeSource "src" ]
-    CommitOnPull = false
-    StateFile = "eru.lock"
-    Collections = []
-    McpRefreshIntervalMinutes = 60
-    BlockPatterns = []
-    AllowPatterns = []
-    AllowBinaries = false
-    SiteIgnorePatterns = []
-    SiteHideEmptyBundles = false
-    OkfIgnorePatterns = []
-    Inboxes = Map.empty
-    DefaultInbox = None
-    InboxWatchIntervalSeconds = 30
-}
+let private cfg : EffectiveConfig =
+    { EffectiveConfig.empty with
+        Sources = [ makeSource "src" ]
+        BlockPatterns = []
+        SiteIgnorePatterns = []
+        OkfIgnorePatterns = [] }
 
 [<Fact>]
 let ``generate writes graph json and renders linked documents on file pages`` () =

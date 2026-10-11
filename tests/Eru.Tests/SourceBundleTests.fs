@@ -7,10 +7,10 @@ let private makeSource name bundles : SourceConfig =
     { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = bundles }
 
 let private emptyLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Collections = []; Inboxes = Map.empty; Settings = None }
+    { LocalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
 
 let private emptyGlobal sources : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+    { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
 
 let private makeDeps
     (globalCfg: GlobalConfig option)
@@ -75,7 +75,7 @@ let ``add appends a bundle to a source in local config`` () =
     assertOk (SourceBundleAdd.execute deps cmd)
     match capturedLocal.Value with
     | None -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], cfg.Sources[0].Bundles)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], (LocalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``add appends a bundle to a source in global config when the source lives there`` () =
@@ -86,7 +86,7 @@ let ``add appends a bundle to a source in global config when the source lives th
     assertOk (SourceBundleAdd.execute deps cmd)
     match capturedGlobal.Value with
     | None -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], cfg.DefaultSources[0].Bundles)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], (GlobalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``add normalizes '.' and '/' to the repo-root sentinel`` () =
@@ -97,7 +97,7 @@ let ``add normalizes '.' and '/' to the repo-root sentinel`` () =
     assertOk (SourceBundleAdd.execute deps cmd)
     match capturedLocal.Value with
     | None -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal<Bundle list>([ { Path = ""; Kind = Manifest } ], cfg.Sources[0].Bundles)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = ""; Kind = Manifest } ], (LocalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``add rejects an exact-path duplicate`` () =
@@ -118,7 +118,7 @@ let ``add accepts a nested path alongside an existing root bundle`` () =
     | Some cfg ->
         Assert.Equal<Bundle list>(
             [ { Path = ""; Kind = Manifest }; { Path = "docs/knowledge"; Kind = Okf } ],
-            cfg.Sources[0].Bundles)
+            (LocalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``add errors when the source does not exist`` () =
@@ -154,7 +154,7 @@ let ``add auto-detects Okf kind from index_md okf_version`` () =
     assertOk (SourceBundleAdd.execute deps cmd)
     match capturedLocal.Value with
     | None -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Okf } ], cfg.Sources[0].Bundles)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Okf } ], (LocalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``add auto-detects Manifest kind when index_md has no okf_version`` () =
@@ -166,7 +166,7 @@ let ``add auto-detects Manifest kind when index_md has no okf_version`` () =
     assertOk (SourceBundleAdd.execute deps cmd)
     match capturedLocal.Value with
     | None -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], cfg.Sources[0].Bundles)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Manifest } ], (LocalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``add triggers a one-bundle discovery walk and merges into the index when Okf`` () =
@@ -258,7 +258,7 @@ let ``remove drops the matching bundle from local config`` () =
     assertOk (SourceBundleRemove.execute deps cmd)
     match capturedLocal.Value with
     | None -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Equal<Bundle list>([ { Path = ""; Kind = Manifest } ], cfg.Sources[0].Bundles)
+    | Some cfg -> Assert.Equal<Bundle list>([ { Path = ""; Kind = Manifest } ], (LocalConfig.sources cfg).[0].Bundles)
 
 [<Fact>]
 let ``remove errors when the bundle path is not registered`` () =

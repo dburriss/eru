@@ -59,22 +59,12 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
         RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
-let private cfg (sourceName: string) : EffectiveConfig = {
-    Sources = [ { Name = sourceName; Url = None; Branch = None; Bundles = [] } ]
-    CommitOnPull = false
-    StateFile = "eru.lock"
-    Collections = []
-    McpRefreshIntervalMinutes = 60
-    BlockPatterns = []
-    AllowPatterns = []
-    AllowBinaries = false
-    SiteIgnorePatterns = []
-    SiteHideEmptyBundles = false
-    OkfIgnorePatterns = []
-    Inboxes = Map.empty
-    DefaultInbox = None
-    InboxWatchIntervalSeconds = 30
-}
+let private cfg (sourceName: string) : EffectiveConfig =
+    { EffectiveConfig.empty with
+        Sources = [ { Name = sourceName; Url = None; Branch = None; Bundles = [] } ]
+        BlockPatterns = []
+        SiteIgnorePatterns = []
+        OkfIgnorePatterns = [] }
 
 [<Fact>]
 let ``title falls back to filename when frontmatter title is absent`` () =

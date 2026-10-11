@@ -71,10 +71,10 @@ let private makeDeps
 let private newState () : CapturedState = { WrittenFiles = []; WrittenLock = []; WrittenLocalConfig = None; WrittenGlobalConfig = None }
 
 let private makeGlobal sources collections : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = collections; DefaultInboxes = Map.empty; Defaults = None }
+    { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) }; Collection = Some { CollectionSection.empty with Items = Some (collections) } }
 
 let private makeLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Collections = []; Inboxes = Map.empty; Settings = None }
+    { LocalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
 
 let private makeCollection name tags files : CollectionConfig =
     { Name = name; Tags = tags; Files = files; Description = None }
@@ -398,8 +398,8 @@ let ``GitHub URL auto-registers source to local config and pulls file`` () =
     assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     Assert.True(state.WrittenLocalConfig.IsSome)
-    Assert.Equal(1, state.WrittenLocalConfig.Value.Sources.Length)
-    Assert.Equal("orcai", state.WrittenLocalConfig.Value.Sources[0].Name)
+    Assert.Equal(1, (LocalConfig.sources state.WrittenLocalConfig.Value).Length)
+    Assert.Equal("orcai", (LocalConfig.sources state.WrittenLocalConfig.Value).[0].Name)
 
 [<Fact>]
 let ``GitHub URL reuses existing source without writing config`` () =
@@ -427,8 +427,8 @@ let ``GitHub URL with --global writes source to global config`` () =
     let cmd = { emptyCmd with RemotePath = Some githubUrl; IsGlobal = true }
     assertOk (Add.execute deps cmd)
     Assert.True(state.WrittenGlobalConfig.IsSome)
-    Assert.Equal(1, state.WrittenGlobalConfig.Value.DefaultSources.Length)
-    Assert.Equal("orcai", state.WrittenGlobalConfig.Value.DefaultSources[0].Name)
+    Assert.Equal(1, (GlobalConfig.sources state.WrittenGlobalConfig.Value).Length)
+    Assert.Equal("orcai", (GlobalConfig.sources state.WrittenGlobalConfig.Value).[0].Name)
     Assert.True(state.WrittenLocalConfig.IsNone)
 
 [<Fact>]
@@ -439,7 +439,7 @@ let ``GitLab URL auto-registers source to local config and pulls file`` () =
     assertOk (Add.execute deps cmd)
     Assert.Equal(1, state.WrittenFiles.Length)
     Assert.True(state.WrittenLocalConfig.IsSome)
-    let src = state.WrittenLocalConfig.Value.Sources[0]
+    let src = (LocalConfig.sources state.WrittenLocalConfig.Value).[0]
     Assert.Equal("orcai", src.Name)
     Assert.Equal(Some "https://gitlab.com/dburriss/orcai", src.Url)
 

@@ -86,7 +86,7 @@ let private makeInbox (channels: Map<string, InboxChannelConfig>) : InboxConfig 
     { Path = "/kb"; RawPath = None; DefaultChannel = None; Channels = channels; Branch = None }
 
 let private singleInboxLocal (channels: Map<string, InboxChannelConfig>) : LocalConfig option =
-    Some { Version = 1; Sources = []; Collections = []; Inboxes = Map.ofList [ "kb", makeInbox channels ]; Settings = None }
+    Some { LocalConfig.empty with Inbox = Some { InboxSection.empty with Items = Some (Map.ofList [ "kb", makeInbox channels ]) } }
 
 let private emptyOpts : InboxProcess.Options =
     { InboxName = None; Channel = None; ItemName = None; All = false; DryRun = false; Timing = false; Append = [] }

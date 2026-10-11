@@ -19,12 +19,12 @@ with the official Pages actions.
 ## 1. Keep agent and workflow files out of the site
 
 A knowledge repo usually contains installed skills, agent files and the inbox. Exclude them with
-`siteIgnorePatterns` in `.eru/config.json` (setting it replaces the defaults, so keep `index.md` and `log.md`):
+`site.ignorePatterns` in `.eru/config.json` (setting it replaces the defaults, so keep `index.md` and `log.md`):
 
 ```json
 {
-  "settings": {
-    "siteIgnorePatterns": [
+  "site": {
+    "ignorePatterns": [
       "index.md",
       "log.md",
       ".agents/**",

@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** config files are now version 3. Settings are grouped into top-level sections, shared by `~/.config/eru/config.json` and `.eru/config.json`, and the `settings` / `defaults` blocks are removed. Section names are singular and the entities a section holds always live under `items`. Version 1 and 2 files are migrated automatically when read and rewritten as version 3 only on the next save (read-only commands leave the file untouched); newly created configs are written as version 3
+
+  | Version 2 | Version 3 |
+  |---|---|
+  | `siteIgnorePatterns` | `site.ignorePatterns` |
+  | `siteHideEmptyBundles` | `site.hideEmptyBundles` |
+  | `okfIgnorePatterns` | `okf.ignorePatterns` |
+  | `mcpRefreshIntervalMinutes` | `mcp.refreshIntervalMinutes` |
+  | `branch`, `commitOnPull`, `stateFile` | `sync.branch`, `sync.commitOnPull`, `sync.stateFile` |
+  | `blockPatterns`, `allowPatterns`, `allowBinaries` | `files.blockPatterns`, `files.allowPatterns`, `files.allowBinaries` |
+  | `defaultInbox`, `inboxWatchIntervalSeconds` | `inbox.default`, `inbox.watchIntervalSeconds` |
+  | `inboxes` / `defaultInboxes` | `inbox.items` |
+  | `sources` / `defaultSources` | `source.items` |
+  | `collections` | `collection.items` |
+
+- Every settings section is now valid in both the global and the local file, merging local-over-global per key. `sync.stateFile` was previously local-only, and `sync.branch` and `mcp.refreshIntervalMinutes` global-only
+- `eru inbox default` writes `inbox.default`
+
+### Fixed
+
+- Reading a version 1 config (sources with `basePath`) migrates `basePath` to a `manifest` bundle instead of dropping it
+
 ## [0.12.0] - 2026-10-09
 
 ### Added

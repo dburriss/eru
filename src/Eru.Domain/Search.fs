@@ -40,8 +40,8 @@ module LocalSearch =
 
         // Build collection tags map for enriching index results at search time
         // (collection-side tags are NOT stored in the index — joined here)
-        let globalCols = globalCfg |> Option.map (fun g -> g.Collections) |> Option.defaultValue []
-        let localCols  = localCfg  |> Option.map (fun l -> l.Collections) |> Option.defaultValue []
+        let globalCols = globalCfg |> Option.map (fun g -> (GlobalConfig.collections g)) |> Option.defaultValue []
+        let localCols  = localCfg  |> Option.map (fun l -> (LocalConfig.collections l)) |> Option.defaultValue []
         let collectionTagsMap =
             (globalCols @ localCols)
             |> List.collect (fun col ->

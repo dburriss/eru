@@ -23,20 +23,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
         let eff =
             Config.merge globalCfgOpt localCfgOpt
             |> Result.defaultWith (fun _ ->
-                { Sources                   = []
-                  CommitOnPull              = false
-                  StateFile                 = "eru.lock"
-                  Collections               = []
-                  McpRefreshIntervalMinutes = 60
-                  BlockPatterns             = Config.defaultBlockPatterns
-                  AllowPatterns             = Config.defaultAllowPatterns
-                  AllowBinaries             = Config.defaultAllowBinaries
-                  SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns
-                  SiteHideEmptyBundles      = Config.defaultSiteHideEmptyBundles
-                  OkfIgnorePatterns         = Config.defaultOkfIgnorePatterns
-                  Inboxes                   = Map.empty
-                  DefaultInbox              = None
-                  InboxWatchIntervalSeconds = 30 })
+                EffectiveConfig.empty)
             |> Config.withManifests deps.ReadCachedManifest
 
         for src in eff.Sources do

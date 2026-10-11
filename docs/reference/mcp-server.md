@@ -15,7 +15,7 @@ On startup, `eru mcp` runs a full index population: it fetches manifests for all
 `~/.cache/eru/sources/<name>/index.json` with tags and descriptions from the manifest and file frontmatter, and
 caches the content of collection and lock file entries under `~/.cache/eru/sources/<name>/files/`. This makes
 `search_knowledge` and `read_artifact` fast — no live git fetch is needed for cached files. The cache refreshes
-automatically at the interval set by `mcpRefreshIntervalMinutes`.
+automatically at the interval set by `mcp.refreshIntervalMinutes`.
 
 ## Available resources
 

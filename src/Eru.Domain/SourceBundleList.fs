@@ -7,8 +7,8 @@ module SourceBundleList =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        let localSources  = localCfg  |> Option.map (fun l -> l.Sources)        |> Option.defaultValue []
-        let globalSources = globalCfg |> Option.map (fun g -> g.DefaultSources) |> Option.defaultValue []
+        let localSources  = localCfg  |> Option.map (fun l -> (LocalConfig.sources l))        |> Option.defaultValue []
+        let globalSources = globalCfg |> Option.map (fun g -> (GlobalConfig.sources g)) |> Option.defaultValue []
 
         let found =
             localSources |> List.tryFind (fun s -> s.Name = sourceName)

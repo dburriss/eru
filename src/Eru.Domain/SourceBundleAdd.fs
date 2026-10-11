@@ -76,8 +76,8 @@ module SourceBundleAdd =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        let localMatch  = localCfg  |> Option.bind (fun l -> l.Sources |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "local")
-        let globalMatch = globalCfg |> Option.bind (fun g -> g.DefaultSources |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "global")
+        let localMatch  = localCfg  |> Option.bind (fun l -> (LocalConfig.sources l) |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "local")
+        let globalMatch = globalCfg |> Option.bind (fun g -> (GlobalConfig.sources g) |> List.tryFind (fun s -> s.Name = cmd.SourceName)) |> Option.map (fun s -> s, "global")
 
         match localMatch |> Option.orElse globalMatch with
         | None -> Error $"source '{cmd.SourceName}' not found."
@@ -129,9 +129,9 @@ module SourceBundleAdd =
                 // owns this source's record — mirroring how the source itself was created.
                 match scope, localCfg, globalCfg with
                 | "local", Some local, _ ->
-                    deps.WriteLocalConfig { local with Sources = replaceSource local.Sources }
+                    deps.WriteLocalConfig (LocalConfig.withSources (replaceSource (LocalConfig.sources local)) local)
                 | _, _, Some g ->
-                    deps.WriteGlobalConfig { g with DefaultSources = replaceSource g.DefaultSources }
+                    deps.WriteGlobalConfig (GlobalConfig.withSources (replaceSource (GlobalConfig.sources g)) g)
                 | _ -> Error $"could not locate the config owning source '{cmd.SourceName}'."
 
             match writeResult with

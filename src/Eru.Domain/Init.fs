@@ -5,44 +5,41 @@ module Init =
     type Command = { Force: bool; Path: string option; IsGlobal: bool }
 
     let private scaffold = """{
-  "version": 1,
-  "sources": [],
-  "collections": [],
-  "inboxes": {},
-  "settings": {
+  "version": 3,
+  "site": {
+    "ignorePatterns": ["index.md", "log.md", "README.md"],
+    "hideEmptyBundles": null
+  },
+  "okf": {
+    "ignorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"]
+  },
+  "sync": {
     "commitOnPull": null,
-    "stateFile": null,
+    "stateFile": null
+  },
+  "files": {
     "blockPatterns": null,
     "allowPatterns": null,
-    "allowBinaries": null,
-    "siteIgnorePatterns": ["index.md", "log.md", "README.md"],
-    "siteHideEmptyBundles": null,
-    "okfIgnorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"],
-    "defaultInbox": null,
-    "inboxWatchIntervalSeconds": null
-  }
+    "allowBinaries": null
+  },
+  "inbox": {
+    "default": null,
+    "watchIntervalSeconds": null,
+    "items": {}
+  },
+  "source": { "items": [] },
+  "collection": { "items": [] }
 }
 """
 
     let private emptyGlobal : GlobalConfig =
-        { Version = 1
-          DefaultSources = []
-          Collections = []
-          DefaultInboxes = Map.empty
-          Defaults = Some {
-              Branch = None
-              CommitOnPull = None
-              McpRefreshIntervalMinutes = None
-              BlockPatterns = Some Config.defaultBlockPatterns
-              AllowPatterns = Some Config.defaultAllowPatterns
-              AllowBinaries = Some Config.defaultAllowBinaries
-              SiteIgnorePatterns = Some Config.defaultSiteIgnorePatterns
-              SiteHideEmptyBundles = None
-              OkfIgnorePatterns = Some Config.defaultOkfIgnorePatterns
-              DefaultInbox = None
-              InboxWatchIntervalSeconds = None
-          }
-        }
+        { GlobalConfig.empty with
+            Site = Some { SiteSection.empty with IgnorePatterns = Some Config.defaultSiteIgnorePatterns }
+            Okf  = Some { IgnorePatterns = Some Config.defaultOkfIgnorePatterns }
+            Files =
+                Some { BlockPatterns = Some Config.defaultBlockPatterns
+                       AllowPatterns = Some Config.defaultAllowPatterns
+                       AllowBinaries = Some Config.defaultAllowBinaries } }
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
         if cmd.IsGlobal && cmd.Path.IsSome then

@@ -3,8 +3,8 @@ module Eru.Tests.CollectionTests
 open Xunit
 open Eru
 
-let private emptyLocal  : LocalConfig  = { Version = 1; Sources = []; Collections = []; Inboxes = Map.empty; Settings = None }
-let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+let private emptyLocal  : LocalConfig  = LocalConfig.empty
+let private emptyGlobal : GlobalConfig = GlobalConfig.empty
 
 let private makeDeps
     (localCfg: LocalConfig option)
@@ -63,20 +63,20 @@ let private assertError result = match result with Ok _ -> Assert.Fail("Expected
 [<Fact>]
 let ``removeFile removes matching file ref from local collection`` () =
     let col     = { Name = "my-col"; Tags = []; Files = [fileRef "src" "docs/a.md"; fileRef "src" "docs/b.md"]; Description = None }
-    let local   = { emptyLocal with Collections = [col] }
+    let local   = (LocalConfig.withCollections ([col]) emptyLocal)
     let written = ref None
     let deps    = makeDeps (Some local) None written (ref None)
     assertOk (CollectionRemoveFile.execute deps (removeCmd "my-col" "src" "docs/a.md" false false))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg ->
-        let remaining = (cfg.Collections |> List.find (fun c -> c.Name = "my-col")).Files
+        let remaining = ((LocalConfig.collections cfg) |> List.find (fun c -> c.Name = "my-col")).Files
         Assert.Equal(1, remaining.Length)
         Assert.Equal("docs/b.md", remaining[0].RemotePath)
 
 [<Fact>]
 let ``removeFile fails when collection not found`` () =
-    let local   = { emptyLocal with Collections = [] }
+    let local   = (LocalConfig.withCollections ([]) emptyLocal)
     let written = ref None
     let deps    = makeDeps (Some local) None written (ref None)
     assertError (CollectionRemoveFile.execute deps (removeCmd "missing" "src" "docs/a.md" false false))
@@ -85,7 +85,7 @@ let ``removeFile fails when collection not found`` () =
 [<Fact>]
 let ``removeFile fails when file ref not found`` () =
     let col     = { Name = "my-col"; Tags = []; Files = [fileRef "src" "docs/b.md"]; Description = None }
-    let local   = { emptyLocal with Collections = [col] }
+    let local   = (LocalConfig.withCollections ([col]) emptyLocal)
     let written = ref None
     let deps    = makeDeps (Some local) None written (ref None)
     assertError (CollectionRemoveFile.execute deps (removeCmd "my-col" "src" "docs/a.md" false false))
@@ -94,7 +94,7 @@ let ``removeFile fails when file ref not found`` () =
 [<Fact>]
 let ``removeFile dryrun does not write`` () =
     let col     = { Name = "my-col"; Tags = []; Files = [fileRef "src" "docs/a.md"]; Description = None }
-    let local   = { emptyLocal with Collections = [col] }
+    let local   = (LocalConfig.withCollections ([col]) emptyLocal)
     let written = ref None
     let deps    = makeDeps (Some local) None written (ref None)
     assertOk (CollectionRemoveFile.execute deps (removeCmd "my-col" "src" "docs/a.md" false true))
@@ -103,13 +103,13 @@ let ``removeFile dryrun does not write`` () =
 [<Fact>]
 let ``removeFile removes collection entry when last file is removed`` () =
     let col     = { Name = "my-col"; Tags = []; Files = [fileRef "src" "docs/a.md"]; Description = None }
-    let local   = { emptyLocal with Collections = [col] }
+    let local   = (LocalConfig.withCollections ([col]) emptyLocal)
     let written = ref None
     let deps    = makeDeps (Some local) None written (ref None)
     assertOk (CollectionRemoveFile.execute deps (removeCmd "my-col" "src" "docs/a.md" false false))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
-    | Some cfg -> Assert.Empty(cfg.Collections)
+    | Some cfg -> Assert.Empty(LocalConfig.collections cfg)
 
 [<Fact>]
 let ``removeFile fails when no local config`` () =
@@ -119,13 +119,13 @@ let ``removeFile fails when no local config`` () =
 [<Fact>]
 let ``removeFile removes matching file ref from global collection`` () =
     let col       = { Name = "shared-col"; Tags = []; Files = [fileRef "src" "docs/a.md"; fileRef "src" "docs/b.md"]; Description = None }
-    let globalCfg = { emptyGlobal with Collections = [col] }
+    let globalCfg = (GlobalConfig.withCollections ([col]) emptyGlobal)
     let written   = ref None
     let deps      = makeDeps None (Some globalCfg) (ref None) written
     assertOk (CollectionRemoveFile.execute deps (removeCmd "shared-col" "src" "docs/a.md" true false))
     match written.Value with
     | None     -> Assert.Fail "nothing written"
     | Some cfg ->
-        let remaining = (cfg.Collections |> List.find (fun c -> c.Name = "shared-col")).Files
+        let remaining = ((GlobalConfig.collections cfg) |> List.find (fun c -> c.Name = "shared-col")).Files
         Assert.Equal(1, remaining.Length)
         Assert.Equal("docs/b.md", remaining[0].RemotePath)

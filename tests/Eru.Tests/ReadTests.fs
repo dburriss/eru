@@ -20,7 +20,7 @@ let private makeDeps
     (localFiles: Map<string, string>)
     (remote: string list -> Result<(string * string) list, string>) : Deps =
     let globalCfg : GlobalConfig =
-        { Version = 1; DefaultSources = sources; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+        { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
     {
         ReadGlobalConfig   = fun () -> Ok (Some globalCfg)
         ReadLocalConfig    = fun () -> Ok None

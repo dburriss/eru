@@ -9,10 +9,10 @@ let private makeSource name url : SourceConfig =
     { Name = name; Url = Some url; Branch = None; Bundles = [] }
 
 let private makeLocal sources : LocalConfig =
-    { Version = 1; Sources = sources; Collections = []; Inboxes = Map.empty; Settings = None }
+    { LocalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }
 
 let private makeGlobal sources collections : GlobalConfig =
-    { Version = 1; DefaultSources = sources; Collections = collections; DefaultInboxes = Map.empty; Defaults = None }
+    { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) }; Collection = Some { CollectionSection.empty with Items = Some (collections) } }
 
 let private makeCollection name tags files : CollectionConfig =
     { Name = name; Tags = tags; Files = files; Description = None }

@@ -302,7 +302,7 @@ eru inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun] [-
 
 Long-running counterpart to `inbox process`: watches an inbox's raw directory (via a filesystem
 watcher plus a polling fallback, default every 30s, overridable per-run with `--interval` or
-persistently via `inboxWatchIntervalSeconds` in config — see
+persistently via `inbox.watchIntervalSeconds` in config — see
 [config-file.md](../../../docs/reference/config-file.md)) and automatically runs
 `inbox process --all` whenever new items show up, until interrupted (`Ctrl+C`). A failure partway
 through a batch is logged but doesn't stop the watch loop — the item stays in `raw/` and is
@@ -407,7 +407,7 @@ No arguments. Exits 0 if all entries resolve to at least one local file, 1 other
 eru okf validate <path> [--strict-links]
 ```
 
-Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okfIgnorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise. Also prints non-fatal `⚠` warnings (never affecting the exit code) for fields that are not OKF v0.2-shaped: `generated`/`verified` that are not `{by, at}` or whose `at` lacks a UTC offset (also a placeholder `verified` such as `unknown`/`false`), a legacy `timestamp`, `stale_after` without an offset, `status` outside `draft|stable|deprecated`, `sources` that are not mappings with a `resource` (integer `usage_count`), a root `okf_version` other than `"0.2"`, and `log.md` headings not newest-first. Also warns on broken references in concept and `index.md` bodies (`broken-link`, `broken-image`, `broken-wikilink`, `broken-anchor`, each with line number and link text; external URLs, same-page anchors and code are skipped); `--strict-links` reports them as violations (exit 1) instead.
+Walks `<path>` and reports OKF §11 conformance violations (missing/malformed frontmatter, missing `type`, malformed `index.md`/`log.md`). Skips `README.md`, dot-directories and paths matching `okf.ignorePatterns`; the bundle-root `index.md` frontmatter should contain only `okf_version`. Exits 0 if conformant, 1 otherwise. Also prints non-fatal `⚠` warnings (never affecting the exit code) for fields that are not OKF v0.2-shaped: `generated`/`verified` that are not `{by, at}` or whose `at` lacks a UTC offset (also a placeholder `verified` such as `unknown`/`false`), a legacy `timestamp`, `stale_after` without an offset, `status` outside `draft|stable|deprecated`, `sources` that are not mappings with a `resource` (integer `usage_count`), a root `okf_version` other than `"0.2"`, and `log.md` headings not newest-first. Also warns on broken references in concept and `index.md` bodies (`broken-link`, `broken-image`, `broken-wikilink`, `broken-anchor`, each with line number and link text; external URLs, same-page anchors and code are skipped); `--strict-links` reports them as violations (exit 1) instead.
 
 ---
 

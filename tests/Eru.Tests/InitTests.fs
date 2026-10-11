@@ -3,7 +3,7 @@ module Eru.Tests.InitTests
 open Xunit
 open Eru
 
-let private emptyGlobal : GlobalConfig = { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+let private emptyGlobal : GlobalConfig = GlobalConfig.empty
 
 let private makeDeps
     (globalCfg: GlobalConfig option)
@@ -83,17 +83,14 @@ let ``init --global creates empty global config when none exists`` () =
     match capturedGlobal.Value with
     | None     -> Assert.Fail "WriteGlobalConfig not called"
     | Some cfg ->
-        Assert.Equal(1, cfg.Version)
-        Assert.Empty(cfg.DefaultSources)
-        Assert.Empty(cfg.Collections)
-        match cfg.Defaults with
-        | None -> Assert.Fail "expected Defaults to be Some"
-        | Some d ->
-            Assert.Equal<string list>(Config.defaultBlockPatterns, d.BlockPatterns.Value)
-            Assert.Equal<string list>(Config.defaultAllowPatterns, d.AllowPatterns.Value)
-            Assert.Equal(Config.defaultAllowBinaries, d.AllowBinaries.Value)
-            Assert.Equal<string list>(Config.defaultSiteIgnorePatterns, d.SiteIgnorePatterns.Value)
-            Assert.Equal<string list>(Config.defaultOkfIgnorePatterns, d.OkfIgnorePatterns.Value)
+        Assert.Equal(3, cfg.Version)
+        Assert.Empty(GlobalConfig.sources cfg)
+        Assert.Empty(GlobalConfig.collections cfg)
+        Assert.Equal<string list>(Config.defaultBlockPatterns, cfg.Files.Value.BlockPatterns.Value)
+        Assert.Equal<string list>(Config.defaultAllowPatterns, cfg.Files.Value.AllowPatterns.Value)
+        Assert.Equal(Config.defaultAllowBinaries, cfg.Files.Value.AllowBinaries.Value)
+        Assert.Equal<string list>(Config.defaultSiteIgnorePatterns, cfg.Site.Value.IgnorePatterns.Value)
+        Assert.Equal<string list>(Config.defaultOkfIgnorePatterns, cfg.Okf.Value.IgnorePatterns.Value)
 
 [<Fact>]
 let ``init --global errors when global config already exists without --force`` () =

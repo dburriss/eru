@@ -16,8 +16,8 @@ module InboxList =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        let globalInboxes = globalCfg |> Option.map (fun g -> g.DefaultInboxes) |> Option.defaultValue Map.empty
-        let localInboxes  = localCfg  |> Option.map (fun l -> l.Inboxes)        |> Option.defaultValue Map.empty
+        let globalInboxes = globalCfg |> Option.map (fun g -> (GlobalConfig.inboxes g)) |> Option.defaultValue Map.empty
+        let localInboxes  = localCfg  |> Option.map (fun l -> (LocalConfig.inboxes l))        |> Option.defaultValue Map.empty
 
         let toRow (name: string) (inbox: InboxConfig) (scope: string) : InboxRow = {
             Name           = name

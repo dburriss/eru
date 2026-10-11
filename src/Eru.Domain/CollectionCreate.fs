@@ -21,17 +21,17 @@ module CollectionCreate =
             let cfg =
                 match deps.ReadGlobalConfig () with
                 | Ok (Some g) -> Ok g
-                | Ok None     -> Ok { Version = 1; DefaultSources = []; Collections = []; DefaultInboxes = Map.empty; Defaults = None }
+                | Ok None     -> Ok GlobalConfig.empty
                 | Error e     -> Error e
             match cfg with
             | Error e -> Error e
             | Ok g ->
-                if g.Collections |> List.exists (fun c -> c.Name = cmd.Name) then
+                if (GlobalConfig.collections g) |> List.exists (fun c -> c.Name = cmd.Name) then
                     Error $"collection '{cmd.Name}' already exists in global config."
                 elif cmd.DryRun then
                     Ok $"Would create collection '{cmd.Name}' in global config."
                 else
-                    let updated = { g with Collections = g.Collections @ [newCol] }
+                    let updated = GlobalConfig.withCollections ((GlobalConfig.collections g) @ [newCol]) g
                     match deps.WriteGlobalConfig updated with
                     | Ok ()   -> Ok $"Created collection '{cmd.Name}' in global config."
                     | Error e -> Error e
@@ -40,12 +40,12 @@ module CollectionCreate =
             | Error e -> Error e
             | Ok None -> Error "no .eru/config.json found. Run 'eru init' first."
             | Ok (Some local) ->
-                if local.Collections |> List.exists (fun c -> c.Name = cmd.Name) then
+                if (LocalConfig.collections local) |> List.exists (fun c -> c.Name = cmd.Name) then
                     Error $"collection '{cmd.Name}' already exists in .eru/config.json."
                 elif cmd.DryRun then
                     Ok $"Would create collection '{cmd.Name}' in .eru/config.json."
                 else
-                    let updated = { local with Collections = local.Collections @ [newCol] }
+                    let updated = LocalConfig.withCollections ((LocalConfig.collections local) @ [newCol]) local
                     match deps.WriteLocalConfig updated with
                     | Ok ()   -> Ok $"Created collection '{cmd.Name}' in .eru/config.json."
                     | Error e -> Error e

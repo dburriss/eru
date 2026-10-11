@@ -347,7 +347,7 @@ type InboxWatchArgs =
             | Append _   -> "Text appended to the agent instructions, before each item (literal, or @file to read a file; @@ for a literal leading @). Repeatable."
             | Inbox _    -> "Name of the configured inbox to watch. Auto-resolved when only one is configured."
             | Channel _  -> "Restrict to one channel (default: every channel with an agent configured)."
-            | Interval _ -> "Polling fallback interval in seconds, in case filesystem events are missed (default: 30, or settings.inboxWatchIntervalSeconds from config)."
+            | Interval _ -> "Polling fallback interval in seconds, in case filesystem events are missed (default: 30, or inbox.watchIntervalSeconds from config)."
             | Dryrun     -> "Log what each trigger would process without spawning an agent or moving files."
 
 [<CliPrefix(CliPrefix.None)>]

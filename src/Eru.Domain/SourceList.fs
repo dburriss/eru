@@ -25,8 +25,8 @@ module SourceList =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        let globalSources = globalCfg |> Option.map (fun g -> g.DefaultSources) |> Option.defaultValue []
-        let localSources  = localCfg  |> Option.map (fun l -> l.Sources)        |> Option.defaultValue []
+        let globalSources = globalCfg |> Option.map (fun g -> (GlobalConfig.sources g)) |> Option.defaultValue []
+        let localSources  = localCfg  |> Option.map (fun l -> (LocalConfig.sources l))        |> Option.defaultValue []
         let localNames    = localSources |> List.map (fun s -> s.Name) |> Set.ofList
 
         let toRow (src: SourceConfig) (scope: string) : SourceRow = {

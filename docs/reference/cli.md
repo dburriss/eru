@@ -318,7 +318,7 @@ eru inbox remove <name> [-g] [--dryrun]
 ### `eru inbox default`
 
 Set the inbox that `eru inbox send` / `process` use when `-i` is omitted and more than one inbox is
-configured. Writes `settings.defaultInbox` (local), or `defaults.defaultInbox` with `-g`. The inbox
+configured. Writes `inbox.default` to the local config, or to the global config with `-g`. The inbox
 must already be configured (local or global).
 
 ```
@@ -487,7 +487,7 @@ eru [--debug] inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--
 |---|---|
 | `-i <inbox>` | Inbox to watch — auto-resolved when only one is configured |
 | `-c <channel>` | Restrict to one channel (default: every channel of the inbox with an agent configured) |
-| `--interval <seconds>` | Polling fallback period, in case filesystem events are missed (default: `30`, or `inboxWatchIntervalSeconds` from [config](config-file.md)) |
+| `--interval <seconds>` | Polling fallback period, in case filesystem events are missed (default: `30`, or `inbox.watchIntervalSeconds` from [config](config-file.md)) |
 | `--dryrun` | On every trigger, log what would be processed without spawning an agent or moving files |
 | `--append <text|@file>` | Extra text added to every prompt after the resolved instructions and before the item. Repeatable; pieces are joined in order. A leading `@` reads the value from a file (relative to the current directory), e.g. `@.github/flavours/action.md`; use `@@` for a literal leading `@` |
 
@@ -907,7 +907,7 @@ The bundle-root `index.md` frontmatter should contain only `okf_version`. That k
 - `index.md` and `log.md` (validated against their own rules instead).
 - `README.md`, at any depth and case-insensitively. READMEs are human prose, not concepts.
 - Anything under a dot-directory (`.git`, `.github`, `.claude`, `.agents`, …). Always skipped, not configurable.
-- Paths matching `okfIgnorePatterns` (default `apm_modules/**`, `inbox/**`, `node_modules/**`), read from the local/global config. See the [config file reference](config-file.md). Patterns are relative to `<path>`.
+- Paths matching `okf.ignorePatterns` (default `apm_modules/**`, `inbox/**`, `node_modules/**`), read from the local/global config. See the [config file reference](config-file.md). Patterns are relative to `<path>`.
 
 The same rules apply when eru discovers files in a remote OKF bundle.
 

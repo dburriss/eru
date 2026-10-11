@@ -37,8 +37,8 @@ module InboxChannelAdd =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        let localMatch  = localCfg  |> Option.bind (fun l -> Map.tryFind cmd.InboxName l.Inboxes)        |> Option.map (fun i -> i, "local")
-        let globalMatch = globalCfg |> Option.bind (fun g -> Map.tryFind cmd.InboxName g.DefaultInboxes) |> Option.map (fun i -> i, "global")
+        let localMatch  = localCfg  |> Option.bind (fun l -> Map.tryFind cmd.InboxName (LocalConfig.inboxes l))        |> Option.map (fun i -> i, "local")
+        let globalMatch = globalCfg |> Option.bind (fun g -> Map.tryFind cmd.InboxName (GlobalConfig.inboxes g)) |> Option.map (fun i -> i, "global")
 
         match localMatch |> Option.orElse globalMatch with
         | None -> Error $"inbox '{cmd.InboxName}' not found."
@@ -71,9 +71,9 @@ module InboxChannelAdd =
                 // owns this inbox's record — mirroring how bundles are added to sources.
                 match scope, localCfg, globalCfg with
                 | "local", Some local, _ ->
-                    deps.WriteLocalConfig { local with Inboxes = Map.add cmd.InboxName updatedInbox local.Inboxes }
+                    deps.WriteLocalConfig (LocalConfig.withInboxes (Map.add cmd.InboxName updatedInbox (LocalConfig.inboxes local)) local)
                 | _, _, Some g ->
-                    deps.WriteGlobalConfig { g with DefaultInboxes = Map.add cmd.InboxName updatedInbox g.DefaultInboxes }
+                    deps.WriteGlobalConfig (GlobalConfig.withInboxes (Map.add cmd.InboxName updatedInbox (GlobalConfig.inboxes g)) g)
                 | _ -> Error $"could not locate the config owning inbox '{cmd.InboxName}'."
 
             writeResult |> Result.map (fun () -> successMessage)

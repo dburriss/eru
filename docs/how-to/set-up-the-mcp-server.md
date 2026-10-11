@@ -75,7 +75,7 @@ the rest of eru. One field controls how often it re-fetches collection files:
 
 ```json
 {
-  "mcpRefreshIntervalMinutes": 60
+  "mcp": { "refreshIntervalMinutes": 60 }
 }
 ```
 

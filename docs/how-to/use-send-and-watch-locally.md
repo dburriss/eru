@@ -44,7 +44,7 @@ eru inbox watch -i knowledge
 
 This resolves the inbox/channel scope once, then blocks, reacting to new raw items via a filesystem
 watcher (with a periodic poll as fallback — default every 30s, tune with `--interval <seconds>` or
-`inboxWatchIntervalSeconds` in [config](../reference/config-file.md)). A short debounce means a burst of
+`inbox.watchIntervalSeconds` in [config](../reference/config-file.md)). A short debounce means a burst of
 captures triggers one processing pass, not one per file.
 
 ```bash

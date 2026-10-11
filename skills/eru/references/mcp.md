@@ -82,7 +82,7 @@ MCP Resources are URI-addressable and appear in `resources/list` or `resources/t
 The server pre-fetches all collection files on startup and refreshes on the configured interval (default 60 min). Configure in `~/.config/eru/config.json` or `.eru/config.json`:
 
 ```json
-{ "mcpRefreshIntervalMinutes": 60 }
+{ "mcp": { "refreshIntervalMinutes": 60 } }
 ```
 
 Concurrent syncs are deduplicated — if a sync is already in progress, `refresh_knowledge` returns immediately with a status message rather than starting a second parallel sync.

@@ -13,6 +13,7 @@ module ConfigAdapter =
                 let json = File.ReadAllText path
                 Config.readAndMigrateGlobalJson
                     Serialization.deserialize<GlobalConfig>
+                    Serialization.deserialize<GlobalConfigV2>
                     Serialization.deserialize<GlobalConfigV1>
                     json
                 |> Result.map Some
@@ -26,14 +27,10 @@ module ConfigAdapter =
                 let json = File.ReadAllText path
                 Config.readAndMigrateLocalJson
                     Serialization.deserialize<LocalConfig>
+                    Serialization.deserialize<LocalConfigV2>
                     Serialization.deserialize<LocalConfigV1>
                     json
-                |> Result.map (fun cfg ->
-                    let cfg =
-                        if cfg.Collections |> box |> isNull
-                        then { cfg with Collections = [] }
-                        else cfg
-                    Some cfg)
+                |> Result.map Some
             with ex -> Error ex.Message
 
     let writeLocalConfig (cwd: string) (cfg: LocalConfig) : Result<unit, string> =

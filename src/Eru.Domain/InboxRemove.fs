@@ -14,12 +14,12 @@ module InboxRemove =
             | Error e -> Error e
             | Ok None -> Error "no global config found."
             | Ok (Some g) ->
-                if not (Map.containsKey cmd.Name g.DefaultInboxes) then
+                if not (Map.containsKey cmd.Name (GlobalConfig.inboxes g)) then
                     Error $"inbox '{cmd.Name}' not found in global config."
                 elif cmd.DryRun then
                     Ok $"Would remove inbox '{cmd.Name}' from global config."
                 else
-                    let updated = { g with DefaultInboxes = Map.remove cmd.Name g.DefaultInboxes }
+                    let updated = GlobalConfig.withInboxes (Map.remove cmd.Name (GlobalConfig.inboxes g)) g
                     match deps.WriteGlobalConfig updated with
                     | Ok ()   -> Ok $"Removed inbox '{cmd.Name}' from global config."
                     | Error e -> Error e
@@ -28,12 +28,12 @@ module InboxRemove =
             | Error e -> Error e
             | Ok None -> Error "no .eru/config.json found. Run 'eru init' first."
             | Ok (Some local) ->
-                if not (Map.containsKey cmd.Name local.Inboxes) then
+                if not (Map.containsKey cmd.Name (LocalConfig.inboxes local)) then
                     Error $"inbox '{cmd.Name}' not found in .eru/config.json."
                 elif cmd.DryRun then
                     Ok $"Would remove inbox '{cmd.Name}' from .eru/config.json."
                 else
-                    let updated = { local with Inboxes = Map.remove cmd.Name local.Inboxes }
+                    let updated = LocalConfig.withInboxes (Map.remove cmd.Name (LocalConfig.inboxes local)) local
                     match deps.WriteLocalConfig updated with
                     | Ok ()   -> Ok $"Removed inbox '{cmd.Name}' from .eru/config.json."
                     | Error e -> Error e
