@@ -131,6 +131,34 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
                         keepGoing <- false
             } :> Task) |> ignore
 
+        // 3b. Watch local Markdown files that content pages render and rebuild on change. A
+        // failed rebuild (e.g. the file was deleted mid-edit) keeps the last good build.
+        let regenLock = obj ()
+        let regenerate () =
+            lock regenLock (fun () ->
+                match SiteGenerator.generate deps cfg genOpts with
+                | Ok () -> bumpVersion ()
+                | Error e -> eprintfn "[eru serve] Content rebuild failed, keeping the last good build: %s" e)
+        let debounce = new Threading.Timer((fun _ -> regenerate ()), null, Threading.Timeout.Infinite, Threading.Timeout.Infinite)
+        let watchers =
+            SiteGenerator.referencedContentFiles cfg
+            |> List.choose (fun rel ->
+                try
+                    let full = Path.GetFullPath(Path.Combine(deps.GetCwd(), rel))
+                    let dir = Path.GetDirectoryName full
+                    if Directory.Exists dir then
+                        let w = new FileSystemWatcher(dir, Path.GetFileName full)
+                        w.NotifyFilter <- NotifyFilters.LastWrite ||| NotifyFilters.FileName ||| NotifyFilters.Size
+                        let onChange = FileSystemEventHandler(fun _ _ -> debounce.Change(300, Threading.Timeout.Infinite) |> ignore)
+                        w.Changed.AddHandler onChange
+                        w.Created.AddHandler onChange
+                        w.Deleted.AddHandler onChange
+                        w.Renamed.AddHandler(RenamedEventHandler(fun _ _ -> debounce.Change(300, Threading.Timeout.Infinite) |> ignore))
+                        w.EnableRaisingEvents <- true
+                        Some w
+                    else None
+                with _ -> None)
+
         // 4. Open browser
         if opts.OpenBrowser then
             try
@@ -142,5 +170,7 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
         printfn "[eru serve] Serving at http://localhost:%d  (Ctrl+C to stop)" opts.Port
         do! app.RunAsync($"http://localhost:{opts.Port}")
         cts.Cancel()
+        for w in watchers do w.Dispose()
+        debounce.Dispose()
         return 0
     }

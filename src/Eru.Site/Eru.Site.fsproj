@@ -15,6 +15,12 @@
     <Compile Include="SiteModel.fs" />
     <Compile Include="MarkdownRenderer.fs" />
     <Compile Include="IndexBuilder.fs" />
+    <Compile Include="DocFacts.fs" />
+    <Compile Include="FilterEngine.fs" />
+    <Compile Include="Views.fs" />
+    <Compile Include="PageLayout.fs" />
+    <Compile Include="PageSpecs.fs" />
+    <Compile Include="Widgets.fs" />
     <Compile Include="HtmlTemplates.fs" />
     <Compile Include="SiteGenerator.fs" />
   </ItemGroup>

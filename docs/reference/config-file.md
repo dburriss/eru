@@ -186,12 +186,22 @@ independently, so setting `site.hideEmptyBundles` locally does not hide a `site.
 | `files` | `allowBinaries` | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
 | `site` | `ignorePatterns` | `["index.md", "log.md", "README.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
 | `site` | `hideEmptyBundles` | `false` | When `true`, `eru site generate` omits bundles that list no files (including ones whose files are all matched by `site.ignorePatterns`) from the Bundles tab and the Browse sidebar. Empty bundles are shown, with a count of 0, by default — see [site generation](site-generation.md#bundles). |
+| `site` | `home` | `"browse"` | Id of the page written to `index.html` — a built-in id or a custom page id. See [site generation](site-generation.md#pages). |
+| `site` | `defaultView` | `"cards"` | View for document lists: `cards`, `list` or `table`. A page's own `view` overrides it — see [views](site-generation.md#views). |
+| `site` | `cards.columns` | `3` | Maximum columns (1-6) of the `cards` view; narrow screens and crowded layouts drop to fewer. Set `1` for the old single-column list. |
+| `site` | `layout` | refreshed defaults | Site-wide `top`, `left` and `right` slots: an array of items, or `false` to disable the slot. Merges per slot. See [layout and widgets](site-generation.md#layout-slots-and-widgets). |
+| `site` | `pages` | built-in pages | Map of page id to a page definition, or `false` to drop a built-in page. Merges by id. See [pages](site-generation.md#pages). |
+| `site` | `document` | — | Layout for document pages: `layout`, `open` and `rules` (per-document overrides). `rules` concatenate, global first. See [document pages](site-generation.md#document-pages). |
 | `okf` | `ignorePatterns` | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) and `README.md` are always skipped and need no pattern. Use `**/inbox/**` to match nested directories. |
 | `inbox` | `default` | — | Name of the inbox `eru inbox send -i` falls back to (set with `eru inbox default <name>`) when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 | `inbox` | `watchIntervalSeconds` | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
 
 Notes:
 
+- The `site` keys `layout`, `pages` and `document` are structured values (`false`, arrays and objects). Their shape,
+  merge behaviour and the validation errors are documented in [site generation](site-generation.md). A bad value
+  fails config loading with a message naming the key path, for example
+  `site.layout.top[1]: unknown page id 'nope'`.
 - `sync.stateFile`, `sync.branch` and `mcp.refreshIntervalMinutes` used to be valid in only one of the two files
   (`stateFile` local, `branch`/`mcpRefreshIntervalMinutes` global). Sections are now shared, so they are valid in
   either file and merge local-over-global like every other key.

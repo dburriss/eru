@@ -303,7 +303,7 @@ eru inbox watch [-i <inbox>] [-c <channel>] [--interval <seconds>] [--dryrun] [-
 Long-running counterpart to `inbox process`: watches an inbox's raw directory (via a filesystem
 watcher plus a polling fallback, default every 30s, overridable per-run with `--interval` or
 persistently via `inbox.watchIntervalSeconds` in config — see
-[config-file.md](../../../docs/reference/config-file.md)) and automatically runs
+[config-file.md](https://github.com/dburriss/eru/blob/main/docs/reference/config-file.md)) and automatically runs
 `inbox process --all` whenever new items show up, until interrupted (`Ctrl+C`). A failure partway
 through a batch is logged but doesn't stop the watch loop — the item stays in `raw/` and is
 retried next trigger. This is a foreground command; background/daemonize it yourself if you want
@@ -474,3 +474,20 @@ eru site generate [-o <dir>] [--open] [--custom-css <path>]
 | `--custom-css <path>` | — | Path to a CSS file copied into the site and loaded after `style.css` |
 
 Generates a self-contained static HTML site for browsing and searching the local knowledge cache. Fully navigable without JavaScript; JS adds in-place search and facet filtering as an optional enhancement.
+
+Layout, pages and document pages are configured under `site` in the config, not by flags; see `site-customization.md`. Config errors abort the run and name the key path; nothing is written.
+
+## `eru site serve`
+
+```
+eru site serve [-o <dir>] [-p <port>] [--open] [--sync-interval <minutes>]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `-o` / `--output` | `./cache-site/` | Directory to write the site into |
+| `-p` / `--port` | `5173` | HTTP port |
+| `--open` | off | Open the browser on start |
+| `--sync-interval <minutes>` | `15` | Minutes between background cache syncs |
+
+Generates the site, serves it with live reload and rebuilds when the config or a `content.file` Markdown file changes. A failed rebuild is printed and the last good site keeps being served. Endpoints: `GET /api/search?q=`, `GET /api/sync` (202, rebuild now), `GET /api/events` (SSE `rebuild`).

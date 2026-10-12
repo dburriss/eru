@@ -42,7 +42,12 @@
     <Compile Include="ReadTests.fs" />
     <Compile Include="GitAdapterTests.fs" />
     <Compile Include="IndexBuilderTests.fs" />
+    <Compile Include="SiteTestSupport.fs" />
     <Compile Include="HtmlTemplatesTests.fs" />
+    <Compile Include="SiteConfigTests.fs" />
+    <Compile Include="SiteFilterTests.fs" />
+    <Compile Include="SiteWidgetTests.fs" />
+    <Compile Include="SiteViewTests.fs" />
     <Compile Include="OkfLinksTests.fs" />
     <Compile Include="OkfValidateTests.fs" />
     <Compile Include="OkfFixTests.fs" />
@@ -50,6 +55,7 @@
     <Compile Include="MarkdownLinkAdapterTests.fs" />
     <Compile Include="LinkGraphTests.fs" />
     <Compile Include="SiteGeneratorGraphTests.fs" />
+    <Compile Include="SiteGeneratorPagesTests.fs" />
     <Compile Include="VersionCliTests.fs" />
     <Compile Include="DomainPathConventionTests.fs" />
   </ItemGroup>

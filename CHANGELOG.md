@@ -2,7 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+
+- Configurable generated site. Every page is built from four slots (`top`, `left`, `right`, `main`) of widgets, set under `site.layout` (site-wide) and per page; a slot is an ordered list or `false`. Widgets: `breadcrumbs`, `title`, `meta`, `verified`, `generated`, `description`, `tags`, `stale`, `cli`, `content`, `list`, `toc`, `related`, `graph`, `facets`, `links`
+- `site.pages` defines custom pages at `pages/<id>/index.html`: a `filter` (by `source`, `bundle`, `type`, `tag`, `status`, `ext`, `path` globs, `stale`, with `not`) with `sort`, `group`, `limit` and `open` (`page`, `resource` or `source`), a `content` page rendering a repo Markdown file (`content.file`) or an indexed document (`content.doc`), or both. The built-in pages (`browse`, `sources`, `tags`, `types`, `bundles`) can be dropped with `false` or overridden by a page of the same id, and `site.home` picks the page at `index.html`
+- Three list views, `cards`, `list` and `table`, chosen with `site.defaultView` or a page's `view`; `site.cards.columns` (1-6) sets the card grid's maximum columns. Table headers sort when JavaScript is available
+- `site.document` configures document pages: `layout` for every document and `rules` that match on `type`, `tag`, `bundle`, `source` and the other filter fields, so different documents get different layouts. The `verified` widget shows the trust tier with each verifier and date; `generated` shows who or what generated a document and when
+- `eru site serve` rebuilds when a local Markdown file used by a content page changes
+- Site config errors (unknown page or widget, a widget in a slot it is not valid in, a bad view or column, a missing or out-of-repo content file) fail with a message naming the key; a failed rebuild writes nothing, so `eru site serve` keeps serving the last good build
+
 ### Changed
+
+- **Breaking:** the generated site has refreshed defaults. Every page gets a facet column on the left and, when it has headings or links, a table of contents on the right; lists are a card grid of up to three columns; the top nav is built from the pages that exist. Document pages are rebuilt from widgets, and the default document layout shows the link graph at the top of the page and the linked-document lists at the bottom. To get close to the old look, set `site.layout.left` and `site.layout.right` to `false` and `site.cards.columns` to `1`
+- Browse filtering is driven by markup instead of per-list ids: any element marked `data-doc` is filterable, `data-<facet>` attributes hold its values as JSON arrays and `data-facet="<name>"` on a sidebar list makes it a filter. Types and bundles are now checkbox facets on Browse. Custom CSS or scripts that relied on `#file-list`, `#file-count` or the `source-filters`, `ext-filters` and `tag-filters` ids need updating
+- The page-level `SiteFeatures` flags `TagPages` and `SourcePages` are removed from `GenerateOptions`; drop pages with `site.pages.<id>: false` instead (`types` and `bundles` were previously tied to `TagPages`)
 
 - **Breaking:** config files are now version 3. Settings are grouped into top-level sections, shared by `~/.config/eru/config.json` and `.eru/config.json`, and the `settings` / `defaults` blocks are removed. Section names are singular and the entities a section holds always live under `items`. Version 1 and 2 files are migrated automatically when read and rewritten as version 3 only on the next save (read-only commands leave the file untouched); newly created configs are written as version 3
 

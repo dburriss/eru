@@ -629,7 +629,7 @@ let ``checkVersion (via merge) accepts a v3 global config`` () =
 let ``merge resolves every section key local-over-global`` () =
     let g : GlobalConfig =
         { GlobalConfig.empty with
-            Site  = Some { IgnorePatterns = Some [ "g.md" ]; HideEmptyBundles = Some false }
+            Site  = Some { SiteSection.empty with IgnorePatterns = Some [ "g.md" ]; HideEmptyBundles = Some false }
             Okf   = Some { IgnorePatterns = Some [ "g/**" ] }
             Mcp   = Some { RefreshIntervalMinutes = Some 10 }
             Sync  = Some { Branch = Some "main"; CommitOnPull = Some false; StateFile = Some "g.lock" }
@@ -637,7 +637,7 @@ let ``merge resolves every section key local-over-global`` () =
             Inbox = Some { Default = Some "g"; WatchIntervalSeconds = Some 10; Items = None } }
     let l : LocalConfig =
         { LocalConfig.empty with
-            Site  = Some { IgnorePatterns = None; HideEmptyBundles = Some true }
+            Site  = Some { SiteSection.empty with HideEmptyBundles = Some true }
             Mcp   = Some { RefreshIntervalMinutes = Some 5 }
             Sync  = Some { Branch = None; CommitOnPull = Some true; StateFile = None }
             Inbox = Some { Default = None; WatchIntervalSeconds = Some 3; Items = None } }

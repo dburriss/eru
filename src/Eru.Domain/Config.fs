@@ -121,11 +121,6 @@ module InboxConfig =
 // entity collection inside a section is always called `items`, so a setting can later
 // be added to any section without breaking the file shape. All fields are optional so
 // an absent key falls through to the other file and then to the built-in default.
-type SiteSection = {
-    IgnorePatterns: string list option
-    HideEmptyBundles: bool option
-}
-
 type OkfSection = {
     IgnorePatterns: string list option
 }
@@ -198,6 +193,7 @@ type EffectiveConfig = {
     AllowBinaries             : bool
     SiteIgnorePatterns        : string list
     SiteHideEmptyBundles      : bool
+    Site                      : SiteSettings
     OkfIgnorePatterns         : string list
     Inboxes                   : Map<string, InboxConfig>
     DefaultInbox              : string option
@@ -206,9 +202,6 @@ type EffectiveConfig = {
 
 module SourceConfig =
     let empty : SourceConfig = { Name = ""; Url = None; Branch = None; Bundles = [] }
-
-module SiteSection =
-    let empty : SiteSection = { IgnorePatterns = None; HideEmptyBundles = None }
 
 module OkfSection =
     let empty : OkfSection = { IgnorePatterns = None }
@@ -597,9 +590,19 @@ module Config =
                 let localCols  = localCfg  |> Option.map LocalConfig.collections  |> Option.defaultValue []
                 checkCollectionSources (globalCols @ localCols) mergedSources
             validateCollections |> Result.map (fun () -> mergedSources))
-        |> Result.map (fun mergedSources ->
+        |> Result.bind (fun mergedSources ->
             let lSite  = localCfg  |> Option.bind (fun l -> l.Site)
             let gSite  = globalCfg |> Option.bind (fun g -> g.Site)
+            let parseSite (who: string) (sec: SiteSection option) =
+                match sec with
+                | None -> Ok SiteSettings.empty
+                | Some s -> SiteSettings.parse s |> Result.mapError (fun e -> $"{who}: {e}")
+            parseSite "global config" gSite
+            |> Result.bind (fun gs ->
+                parseSite "local config" lSite
+                |> Result.map (fun ls -> SiteSettings.merge gs ls))
+            |> Result.bind (fun site -> SiteSettings.validate site |> Result.map (fun () -> site))
+            |> Result.map (fun site ->
             let lMcp   = localCfg  |> Option.bind (fun l -> l.Mcp)
             let gMcp   = globalCfg |> Option.bind (fun g -> g.Mcp)
             let lSync  = localCfg  |> Option.bind (fun l -> l.Sync)
@@ -636,11 +639,12 @@ module Config =
                 AllowBinaries = first lFiles gFiles (fun (s: FilesSection) -> s.AllowBinaries) |> Option.defaultValue defaultAllowBinaries
                 SiteIgnorePatterns = first lSite gSite (fun (s: SiteSection) -> s.IgnorePatterns) |> Option.defaultValue defaultSiteIgnorePatterns
                 SiteHideEmptyBundles = first lSite gSite (fun (s: SiteSection) -> s.HideEmptyBundles) |> Option.defaultValue defaultSiteHideEmptyBundles
+                Site = site
                 OkfIgnorePatterns = resolveOkfIgnorePatterns globalCfg localCfg
                 Inboxes = mergedInboxes
                 DefaultInbox = first lInbox gInbox (fun (s: InboxSection) -> s.Default)
                 InboxWatchIntervalSeconds = first lInbox gInbox (fun (s: InboxSection) -> s.WatchIntervalSeconds) |> Option.defaultValue 30
-            })
+            }))
 
     let withManifests
         (readCachedManifest: string -> Result<SourceManifest option, string>)
@@ -778,8 +782,9 @@ module Config =
         { Version = 3
           Site =
             section (fun (s: SiteSection) -> s = SiteSection.empty)
-                { IgnorePatterns   = get (fun d -> d.SiteIgnorePatterns)
-                  HideEmptyBundles = get (fun d -> d.SiteHideEmptyBundles) }
+                { SiteSection.empty with
+                    IgnorePatterns   = get (fun d -> d.SiteIgnorePatterns)
+                    HideEmptyBundles = get (fun d -> d.SiteHideEmptyBundles) }
           Okf =
             section (fun (s: OkfSection) -> s = OkfSection.empty)
                 { IgnorePatterns = get (fun d -> d.OkfIgnorePatterns) }
@@ -810,8 +815,9 @@ module Config =
         { Version = 3
           Site =
             section (fun (s: SiteSection) -> s = SiteSection.empty)
-                { IgnorePatterns   = get (fun s -> s.SiteIgnorePatterns)
-                  HideEmptyBundles = get (fun s -> s.SiteHideEmptyBundles) }
+                { SiteSection.empty with
+                    IgnorePatterns   = get (fun s -> s.SiteIgnorePatterns)
+                    HideEmptyBundles = get (fun s -> s.SiteHideEmptyBundles) }
           Okf =
             section (fun (s: OkfSection) -> s = OkfSection.empty)
                 { IgnorePatterns = get (fun s -> s.OkfIgnorePatterns) }
@@ -927,6 +933,7 @@ module EffectiveConfig =
         AllowBinaries             = Config.defaultAllowBinaries
         SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns
         SiteHideEmptyBundles      = Config.defaultSiteHideEmptyBundles
+        Site                      = SiteSettings.empty
         OkfIgnorePatterns         = Config.defaultOkfIgnorePatterns
         Inboxes                   = Map.empty
         DefaultInbox              = None

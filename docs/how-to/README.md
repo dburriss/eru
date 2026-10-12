@@ -16,6 +16,8 @@ for the concepts behind these tasks.
 - [Keep a repo in sync and manage the cache](sync-and-maintain-cache.md)
 - [Set up the MCP server](set-up-the-mcp-server.md)
 - [Customize the generated site](customize-the-generated-site.md)
+- [Build custom site pages](build-custom-site-pages.md)
+- [Configure document pages](configure-document-pages.md)
 - [Publish the knowledge site to GitHub Pages](publish-the-site-to-github-pages.md)
 - [Set up a knowledge repo](set-up-a-knowledge-repo.md)
 - [Use send and watch locally on a knowledge repo](use-send-and-watch-locally.md)

@@ -1,93 +1,39 @@
 module Eru.Site.HtmlTemplates
 
 open System
-open System.Web
+open Eru
+open Eru.Site.Views
+open Eru.Site.PageLayout
+open Eru.Site.Widgets
 
-let private prefixFor (depth: int) =
-    String.replicate depth "../"
+let prefixFor = Views.prefixFor
 
-let private escapeHtml (s: string) = HttpUtility.HtmlEncode s
+let bundleUrl = Views.bundleUrl
 
-let private statusLabel =
-    function
-    | Pulled    -> "pulled"
-    | Cached    -> "cached"
-    | IndexOnly -> "index-only"
+// ── page frame ───────────────────────────────────────────────────────────────
 
-/// OKF trust tier derived from `verified[].by` (OKF §5.3):
-/// no entries -> unverified; any human:<id> actor -> human-reviewed; else machine-confirmed.
-let private trustTier (verified: Eru.Frontmatter.ActorAt list) : string =
-    if verified.IsEmpty then "unverified"
-    elif verified |> List.exists (fun v -> v.By.StartsWith("human:")) then "human-reviewed"
-    else "machine-confirmed"
+let private navLinks (env: SiteEnv) (p: string) (items: LayoutItem list) : string =
+    items
+    |> List.choose (function
+        | PageRef (id, label) ->
+            env.PageLinks.TryFind id
+            |> Option.map (fun (defaultLabel, url) -> $"""<a href="{p}{url}">{escapeHtml (defaultArg label defaultLabel)}</a>""")
+        | LinkRef (label, url) ->
+            Some $"""<a href="{escapeHtml url}" target="_blank" rel="noopener">{escapeHtml label}</a>"""
+        | WidgetRef _ -> None)
+    |> String.concat "\n    "
 
-let private isStale (staleAfter: System.DateTimeOffset option) : bool =
-    staleAfter |> Option.exists (fun d -> System.DateTimeOffset.UtcNow >= d)
-
-type private CliLabel = ShowLabel | HideLabel
-
-let private cliTip (label: string) (cmd: string) (visibility: CliLabel) =
-    let labelHtml =
-        match visibility with
-        | ShowLabel -> $"""<span class="cli-tip-label">{escapeHtml label}</span>"""
-        | HideLabel -> ""
-    $"""<span class="cli-tip">{labelHtml}<code>{escapeHtml cmd}</code><button class="copy-btn" data-copy="{escapeHtml cmd}" aria-label="Copy command"></button></span>"""
-
-let private cliTips (items: (string * string) list) =
-    let inner = items |> List.map (fun (l, c) -> cliTip l c ShowLabel) |> String.concat "\n"
-    $"""<div class="cli-tips">{inner}</div>"""
-
-let private breadcrumbs (items: (string * string option) list) =
-    let parts =
-        items
-        |> List.mapi (fun i (label, href) ->
-            let isLast = i = items.Length - 1
-            let node =
-                match href with
-                | Some url when not isLast -> $"""<a href="{url}">{escapeHtml label}</a>"""
-                | _ -> $"""<span class="bc-current">{escapeHtml label}</span>"""
-            if i = 0 then node
-            else $"""<span class="bc-sep">/</span>{node}""")
-        |> String.concat ""
-    $"""<nav class="breadcrumbs" aria-label="breadcrumb">{parts}</nav>"""
-
-let private tagList (tags: string list) (prefix: string) =
-    tags
-    |> List.map (fun t ->
-        let slug = Uri.EscapeDataString t
-        $"""<a class="tag" href="{prefix}tags/{slug}/index.html">#{escapeHtml t}</a>""")
-    |> String.concat " "
-
-let private fileCard (prefix: string) (doc: SiteDocument) =
-    let titleHtml =
-        match doc.PageUrl with
-        | Some url -> $"""<a href="{prefix}{url}">{escapeHtml doc.Title}</a>"""
-        | None     -> escapeHtml doc.Title
-    let snippet =
-        match doc.Description with
-        | Some d -> escapeHtml d
-        | None   ->
-            match doc.Body with
-            | Some b -> escapeHtml (if b.Length > 120 then b.[..119] + "…" else b)
-            | None   -> ""
-    let tagsHtml = tagList doc.Tags prefix
-    let tagsAttr = doc.Tags |> String.concat " " |> escapeHtml
-    let bodyHtml = if snippet <> "" then $"<p class=\"card-body\">{snippet}</p>" else ""
-    let tagsBlock = if not doc.Tags.IsEmpty then $"<div class=\"card-tags\">{tagsHtml}</div>" else ""
-    let tier = trustTier doc.Verified
-    $"""<article class="file-card" data-id="{escapeHtml doc.Id}" data-path="{escapeHtml doc.RemotePath}" data-source="{escapeHtml doc.Source}" data-ext="{escapeHtml doc.Extension}" data-tags="{tagsAttr}">
-  <div class="card-header">
-    <span class="card-title">{titleHtml}</span>
-    <span class="badge badge-source">{escapeHtml doc.Source}</span>
-    <span class="badge badge-status badge-{statusLabel doc.SyncStatus}">{statusLabel doc.SyncStatus}</span>
-    <span class="badge badge-trust badge-{tier}">{tier}</span>
-  </div>
-  {bodyHtml}
-  {tagsBlock}
-</article>"""
-
-let layout (depth: int) (title: string) (body: string) : string =
+/// The shared frame: top nav plus a CSS grid with `left`, `main` and `right` regions. An
+/// empty region is left out of the grid so it leaves no gap.
+let private frame (depth: int) (title: string) (nav: string) (left: string) (main: string) (right: string) : string =
     let p = prefixFor depth
+    let present (html: string) = not (String.IsNullOrWhiteSpace html)
+    let classes =
+        [ if present left then "has-left"
+          if present right then "has-right" ]
+        |> String.concat " "
+    let leftHtml = if present left then $"""<aside class="region region-left sidebar">{left}</aside>""" else ""
+    let rightHtml = if present right then $"""<aside class="region region-right">{right}</aside>""" else ""
     $"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,15 +46,17 @@ let layout (depth: int) (title: string) (body: string) : string =
 <body>
   <nav class="site-nav">
     <a class="nav-brand" href="{p}index.html">eru</a>
-    <a href="{p}index.html">Browse</a>
-    <a href="{p}sources/index.html">Sources</a>
-    <a href="{p}tags/index.html">Tags</a>
-    <a href="{p}types/index.html">Types</a>
-    <a href="{p}bundles/index.html">Bundles</a>
+    {nav}
     <button id="theme-toggle" aria-label="Toggle theme" style="display:none"></button>
   </nav>
   <noscript><p class="noscript-note">Search requires JavaScript. Browse by source or tag using the navigation links.</p></noscript>
-  <main>{body}</main>
+  <main>
+    <div class="page-grid {classes}">
+      {leftHtml}
+      <div class="region region-main">{main}</div>
+      {rightHtml}
+    </div>
+  </main>
   <script defer src="{p}js/theme.js"></script>
   <script>window.ERU_DATA_ROOT = "{p}data/";</script>
   <script defer src="{p}js/app.js"></script>
@@ -116,81 +64,28 @@ let layout (depth: int) (title: string) (body: string) : string =
 </body>
 </html>"""
 
-let private bundleSegments (b: SiteBundle) : string list =
-    b.Source :: (if b.Path = "" then [] else b.Path.Split('/') |> Array.toList)
-    |> List.map Uri.EscapeDataString
+/// Renders one page: resolved slots of widgets around the page's data.
+let render (env: SiteEnv) (depth: int) (slots: ResolvedSlots) (page: PageData) : string =
+    let p = prefixFor depth
+    let ctx = { Env = env; Prefix = p; Slots = slots; Page = page }
+    frame depth page.Title (navLinks env p slots.Top) (renderSide ctx slots.Left) (renderMain ctx slots.Main) (renderSide ctx slots.Right)
 
-/// Site-root-relative URL of a bundle's page: bundles/<source>/<path>/index.html.
-let bundleUrl (b: SiteBundle) : string =
-    "bundles/" + String.Join("/", bundleSegments b) + "/index.html"
+// ── environment ──────────────────────────────────────────────────────────────
 
-let indexPage (model: SiteModel) : string =
-    let p = prefixFor 0
-    let sourceLinks =
-        model.Sources
-        |> List.map (fun s ->
-            $"""<li><a href="{p}sources/{Uri.EscapeDataString s.Name}/index.html">{escapeHtml s.Name}</a> <span class="count">({s.FileCount})</span></li>""")
-        |> String.concat "\n"
-    let extLinks =
-        model.AllExtensions
-        |> List.map (fun e ->
-            $"""<li><a href="#" data-filter-ext="{escapeHtml e}">{escapeHtml e}</a></li>""")
-        |> String.concat "\n"
-    let tagLinks =
-        model.Tags
-        |> List.map (fun t ->
-            $"""<li><a href="{p}tags/{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount})</span></li>""")
-        |> String.concat "\n"
-    let typeLinks =
-        model.Types
-        |> List.map (fun t ->
-            $"""<li><a href="{p}types/{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount})</span></li>""")
-        |> String.concat "\n"
-    let bundleLinks =
-        model.Bundles
-        |> List.map (fun b ->
-            $"""<li><a href="{p}{bundleUrl b}">{escapeHtml b.Name}</a> <span class="count">({b.FileCount})</span></li>""")
-        |> String.concat "\n"
-    let cards =
-        model.Documents
-        |> List.map (fileCard p)
-        |> String.concat "\n"
-    let body = $"""<div class="page-layout">
-  <aside class="sidebar">
-    <section class="sidebar-section">
-      <h3>Sources</h3>
-      <ul id="source-filters">{sourceLinks}</ul>
-    </section>
-    <section class="sidebar-section">
-      <h3>File Extensions</h3>
-      <ul id="ext-filters">{extLinks}</ul>
-    </section>
-    <section class="sidebar-section">
-      <h3>Tags</h3>
-      <ul id="tag-filters">{tagLinks}</ul>
-    </section>
-    <section class="sidebar-section">
-      <h3>Types</h3>
-      <ul id="type-filters">{typeLinks}</ul>
-    </section>
-    <section class="sidebar-section">
-      <h3>Bundles</h3>
-      <ul id="bundle-filters">{bundleLinks}</ul>
-    </section>
-  </aside>
-  <section class="content">
-    <div class="content-header">
-      <h1>All files <span class="count" id="file-count">({model.Documents.Length})</span></h1>
-      <div id="search-container" style="display:none">
-        <input type="search" id="search-input" placeholder="Search…" aria-label="Search files" />
-      </div>
-    </div>
-    <div id="file-list">{cards}</div>
-  </section>
-</div>"""
-    layout 0 "Browse" body
+let emptyModel : SiteModel =
+    { Documents = []; Sources = []; Tags = []; Types = []; Bundles = []; AllExtensions = [] }
 
-let sourcesPage (sources: SiteSource list) : string =
+/// Page links for the built-in pages with no configuration.
+let defaultEnv (model: SiteModel) : SiteEnv =
+    { Model = model
+      PageLinks = PageSpecs.resolve SiteSettings.empty |> PageSpecs.pageLinks }
+
+let private indexUrl (env: SiteEnv) (p: string) (id: string) : string option =
+    env.PageLinks.TryFind id |> Option.map (fun (_, url) -> p + url)
+
+// ── built-in list bodies ─────────────────────────────────────────────────────
+
+let sourcesListHtml (p: string) (sources: SiteSource list) : string =
     let sourceCard (s: SiteSource) =
         let manifestBadge =
             if s.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
@@ -207,7 +102,7 @@ let sourcesPage (sources: SiteSource list) : string =
         let tip = cliTip "add source" $"eru source add {addRef}" HideLabel
         $"""<article class="source-card">
   <div class="source-card-header">
-    <a class="source-card-name" href="{Uri.EscapeDataString s.Name}/index.html">{escapeHtml s.Name}</a>
+    <a class="source-card-name" href="{p}sources/{Uri.EscapeDataString s.Name}/index.html">{escapeHtml s.Name}</a>
     {manifestBadge}
   </div>
   {descHtml}
@@ -217,170 +112,68 @@ let sourcesPage (sources: SiteSource list) : string =
   </div>
   <div class="source-card-tip">{tip}</div>
 </article>"""
-    let cards = sources |> List.map sourceCard |> String.concat "\n"
-    let body = $"""<h1>Sources</h1>
-<div class="source-grid">{cards}</div>"""
-    layout 1 "Sources" body
+    $"""<div class="source-grid">{sources |> List.map sourceCard |> String.concat "\n"}</div>"""
 
-let sourceFilesPage (source: SiteSource) : string =
-    let manifestBadge =
-        if source.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
-        else """<span class="badge badge-no-manifest">no manifest</span>"""
-    let p = prefixFor 2
-    let cards =
-        source.Files
-        |> List.map (fileCard p)
-        |> String.concat "\n"
-    let addRef = source.Url |> Option.defaultValue source.Name
-    let sourceTip = cliTips ["add source", $"eru source add {escapeHtml addRef}"]
-    let crumbs = breadcrumbs ["Sources", Some "../index.html"; source.Name, None]
-    let body = $"""<div class="page-header">
-  {crumbs}
-  <h1>{escapeHtml source.Name} {manifestBadge}</h1>
-</div>
-{sourceTip}
-<div id="file-list">{cards}</div>"""
-    layout 2 source.Name body
-
-let tagsPage (tags: SiteTag list) : string =
+let tagsListHtml (p: string) (tags: SiteTag list) : string =
     let rows =
         tags
         |> List.map (fun t ->
-            $"""<li><a href="{Uri.EscapeDataString t.Name}/index.html">#{escapeHtml t.Name}</a> <span class="count">({t.FileCount} files)</span></li>""")
+            $"""<li><a href="{p}tags/{Uri.EscapeDataString t.Name}/index.html">#{escapeHtml t.Name}</a> <span class="count">({t.FileCount} files)</span></li>""")
         |> String.concat "\n"
-    let body = $"""<h1>Tags</h1>
-<ul class="tag-list">{rows}</ul>"""
-    layout 1 "Tags" body
+    $"""<ul class="tag-list">{rows}</ul>"""
 
-let tagFilesPage (tag: SiteTag) : string =
-    let p = prefixFor 2
-    let cards =
-        tag.Files
-        |> List.map (fileCard p)
-        |> String.concat "\n"
-    let tagTip = cliTips ["pull all", $"eru add --tag {escapeHtml tag.Name}"; "search", $"eru search --tag {escapeHtml tag.Name}"]
-    let crumbs = breadcrumbs ["Tags", Some "../index.html"; $"#{tag.Name}", None]
-    let body = $"""<div class="page-header">
-  {crumbs}
-  <h1>#{escapeHtml tag.Name}</h1>
-</div>
-{tagTip}
-<div id="file-list">{cards}</div>"""
-    layout 2 tag.Name body
-
-let bundlesPage (bundles: SiteBundle list) : string =
-    let rows =
-        bundles
-        |> List.map (fun b ->
-            $"""<li><a href="{(bundleUrl b).Substring("bundles/".Length)}">{escapeHtml b.Name}</a> <span class="badge">{b.Kind}</span> <span class="count">({b.FileCount} files)</span></li>""")
-        |> String.concat "\n"
-    let body = $"""<h1>Bundles</h1>
-<ul class="tag-list">{rows}</ul>"""
-    layout 1 "Bundles" body
-
-let bundleFilesPage (bundle: SiteBundle) : string =
-    let depth = 1 + (bundleSegments bundle).Length
-    let p = prefixFor depth
-    let cards =
-        bundle.Files
-        |> List.map (fileCard p)
-        |> String.concat "\n"
-    let crumbs = breadcrumbs ["Bundles", Some $"{p}bundles/index.html"; bundle.Name, None]
-    let body = $"""<div class="page-header">
-  {crumbs}
-  <h1>{escapeHtml bundle.Name}</h1>
-</div>
-<div id="file-list">{cards}</div>"""
-    layout depth bundle.Name body
-
-let typesPage (types: SiteType list) : string =
+let typesListHtml (p: string) (types: SiteType list) : string =
     let rows =
         types
         |> List.map (fun t ->
-            $"""<li><a href="{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount} files)</span></li>""")
+            $"""<li><a href="{p}types/{Uri.EscapeDataString t.Name}/index.html">{escapeHtml t.Name}</a> <span class="count">({t.FileCount} files)</span></li>""")
         |> String.concat "\n"
-    let body = $"""<h1>Types</h1>
-<ul class="tag-list">{rows}</ul>"""
-    layout 1 "Types" body
+    $"""<ul class="tag-list">{rows}</ul>"""
 
-let typeFilesPage (typ: SiteType) : string =
-    let p = prefixFor 2
-    let cards =
-        typ.Files
-        |> List.map (fileCard p)
+let bundlesListHtml (p: string) (bundles: SiteBundle list) : string =
+    let rows =
+        bundles
+        |> List.map (fun b ->
+            $"""<li><a href="{p}{bundleUrl b}">{escapeHtml b.Name}</a> <span class="badge">{b.Kind}</span> <span class="count">({b.FileCount} files)</span></li>""")
         |> String.concat "\n"
-    let crumbs = breadcrumbs ["Types", Some "../index.html"; typ.Name, None]
-    let body = $"""<div class="page-header">
-  {crumbs}
-  <h1>{escapeHtml typ.Name}</h1>
-</div>
-<div id="file-list">{cards}</div>"""
-    layout 2 typ.Name body
+    $"""<ul class="tag-list">{rows}</ul>"""
 
-let private relatedLink (p: string) (r: RelatedDoc) =
-    match r.IsExternal, r.PageUrl with
-    | true, _ -> $"""<li><a href="{escapeHtml r.Id}" target="_blank" rel="noopener">{escapeHtml r.Title}</a></li>"""
-    | false, Some url -> $"""<li><a href="{p}{url}">{escapeHtml r.Title}</a></li>"""
-    | false, None -> $"""<li class="related-unresolved">{escapeHtml r.Title}</li>"""
+// ── page data ────────────────────────────────────────────────────────────────
 
-let private docGraphSection (p: string) (nodeId: string) (related: RelatedLinks) : string =
-    if related.Incoming.IsEmpty && related.Outgoing.IsEmpty then ""
-    else
-        let incomingHtml =
-            if related.Incoming.IsEmpty then ""
-            else
-                let items = related.Incoming |> List.map (relatedLink p) |> String.concat "\n"
-                $"""<div class="doc-graph-fallback-group"><span class="related-label">Links to this document</span><ul>{items}</ul></div>"""
-        let outgoingHtml =
-            if related.Outgoing.IsEmpty then ""
-            else
-                let items = related.Outgoing |> List.map (relatedLink p) |> String.concat "\n"
-                $"""<div class="doc-graph-fallback-group"><span class="related-label">Links from this document</span><ul>{items}</ul></div>"""
-        $"""<section class="doc-graph">
-  <h3>Linked documents</h3>
-  <div id="doc-graph" data-node-id="{escapeHtml nodeId}">
-    <div class="doc-graph-fallback">{incomingHtml}{outgoingHtml}</div>
-  </div>
-  <div class="doc-graph-legend">
-    <span class="legend-item legend-focus">This document</span>
-    <span class="legend-item legend-incoming">Links to this</span>
-    <span class="legend-item legend-outgoing">Linked from this</span>
-  </div>
-</section>"""
+/// Detail page (tags/<tag>, sources/<name>, ...): breadcrumbs, a heading and a document list.
+let detailPageData
+    (env: SiteEnv) (depth: int) (parentId: string) (parentLabel: string) (title: string)
+    (titleHtml: string option) (cli: (string * string) list) (listHtml: string) (count: int) : PageData =
+    let p = prefixFor depth
+    let parentHref = indexUrl env p parentId
+    { PageData.empty with
+        Title = title
+        TitleHtml = titleHtml
+        Breadcrumbs = [ parentLabel, parentHref; title, None ]
+        ListHtml = Some listHtml
+        DocCount = Some count
+        CliTips = cli }
 
-let filePage (doc: SiteDocument) (contentHtml: string) (related: RelatedLinks) : string =
+/// A document page's data: breadcrumbs, heading, rendered content and link lists.
+let documentPageData (env: SiteEnv) (doc: SiteDocument) (contentHtml: string) (related: RelatedLinks) : PageData =
     let p = prefixFor 2
     let fileName = System.IO.Path.GetFileName doc.RemotePath
-    let fileTip = cliTips ["pull this file", $"eru add {escapeHtml doc.Source}:{escapeHtml doc.RemotePath}"]
-    let crumbs = breadcrumbs [
-        "Sources", Some $"{p}sources/index.html"
-        doc.Source, Some $"{p}sources/{Uri.EscapeDataString doc.Source}/index.html"
-        fileName, None
-    ]
-    let descHtml =
-        match doc.Description with
-        | Some d -> $"""<p class="doc-description">{escapeHtml d}</p>"""
-        | None -> ""
-    let tagsHtml =
-        if doc.Tags.IsEmpty then ""
-        else $"""<div class="doc-tags">{tagList doc.Tags p}</div>"""
-    let typeHtml =
-        match doc.Type with
-        | Some t -> $"""<span class="badge badge-type">{escapeHtml t}</span>"""
-        | None -> ""
-    let tier = trustTier doc.Verified
-    let trustHtml = $"""<span class="badge badge-trust badge-{tier}">{tier}</span>"""
-    let staleHtml =
-        if isStale doc.StaleAfter then """<p class="doc-stale-warning">Stale — this content is past its stale_after date.</p>"""
-        else ""
-    let metaBox = $"""<div class="doc-meta">{typeHtml}{trustHtml}{descHtml}{tagsHtml}{staleHtml}</div>"""
-    let graphSection = docGraphSection p doc.Id related
-    let body = $"""<div class="page-header">
-  {crumbs}
-  <h1>{escapeHtml fileName}</h1>
-</div>
-{metaBox}
-{graphSection}
-{fileTip}
-<article class="markdown-body">{contentHtml}</article>"""
-    layout 2 fileName body
+    let sourcesHref = indexUrl env p "sources"
+    let sourceHref = sourcesHref |> Option.map (fun _ -> $"{p}sources/{Uri.EscapeDataString doc.Source}/index.html")
+    { PageData.empty with
+        Title = fileName
+        Breadcrumbs =
+            [ "Sources", sourcesHref
+              doc.Source, sourceHref
+              fileName, None ]
+        Doc = Some doc
+        ContentHtml = Some contentHtml
+        Related = Some related
+        CliTips = [ "pull this file", $"eru add {doc.Source}:{doc.RemotePath}" ] }
+
+/// A document page with the default layout and no site model; what a site with no
+/// configuration renders (minus the facets, which need the model).
+let filePage (doc: SiteDocument) (contentHtml: string) (related: RelatedLinks) : string =
+    let env = defaultEnv emptyModel
+    let slots = PageLayout.forDocument SiteSettings.empty DateTimeOffset.UtcNow doc
+    render env 2 slots (documentPageData env doc contentHtml related)

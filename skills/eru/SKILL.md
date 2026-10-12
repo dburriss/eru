@@ -204,6 +204,34 @@ eru site generate --custom-css ~/theme.css # apply a custom stylesheet on every 
 
 The site is fully navigable as plain HTML with no JavaScript. JS adds in-place search and checkbox facet filtering as an optional enhancement.
 
+#### Customising the site
+
+Look and content are controlled by CSS plus the `site` key in `.eru/config.json` (or the global `~/.config/eru/config.json`; local merges over global). There are no CLI flags for layout or pages except `--custom-css`.
+
+| User wants | Change |
+|---|---|
+| Colours, fonts, badges | `assets/css/custom.css` (created once, never overwritten) or `--custom-css <path>`; override CSS variables like `--color-primary`, `--color-bg`, `--radius` |
+| Hide or move the left/right columns, edit the nav, add an external link | `site.layout.top` / `left` / `right` (arrays of widgets, page ids or `{ "label", "url" }`; `false` disables a slot) |
+| A page listing certain documents (runbooks, stale docs, one bundle) | `site.pages.<id>` with `filter`, plus `view` (`cards`/`list`/`table`), `sort`, `group`, `limit`, `open` |
+| A landing/about page from Markdown | `site.pages.<id>.content` = `{ "file": "docs/x.md" }` or `{ "doc": "source:path" }`; set `site.home` to make it `index.html` |
+| Remove or rename a built-in page | `"types": false` to drop; a page with a built-in id (`browse`, `sources`, `tags`, `types`, `bundles`) overrides its index |
+| Change what a document page shows (e.g. verified/generated, graph, related) | `site.document.layout`; per-type/bundle variants with `site.document.rules` |
+| The pre-redesign plain look | `"layout": { "left": false, "right": false }, "cards": { "columns": 1 }` |
+
+Working rules:
+
+- Read the existing `site` block first and edit it; do not replace it. Slots are replaced whole (no per-widget merge), so restate the full list when changing one.
+- A custom page needs `content` and/or `filter`. `filter: {}` matches everything. Fields AND, values within a field OR.
+- A document `main` slot must keep `content`. A custom page id must not be a widget name (`toc`, `list`, `stale`, ...).
+- `content.file` must stay inside the repo; `content.doc` must be cached or pulled (`eru sync` first).
+- Verify by running `eru site generate -o <tmp-dir>` (a bad config stops with the key path, e.g. `site.pages.runbooks.view: unknown view 'grid'`), or `eru site serve --open` to iterate with live reload. Fix the named key and re-run.
+
+```json
+{ "site": { "pages": { "runbooks": { "title": "Runbooks", "filter": { "type": ["runbook"] }, "view": "list" } } } }
+```
+
+For every key, widget, filter field, precedence rule and more recipes see `references/site-customization.md`.
+
 ---
 
 ### `eru okf init` / `fix` / `validate`

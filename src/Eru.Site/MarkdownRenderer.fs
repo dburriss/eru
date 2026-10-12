@@ -1,6 +1,9 @@
 module Eru.Site.MarkdownRenderer
 
+open System.Text.RegularExpressions
 open Markdig
+open Markdig.Syntax
+open Markdig.Syntax.Inlines
 
 let private pipeline = MarkdownPipelineBuilder().UseAdvancedExtensions().Build()
 
@@ -29,3 +32,26 @@ let private stripFrontmatter (markdown: string) : string =
 
 let render (markdown: string) : string =
     Markdown.ToHtml(stripFrontmatter markdown, pipeline)
+
+/// Renders Markdown, letting `rewrite` replace any link target (None leaves it alone).
+let renderWith (rewrite: string -> string option) (markdown: string) : string =
+    let doc = Markdown.Parse(stripFrontmatter markdown, pipeline)
+    for link in doc.Descendants<LinkInline>() |> Seq.toList do
+        if not (isNull link.Url) && not link.IsImage then
+            match rewrite link.Url with
+            | Some url -> link.Url <- url
+            | None -> ()
+    doc.ToHtml(pipeline)
+
+let private headingRx =
+    Regex("""<h([1-6])\s+id="([^"]*)"[^>]*>(.*?)</h\1>""", RegexOptions.Singleline ||| RegexOptions.Compiled)
+
+let private tagRx = Regex("<[^>]+>", RegexOptions.Compiled)
+
+/// (level, id, plain-text label) for every heading that carries an id (Markdig adds ids
+/// through its auto-identifier extension).
+let headings (html: string) : (int * string * string) list =
+    headingRx.Matches(html)
+    |> Seq.map (fun m ->
+        int m.Groups.[1].Value, m.Groups.[2].Value, System.Net.WebUtility.HtmlDecode(tagRx.Replace(m.Groups.[3].Value, "")).Trim())
+    |> List.ofSeq

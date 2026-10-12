@@ -5,12 +5,14 @@ open System.IO
 open System.Text.Json
 open System.Text.Json.Serialization
 open Eru
+open Eru.Site.Views
+open Eru.Site.PageLayout
 
 // ── options ──────────────────────────────────────────────────────────────────
 
+// Page-level switches moved to `site.pages.<id>: false` in config; these remain the
+// asset-level switches.
 type SiteFeatures = {
-    TagPages    : bool
-    SourcePages : bool
     FilePages   : bool
     Search      : bool
     ThemeToggle : bool
@@ -34,7 +36,7 @@ module GenerateOptions =
     let defaults = {
         OutputDir   = "./cache-site/"
         OpenBrowser = false
-        Features    = { TagPages = true; SourcePages = true; FilePages = true; Search = true; ThemeToggle = true; Graph = true }
+        Features    = { FilePages = true; Search = true; ThemeToggle = true; Graph = true }
         Theme       = { PrimaryColor = None; FontFamily = None; CustomCssPath = None }
     }
 
@@ -402,6 +404,7 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 
 /* document link graph */
 .doc-graph { max-width: 860px; margin-bottom: 1.25rem; position: relative; }
+.doc-graph[hidden] { display: none; }
 .doc-graph h3 { margin-bottom: 0.5rem; }
 .doc-graph-fallback { display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; }
 .doc-graph-fallback-group ul { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
@@ -444,6 +447,89 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 }
 .doc-graph-tooltip.visible { display: block; }
 .doc-graph-tooltip strong { display: block; margin-bottom: 0.15rem; }
+
+/* page grid: left / main / right regions; an absent region leaves no gap */
+.page-grid {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "main";
+}
+.page-grid.has-left { grid-template-columns: 220px minmax(0, 1fr); grid-template-areas: "left main"; }
+.page-grid.has-right { grid-template-columns: minmax(0, 1fr) 260px; grid-template-areas: "main right"; }
+.page-grid.has-left.has-right { grid-template-columns: 220px minmax(0, 1fr) 260px; grid-template-areas: "left main right"; }
+.region-left { grid-area: left; }
+.region-main { grid-area: main; min-width: 0; }
+.region-right { grid-area: right; position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; font-size: 0.85rem; }
+@media (max-width: 900px) {
+  .page-grid, .page-grid.has-left, .page-grid.has-right, .page-grid.has-left.has-right {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main" "left" "right";
+  }
+  .region-right, .sidebar { position: static; max-height: none; }
+}
+.widget { margin-bottom: 1rem; }
+.region-main > .widget:empty { display: none; }
+.widget-title { margin-bottom: 0.25rem; }
+.widget-title h1 { margin-bottom: 0.5rem; }
+
+/* list views */
+.card-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - (var(--cols, 3) - 1) * 0.75rem) / var(--cols, 3) - 0.5px)), 1fr));
+}
+.card-grid .file-card { margin-bottom: 0; min-width: 0; }
+.list-search { margin-bottom: 1rem; }
+.doc-group { margin-bottom: 1.5rem; }
+.doc-group-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+.doc-list { list-style: none; }
+.doc-list-item {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.4rem 0; border-bottom: 1px solid var(--color-border);
+}
+.doc-list-title { font-weight: 600; }
+.doc-list-meta { display: inline-flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; font-size: 0.8rem; opacity: 0.9; }
+.doc-table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+.doc-table th, .doc-table td {
+  text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--color-border); vertical-align: top;
+}
+.doc-table th { background: var(--color-surface); font-weight: 600; white-space: nowrap; user-select: none; }
+.doc-table th[data-dir="asc"]::after { content: " \25B2"; font-size: 0.7em; }
+.doc-table th[data-dir="desc"]::after { content: " \25BC"; font-size: 0.7em; }
+.stale-date.is-stale { color: #b45309; font-weight: 600; }
+
+/* widgets */
+.doc-meta-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.badge-type { background: var(--color-badge-bg); color: var(--color-badge-text); }
+.badge-lifecycle { background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text); }
+.badge-trust { background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text); }
+.badge-human-reviewed { background: #d1fae5; color: #065f46; border-color: transparent; }
+.badge-machine-confirmed { background: #fef3c7; color: #92400e; border-color: transparent; }
+body.theme-dark .badge-human-reviewed { background: #064e3b; color: #6ee7b7; }
+body.theme-dark .badge-machine-confirmed { background: #451a03; color: #fcd34d; }
+.doc-verified, .doc-generated { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; font-size: 0.85rem; }
+.doc-generated { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
+.verifier-list { list-style: none; display: flex; flex-direction: column; gap: 0.15rem; }
+.actor-kind { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; }
+.doc-stale-warning {
+  background: #fef3c7; color: #92400e; border-radius: var(--radius); padding: 0.4rem 0.7rem; font-size: 0.85rem;
+}
+body.theme-dark .doc-stale-warning { background: #451a03; color: #fcd34d; }
+.doc-related h3 { margin-bottom: 0.5rem; }
+.related-lists { display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; }
+.related-group ul { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
+.related-group .related-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; margin-bottom: 0.25rem; }
+.related-unresolved { opacity: 0.55; }
+.toc h3 { margin-bottom: 0.4rem; }
+.toc ul { list-style: none; }
+.toc li { padding: 0.15rem 0; }
+.toc .toc-l3 { padding-left: 0.8rem; }
+.toc .toc-l4 { padding-left: 1.6rem; }
+.side-links { list-style: none; }
+.side-links li { padding: 0.15rem 0; }
+.empty-note { opacity: 0.6; }
 """
 
 let private themeJs = """
@@ -480,40 +566,54 @@ let private themeJs = """
 
 let private appJs = """
 (function () {
-  var filterState = { sources: {}, exts: {}, tags: {}, query: '' };
+  // Declarative filter contract (see HtmlTemplates):
+  //   [data-doc]                 a filterable document (card, list item or table row)
+  //   data-<facet>               JSON array of the document's values for that facet
+  //   [data-facet="<name>"]      a sidebar list that filters that facet (inside [data-facet-mode="filter"])
+  //   [data-doc-group]           a section hidden when none of its documents is visible
+  //   [data-doc-count]           receives the visible document count
+  // Matching: OR within a facet, AND across facets, plus a text search.
+  var facetState = {};      // facet name -> { value: true }
+  var query = '';
   var jsonIndex = null;
-  var matchedPaths = null;  // Set of matched values
+  var matchedPaths = null;  // Set of matched ids
   var matchedAttr = 'id';   // 'path' (api search) or 'id' (json search)
 
-  function renderCards() {
-    var srcActive = Object.keys(filterState.sources).filter(function (k) { return filterState.sources[k]; });
-    var extActive = Object.keys(filterState.exts).filter(function (k) { return filterState.exts[k]; });
-    var tagActive = Object.keys(filterState.tags).filter(function (k) { return filterState.tags[k]; });
-    var q = filterState.query.toLowerCase().trim();
-    var cards = document.querySelectorAll('.file-card');
+  function valuesOf(el, facet) {
+    try {
+      var v = JSON.parse(el.getAttribute('data-' + facet) || '[]');
+      return Array.isArray(v) ? v : [v];
+    } catch (e) { return []; }
+  }
+
+  function render() {
+    var q = query.toLowerCase().trim();
+    var facets = Object.keys(facetState);
     var visible = 0;
-    cards.forEach(function (card) {
-      var src = card.dataset.source || '';
-      var ext = card.dataset.ext || '';
-      var cardTags = (card.dataset.tags || '').split(' ').filter(Boolean);
-      var srcOk = srcActive.length === 0 || srcActive.indexOf(src) >= 0;
-      var extOk = extActive.length === 0 || extActive.indexOf(ext) >= 0;
-      var tagOk = tagActive.length === 0 || tagActive.some(function (t) { return cardTags.indexOf(t) >= 0; });
+    document.querySelectorAll('[data-doc]').forEach(function (el) {
+      var facetsOk = facets.every(function (f) {
+        var active = Object.keys(facetState[f]).filter(function (k) { return facetState[f][k]; });
+        if (active.length === 0) return true;
+        return valuesOf(el, f).some(function (v) { return active.indexOf(v) >= 0; });
+      });
       var textOk;
       if (!q) {
         textOk = true;
       } else if (matchedPaths !== null) {
-        var attr = matchedAttr === 'path' ? (card.dataset.path || '') : (card.dataset.id || '');
+        var attr = matchedAttr === 'path' ? (el.dataset.path || '') : (el.dataset.id || '');
         textOk = matchedPaths.has(attr);
       } else {
-        textOk = card.textContent.toLowerCase().indexOf(q) >= 0;
+        textOk = el.textContent.toLowerCase().indexOf(q) >= 0;
       }
-      var show = srcOk && extOk && tagOk && textOk;
-      card.style.display = show ? '' : 'none';
+      var show = facetsOk && textOk;
+      el.style.display = show ? '' : 'none';
       if (show) visible++;
     });
-    var counter = document.getElementById('file-count');
-    if (counter) counter.textContent = '(' + visible + ')';
+    document.querySelectorAll('[data-doc-group]').forEach(function (g) {
+      var any = Array.prototype.some.call(g.querySelectorAll('[data-doc]'), function (el) { return el.style.display !== 'none'; });
+      g.style.display = any ? '' : 'none';
+    });
+    document.querySelectorAll('[data-doc-count]').forEach(function (c) { c.textContent = '(' + visible + ')'; });
   }
 
   function applyJsonSearch(q) {
@@ -528,18 +628,18 @@ let private appJs = """
     } else {
       matchedPaths = null;
     }
-    renderCards();
+    render();
   }
 
   function applyFilters() {
-    var q = filterState.query.toLowerCase().trim();
+    var q = query.toLowerCase().trim();
     if (q && window.location.protocol !== 'file:') {
       fetch('/api/search?q=' + encodeURIComponent(q))
         .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
         .then(function (result) {
           matchedPaths = new Set((result.hits || []).map(function (h) { return h.path; }));
           matchedAttr = 'id';
-          renderCards();
+          render();
         })
         .catch(function () { applyJsonSearch(q); });
     } else {
@@ -547,7 +647,7 @@ let private appJs = """
         applyJsonSearch(q);
       } else {
         matchedPaths = null;
-        renderCards();
+        render();
       }
     }
   }
@@ -572,30 +672,50 @@ let private appJs = """
       });
   }
 
-  function replaceLinksWithCheckboxes(listId, filterKey) {
-    var ul = document.getElementById(listId);
-    if (!ul) return;
+  // Upgrades a facet list of plain links to checkboxes; the list's data-facet names the facet.
+  function upgradeFacet(ul) {
+    var facet = ul.getAttribute('data-facet');
+    facetState[facet] = facetState[facet] || {};
     ul.querySelectorAll('li').forEach(function (li) {
       var a = li.querySelector('a');
       if (!a) return;
       var countEl = li.querySelector('.count');
-      var rawText = a.textContent.trim();
-      var value = rawText;
-      var id = 'chk-' + filterKey + '-' + value.replace(/[^a-zA-Z0-9]/g, '_');
+      var value = a.getAttribute('data-value') || a.textContent.trim();
+      var id = 'chk-' + facet + '-' + value.replace(/[^a-zA-Z0-9]/g, '_');
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = id;
       cb.value = value;
       var label = document.createElement('label');
       label.setAttribute('for', id);
-      label.textContent = value;
+      label.textContent = a.textContent.trim();
       while (li.firstChild) li.removeChild(li.firstChild);
       li.appendChild(cb);
       li.appendChild(label);
       if (countEl) li.appendChild(countEl);
       cb.addEventListener('change', function () {
-        filterState[filterKey][value] = cb.checked;
+        facetState[facet][value] = cb.checked;
         applyFilters();
+      });
+    });
+  }
+
+  // Click-to-sort headers for table views.
+  function enableTableSort(table) {
+    table.querySelectorAll('th[data-sortable]').forEach(function (th, idx) {
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', function () {
+        var asc = th.getAttribute('data-dir') !== 'asc';
+        table.querySelectorAll('th').forEach(function (o) { o.removeAttribute('data-dir'); });
+        th.setAttribute('data-dir', asc ? 'asc' : 'desc');
+        var body = table.tBodies[0];
+        var rows = Array.prototype.slice.call(body.rows);
+        rows.sort(function (r1, r2) {
+          var a = r1.cells[idx].textContent.trim(), b = r2.cells[idx].textContent.trim();
+          var c = a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+          return asc ? c : -c;
+        });
+        rows.forEach(function (r) { body.appendChild(r); });
       });
     });
   }
@@ -610,9 +730,8 @@ let private appJs = """
   });
 
   document.addEventListener('DOMContentLoaded', function () {
-    replaceLinksWithCheckboxes('source-filters', 'sources');
-    replaceLinksWithCheckboxes('ext-filters', 'exts');
-    replaceLinksWithCheckboxes('tag-filters', 'tags');
+    document.querySelectorAll('[data-facet-mode="filter"] [data-facet]').forEach(upgradeFacet);
+    document.querySelectorAll('table.doc-table').forEach(enableTableSort);
 
     var searchContainer = document.getElementById('search-container');
     if (searchContainer) searchContainer.style.display = '';
@@ -620,7 +739,7 @@ let private appJs = """
     var searchInput = document.getElementById('search-input');
     if (searchInput) {
       searchInput.addEventListener('input', function () {
-        filterState.query = searchInput.value;
+        query = searchInput.value;
         applyFilters();
       });
     }
@@ -881,9 +1000,13 @@ let private graphJs = """
     if (!nodeId || !window.ERU_DATA_ROOT || window.location.protocol === 'file:') return;
     fetch(window.ERU_DATA_ROOT + 'graph.json')
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (graph) { renderGraph(container, graph, nodeId); })
+      .then(function (graph) {
+        renderGraph(container, graph, nodeId);
+        var section = container.closest('.doc-graph');
+        if (section) section.hidden = false;
+      })
       .catch(function () {
-        console.warn('[eru] Could not load graph.json — showing plain-text linked document list.');
+        console.warn('[eru] Could not load graph.json — the graph stays hidden; linked documents are listed by the related widget.');
       });
   });
 })();
@@ -962,10 +1085,57 @@ let private writeFile (path: string) (content: string) : Result<unit, string> =
 let private writeFileR (path: string) (content: string) : unit =
     writeFile path content |> ignore
 
+// ── content pages ────────────────────────────────────────────────────────────
+
+/// Repo-relative Markdown files that custom pages render; `eru site serve` watches these.
+let referencedContentFiles (cfg: EffectiveConfig) : string list =
+    cfg.Site.Pages
+    |> List.choose (function
+        | _, Defined { Content = Some (ContentFile f) } -> SiteSettings.normalizeRelPath f
+        | _ -> None)
+    |> List.distinct
+
+let private hasScheme (s: string) = System.Text.RegularExpressions.Regex.IsMatch(s, @"^[a-zA-Z][a-zA-Z0-9+.\-]*:")
+
+/// Rewrites a link in rendered content to a site URL when it points at another content page,
+/// a pulled local file or an indexed document; anything else is left alone.
+let private rewriteLink
+    (localTargets: Map<string, string>) (docUrls: Map<string, string>)
+    (prefix: string) (baseDir: string) (sourceName: string option) (href: string) : string option =
+    if href = "" || href.StartsWith "#" || href.StartsWith "/" then None
+    else
+        let hashAt = href.IndexOf '#'
+        let path, frag = if hashAt < 0 then href, "" else href.Substring(0, hashAt), href.Substring hashAt
+        let path = (try Uri.UnescapeDataString path with _ -> path)
+        let site (url: string) = Some (prefix + url + frag)
+        if hasScheme path then
+            docUrls |> Map.tryFind path |> Option.bind site
+        else
+            let joined = if baseDir = "" then path else baseDir + "/" + path
+            match SiteSettings.normalizeRelPath joined with
+            | None -> None
+            | Some rel ->
+                match localTargets |> Map.tryFind rel with
+                | Some url -> site url
+                | None ->
+                    sourceName
+                    |> Option.bind (fun src -> docUrls |> Map.tryFind $"{src}:{rel}")
+                    |> Option.bind site
+
 // ── generate ─────────────────────────────────────────────────────────────────
+
+let private dirOf (path: string) =
+    match path.LastIndexOf '/' with
+    | -1 -> ""
+    | i -> path.Substring(0, i)
 
 let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Result<unit, string> =
     let out = opts.OutputDir
+    let settings = cfg.Site
+
+    match SiteSettings.validate settings with
+    | Error e -> Error e
+    | Ok () ->
 
     // build model
     let modelResult = IndexBuilder.buildModel deps cfg
@@ -997,8 +1167,206 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
         let toRelated (n: LinkGraph.NodeId) : RelatedDoc =
             let info = nodeInfo n
             { Id = info.Id; Title = info.Title; PageUrl = info.PageUrl; IsExternal = info.Kind = "external" }
-        { Incoming = edges.Incoming |> List.map toRelated
-          Outgoing = edges.Outgoing |> List.map toRelated }
+        { Incoming = edges.Incoming |> List.distinct |> List.map toRelated
+          Outgoing = edges.Outgoing |> List.distinct |> List.map toRelated }
+
+    // cached content of an indexed document (pulled and cached docs both read from the cache)
+    let cachedContent (doc: SiteDocument) : string option =
+        match doc.SyncStatus with
+        | Pulled | Cached ->
+            match deps.ReadSourceIndex doc.Source with
+            | Ok (Some idx) ->
+                idx.Entries
+                |> Map.tryFind doc.RemotePath
+                |> Option.bind (fun e -> e.CacheRelPath)
+                |> Option.bind (fun rel ->
+                    match deps.ReadCachedSourceContent doc.Source rel with
+                    | Ok (Some content) -> Some content
+                    | _ -> None)
+            | _ -> None
+        | IndexOnly -> None
+
+    let now = deps.GetUtcNow()
+    let specs = PageSpecs.resolve settings
+    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs }
+    let isLive (id: string) = env.PageLinks.ContainsKey id
+
+    let sourceUrlFor (d: SiteDocument) : string option =
+        cfg.Sources
+        |> List.tryFind (fun s -> s.Name = d.Source)
+        |> Option.bind (fun s -> s.Url |> Option.bind (fun u -> Views.sourceFileUrl u s.Branch d.RemotePath))
+
+    let viewContext (prefix: string) (def: PageDef option) : Views.ViewContext =
+        { Prefix = prefix; TagsLive = isLive "tags"; Open = PageLayout.openTarget settings def; SourceUrl = sourceUrlFor }
+
+    // link targets for rewriting links inside content pages
+    let docUrls =
+        model.Documents |> List.choose (fun d -> d.PageUrl |> Option.map (fun u -> d.Id, u)) |> Map.ofList
+    let localTargets =
+        let fromPages =
+            specs |> List.choose (fun sp ->
+                match sp.Def with
+                | Some { Content = Some (ContentFile f) } -> SiteSettings.normalizeRelPath f |> Option.map (fun n -> n, sp.Url)
+                | _ -> None)
+        let fromLock =
+            model.Sources |> List.collect (fun src ->
+                match deps.ReadSourceIndex src.Name with
+                | Ok (Some idx) ->
+                    idx.Entries |> Map.toList |> List.choose (fun (remote, e) ->
+                        match e.LocalPath, docUrls |> Map.tryFind $"{src.Name}:{remote}" with
+                        | Some lp, Some url -> SiteSettings.normalizeRelPath lp |> Option.map (fun n -> n, url)
+                        | _ -> None)
+                | _ -> [])
+        Map.ofList (fromLock @ fromPages)
+
+    // load every content page up front so a bad reference fails before anything is written
+    let loadContent (spec: PageSpecs.PageSpec) (def: PageDef) (content: ContentRef) : Result<string * SiteDocument option, string> =
+        let path = $"site.pages.{spec.Id}.content"
+        let prefix = prefixFor (PageSpecs.depthOf spec.Url)
+        match content with
+        | ContentFile f ->
+            match SiteSettings.normalizeRelPath f with
+            | None -> Error $"{path}.file '{f}' must be a path inside the repository"
+            | Some rel ->
+                match deps.ReadLocalFile (Path.Combine(deps.GetCwd(), rel)) with
+                | Error e -> Error $"{path}.file '{f}' could not be read: {e}"
+                | Ok None -> Error $"{path}.file '{f}' does not exist"
+                | Ok (Some text) ->
+                    Ok (MarkdownRenderer.renderWith (rewriteLink localTargets docUrls prefix (dirOf rel) None) text, None)
+        | ContentDoc d ->
+            match model.Documents |> List.tryFind (fun x -> x.Id = d) with
+            | None -> Error $"{path}.doc '{d}' does not match any indexed document"
+            | Some doc ->
+                match cachedContent doc with
+                | None -> Error $"{path}.doc '{d}' is not cached; run 'eru sync' to pull it"
+                | Some text ->
+                    Ok (MarkdownRenderer.renderWith (rewriteLink localTargets docUrls prefix (dirOf doc.RemotePath) (Some doc.Source)) text, Some doc)
+        |> fun r -> ignore def; r
+
+    let contents =
+        specs
+        |> List.fold (fun acc spec ->
+            acc |> Result.bind (fun (m: Map<string, string * SiteDocument option>) ->
+                match spec.Def |> Option.bind (fun d -> d.Content |> Option.map (fun c -> d, c)) with
+                | None -> Ok m
+                | Some (def, c) -> loadContent spec def c |> Result.map (fun r -> Map.add spec.Id r m))) (Ok Map.empty)
+
+    match contents with
+    | Error e -> Error e
+    | Ok contents ->
+
+    // ── render every page into memory ────────────────────────────────────────
+    let pages = ResizeArray<string * string>()
+    let add (path: string) (html: string) = pages.Add((path, html))
+
+    let docList (prefix: string) (def: PageDef option) (docs: SiteDocument list) : string =
+        let vc = viewContext prefix def
+        let spec = PageLayout.viewSpec settings def
+        match def |> Option.bind (fun d -> d.Group) with
+        | Some g -> Views.renderGroups vc spec (FilterEngine.group g docs)
+        | None -> Views.renderDocs vc spec docs
+
+    for spec in specs do
+        let depth = PageSpecs.depthOf spec.Url
+        let p = prefixFor depth
+        let data, kind, pageLayout =
+            match spec.Def with
+            | Some def ->
+                let docs =
+                    def.Filter
+                    |> Option.map (fun f ->
+                        model.Documents
+                        |> FilterEngine.apply now f
+                        |> FilterEngine.sort def.Sort
+                        |> FilterEngine.limit def.Limit)
+                let content = contents |> Map.tryFind spec.Id
+                let kind =
+                    match def.Content, def.Filter with
+                    | Some _, Some _ -> ContentListPage
+                    | Some _, None -> ContentPage
+                    | None, _ -> ListPage
+                let contentDoc = content |> Option.bind snd
+                { Widgets.PageData.empty with
+                    Title = spec.Title
+                    ContentHtml = content |> Option.map fst
+                    Doc = contentDoc
+                    Related = contentDoc |> Option.map relatedFor
+                    ListHtml = docs |> Option.map (docList p (Some def))
+                    DocCount = docs |> Option.map List.length
+                    Searchable = docs.IsSome
+                    FacetMode = if spec.Id = "browse" then Widgets.FacetFilter else Widgets.FacetLinks },
+                kind, def.Layout
+            | None ->
+                let basePage = { Widgets.PageData.empty with Title = spec.Title }
+                let listPage (html: string) = { basePage with ListHtml = Some html }
+                let data =
+                    match spec.Id with
+                    | "browse" ->
+                        { basePage with
+                            ListHtml = Some (docList p None model.Documents)
+                            DocCount = Some model.Documents.Length
+                            Searchable = true
+                            FacetMode = Widgets.FacetFilter }
+                    | "sources" -> listPage (HtmlTemplates.sourcesListHtml p model.Sources)
+                    | "tags" -> listPage (HtmlTemplates.tagsListHtml p model.Tags)
+                    | "types" -> listPage (HtmlTemplates.typesListHtml p model.Types)
+                    | _ -> listPage (HtmlTemplates.bundlesListHtml p model.Bundles)
+                data, ListPage, Layout.empty
+        let slots = PageLayout.forPage settings kind pageLayout
+        add spec.Url (HtmlTemplates.render env depth slots data)
+
+    let detailPage (parentId: string) (parentLabel: string) (depth: int) (title: string) (titleHtml: string option)
+                   (cli: (string * string) list) (docs: SiteDocument list) : string =
+        let p = prefixFor depth
+        let data = HtmlTemplates.detailPageData env depth parentId parentLabel title titleHtml cli (docList p None docs) docs.Length
+        HtmlTemplates.render env depth (PageLayout.forPage settings DetailPage Layout.empty) data
+
+    // sources/<name>/index.html
+    if isLive "sources" then
+        for source in model.Sources do
+            let manifestBadge =
+                if source.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
+                else """<span class="badge badge-no-manifest">no manifest</span>"""
+            let addRef = source.Url |> Option.defaultValue source.Name
+            let titleHtml = $"{Views.escapeHtml source.Name} {manifestBadge}"
+            add $"sources/{Uri.EscapeDataString source.Name}/index.html"
+                (detailPage "sources" "Sources" 2 source.Name (Some titleHtml) [ "add source", $"eru source add {addRef}" ] source.Files)
+
+    // tags/<tag>/index.html
+    if isLive "tags" then
+        for tag in model.Tags do
+            add $"tags/{Uri.EscapeDataString tag.Name}/index.html"
+                (detailPage "tags" "Tags" 2 $"#{tag.Name}" None
+                    [ "pull all", $"eru add --tag {tag.Name}"; "search", $"eru search --tag {tag.Name}" ] tag.Files)
+
+    // types/<type>/index.html
+    if isLive "types" then
+        for typ in model.Types do
+            add $"types/{Uri.EscapeDataString typ.Name}/index.html"
+                (detailPage "types" "Types" 2 typ.Name None [] typ.Files)
+
+    // bundles/<source>/<path>/index.html
+    if isLive "bundles" then
+        for bundle in model.Bundles do
+            add (HtmlTemplates.bundleUrl bundle)
+                (detailPage "bundles" "Bundles" (Views.bundleDepth bundle) bundle.Name None [] bundle.Files)
+
+    // files/<source>/<slug>.html
+    if opts.Features.FilePages then
+        for doc in model.Documents do
+            match doc.PageUrl with
+            | Some _ ->
+                match cachedContent doc with
+                | Some content ->
+                    let htmlContent = MarkdownRenderer.render content
+                    let sourceSlug = Uri.EscapeDataString doc.Source
+                    let fileSlug = doc.RemotePath.Replace('/', '_').Replace('\\', '_').Replace(' ', '-')
+                    let data = HtmlTemplates.documentPageData env doc htmlContent (relatedFor doc)
+                    add $"files/{sourceSlug}/{fileSlug}.html" (HtmlTemplates.render env 2 (PageLayout.forDocument settings now doc) data)
+                | None -> ()
+            | None -> ()
+
+    // ── write ────────────────────────────────────────────────────────────────
 
     // write CSS — style.css is always regenerated; custom.css is user-owned
     let customCssExtra =
@@ -1052,68 +1420,8 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
         let graphDto : GraphDto = { nodes = nodeDtos; edges = edgeDtos }
         writeFileR (Path.Combine(out, "data/graph.json")) (JsonSerializer.Serialize(graphDto, jsonOpts))
 
-    // index.html
-    writeFileR (Path.Combine(out, "index.html")) (HtmlTemplates.indexPage model)
-
-    // sources/index.html
-    writeFileR (Path.Combine(out, "sources/index.html")) (HtmlTemplates.sourcesPage model.Sources)
-
-    // sources/<name>/index.html
-    if opts.Features.SourcePages then
-        for source in model.Sources do
-            let nameSlug = Uri.EscapeDataString source.Name
-            writeFileR (Path.Combine(out, $"sources/{nameSlug}/index.html")) (HtmlTemplates.sourceFilesPage source)
-
-    // tags/index.html + tags/<tag>/index.html
-    if opts.Features.TagPages then
-        writeFileR (Path.Combine(out, "tags/index.html")) (HtmlTemplates.tagsPage model.Tags)
-        for tag in model.Tags do
-            let tagSlug = Uri.EscapeDataString tag.Name
-            writeFileR (Path.Combine(out, $"tags/{tagSlug}/index.html")) (HtmlTemplates.tagFilesPage tag)
-
-    // types/index.html + types/<type>/index.html
-    if opts.Features.TagPages then
-        writeFileR (Path.Combine(out, "types/index.html")) (HtmlTemplates.typesPage model.Types)
-        for typ in model.Types do
-            let typeSlug = Uri.EscapeDataString typ.Name
-            writeFileR (Path.Combine(out, $"types/{typeSlug}/index.html")) (HtmlTemplates.typeFilesPage typ)
-
-    // bundles/index.html + bundles/<source>/<path>/index.html
-    if opts.Features.TagPages then
-        writeFileR (Path.Combine(out, "bundles/index.html")) (HtmlTemplates.bundlesPage model.Bundles)
-        for bundle in model.Bundles do
-            writeFileR (Path.Combine(out, HtmlTemplates.bundleUrl bundle)) (HtmlTemplates.bundleFilesPage bundle)
-
-    // files/<source>/<slug>.html
-    if opts.Features.FilePages then
-        for doc in model.Documents do
-            match doc.PageUrl, doc.SyncStatus with
-            | Some _, (Pulled | Cached) ->
-                let contentOpt =
-                    match doc.SyncStatus with
-                    | Pulled | Cached ->
-                        // find the IndexEntry to get the cacheRelPath
-                        match deps.ReadSourceIndex doc.Source with
-                        | Ok (Some idx) ->
-                            idx.Entries
-                            |> Map.tryFind doc.RemotePath
-                            |> Option.bind (fun e -> e.CacheRelPath)
-                            |> Option.bind (fun rel ->
-                                match deps.ReadCachedSourceContent doc.Source rel with
-                                | Ok (Some content) -> Some content
-                                | _ -> None)
-                        | _ -> None
-                    | _ -> None
-                match contentOpt with
-                | Some content ->
-                    let htmlContent = MarkdownRenderer.render content
-                    let sourceSlug = Uri.EscapeDataString doc.Source
-                    let fileSlug = doc.RemotePath.Replace('/', '_').Replace('\\', '_').Replace(' ', '-')
-                    let filePath = Path.Combine(out, $"files/{sourceSlug}/{fileSlug}.html")
-                    let related = relatedFor doc
-                    writeFileR filePath (HtmlTemplates.filePage doc htmlContent related)
-                | None -> ()
-            | _ -> ()
+    for path, html in pages do
+        writeFileR (Path.Combine(out, path)) html
 
     // open browser
     if opts.OpenBrowser then
