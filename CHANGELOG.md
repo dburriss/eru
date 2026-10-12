@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-12
+
 ### Added
 
 - `eru config` inspects and manages configuration: `list` shows the global and local config files with their paths and versions, `view` shows the effective config with the origin (`local`, `global` or `default`) of each value, `get <key>` shows one setting, `set <key> <json-value> [--global] [--unset]` edits a setting (validated before writing, files left untouched on error) and `migrate [--local|--global] [--dryrun]` rewrites an older config as version 3, keeping a `.bak` of the original
