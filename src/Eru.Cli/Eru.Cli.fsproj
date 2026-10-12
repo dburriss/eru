@@ -16,7 +16,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>`eru print &lt;source:path|hash&gt;` prints a document's contents to stdout (`-o json` for `{source, path, hash, content}`). It resolves from the source indexes, so documents need not be added first, and reads the local file, then the cache, then a live fetch. A 3-8 character path hash that matches several documents errors and lists the candidates</PackageReleaseNotes>
+    <PackageReleaseNotes>`eru config` inspects and manages configuration: `list` shows config files and versions, `view` shows the effective config with where each value comes from, `get`/`set` read and edit a setting, and `migrate` rewrites an older config as version 3 (with a `.bak` backup, `--dryrun` to preview)</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -74,6 +74,7 @@
     <Compile Include="RemoveCli.fs" />
     <Compile Include="DisconnectCli.fs" />
     <Compile Include="PrintCli.fs" />
+    <Compile Include="ConfigCli.fs" />
     <Compile Include="CachePruneCli.fs" />
     <Compile Include="CacheClearCli.fs" />
     <Compile Include="BrowseCli.fs" />

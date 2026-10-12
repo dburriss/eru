@@ -700,6 +700,82 @@ eru print a1b2 -o json | jq -r .content
 
 ---
 
+## `eru config`
+
+Inspect, edit and migrate configuration. Two files are involved: the global config (`~/.config/eru/config.json`) and the local config (`.eru/config.json`); see the [config file reference](config-file.md).
+
+### `eru config list`
+
+List both config files with their path, on-disk version and status (`ok`, `missing` or `needs migration`).
+
+```
+eru config list [-o table|text|json]
+```
+
+### `eru config view`
+
+Show the effective (merged) config. Every setting is listed with its value and its origin: `local`, `global` or `default`. Sources and inboxes are listed with the file they come from.
+
+```
+eru config view [-o table|text|json]
+```
+
+### `eru config get`
+
+Show the effective value and origin of one setting.
+
+```
+eru config get <key> [-o table|text|json]
+```
+
+`<key>` is a dotted path such as `sync.commitOnPull` or `files.blockPatterns`. `-o text` prints the bare JSON value.
+
+### `eru config set`
+
+Set or remove a setting. Writes to the local config by default.
+
+```
+eru config set <key> <value> [--global] [-o table|text|json]
+eru config set <key> --unset [--global]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<key>` | Dotted key inside `site`, `okf`, `mcp`, `sync`, `files` or `inbox` |
+| `<value>` | A JSON value (`true`, `5`, `'["*.zip"]'`); a bare word is stored as a string. A list replaces the whole list |
+| `-g`, `--global` | Write to the global config |
+| `--unset` | Remove the key instead of setting it |
+
+The result must still load and merge with the other file, otherwise nothing is written. A file older than version 3 is refused; run `eru config migrate` first. Sources, collections and inbox items are managed with `eru source`, `eru collection` and `eru inbox`.
+
+### `eru config migrate`
+
+Rewrite a config file as the latest version (3).
+
+```
+eru config migrate [--local | --global] [--dryrun] [-o table|text|json]
+```
+
+| Flag | Description |
+|---|---|
+| `--local` | Migrate `.eru/config.json` (default) |
+| `-g`, `--global` | Migrate the global config |
+| `--dryrun` | Print the migrated config without writing anything |
+
+The original is kept next to it as `config.json.bak`. A file that is already current is left alone; a file from a newer eru is an error.
+
+**Examples**
+
+```bash
+eru config list
+eru config view
+eru config set sync.commitOnPull true
+eru config set --global files.blockPatterns '["*.exe","*.zip"]'
+eru config migrate --dryrun
+```
+
+---
+
 ## `eru remove`
 
 Delete a locally pulled file from disk and remove its entry from `.eru/eru.lock`.

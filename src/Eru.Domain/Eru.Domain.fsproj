@@ -44,6 +44,7 @@
     <Compile Include="Remove.fs" />
     <Compile Include="Disconnect.fs" />
     <Compile Include="Read.fs" />
+    <Compile Include="ConfigCmd.fs" />
     <Compile Include="ManifestValidate.fs" />
     <Compile Include="Add.fs" />
     <Compile Include="Search.fs" />

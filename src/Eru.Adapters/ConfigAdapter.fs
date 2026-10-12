@@ -48,3 +48,38 @@ module ConfigAdapter =
             File.WriteAllText(path, Serialization.serialize cfg)
             Ok ()
         with ex -> Error ex.Message
+
+    let private readRaw (path: string) : Result<string option, string> =
+        try
+            if File.Exists path then Ok (Some (File.ReadAllText path)) else Ok None
+        with ex -> Error ex.Message
+
+    let private writeRaw (path: string) (content: string) : Result<unit, string> =
+        try
+            let dir = System.IO.Path.GetDirectoryName path
+            if dir <> null && dir <> "" then System.IO.Directory.CreateDirectory dir |> ignore
+            File.WriteAllText(path, content)
+            Ok ()
+        with ex -> Error ex.Message
+
+    // Raw-file access for `eru config`, which needs the on-disk text and version.
+    let configIO (cwd: string) : ConfigIO =
+        {
+            Path = (function
+                | LocalScope  -> Paths.localConfigPath cwd
+                | GlobalScope -> Paths.globalConfigPath ())
+            ReadRaw  = readRaw
+            WriteRaw = writeRaw
+            ParseGlobal =
+                Config.readAndMigrateGlobalJson
+                    Serialization.deserialize<GlobalConfig>
+                    Serialization.deserialize<GlobalConfigV2>
+                    Serialization.deserialize<GlobalConfigV1>
+            ParseLocal =
+                Config.readAndMigrateLocalJson
+                    Serialization.deserialize<LocalConfig>
+                    Serialization.deserialize<LocalConfigV2>
+                    Serialization.deserialize<LocalConfigV1>
+            SerializeGlobal = Serialization.serialize<GlobalConfig>
+            SerializeLocal  = Serialization.serialize<LocalConfig>
+        }

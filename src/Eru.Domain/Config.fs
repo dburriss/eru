@@ -505,7 +505,7 @@ module Config =
             (fun (s: OkfSection) -> s.IgnorePatterns)
         |> Option.defaultValue defaultOkfIgnorePatterns
 
-    let private supportedVersion = 3
+    let supportedVersion = 3
 
     let private checkVersion label version =
         if version > supportedVersion then
@@ -844,7 +844,7 @@ module Config =
     // number) and whether any source still uses the v1 `basePath` instead of `bundles`.
     // The latter is needed because System.Text.Json would happily read a v1 file as the
     // v2 shape (unknown `basePath` ignored, `bundles` left null) and drop the base path.
-    let private probe (json: string) : Result<int option * bool, string> =
+    let probe (json: string) : Result<int option * bool, string> =
         try
             use doc = System.Text.Json.JsonDocument.Parse json
             let root = doc.RootElement

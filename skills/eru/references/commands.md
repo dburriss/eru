@@ -72,6 +72,20 @@ Performs one git clone per source (not per file), refreshes all manifest caches,
 
 ---
 
+## `eru config`
+
+```
+eru config list    [-o table|text|json]
+eru config view    [-o table|text|json]
+eru config get     <key> [-o table|text|json]
+eru config set     <key> <json-value> [--global] [--unset]
+eru config migrate [--local | --global] [--dryrun]
+```
+
+`list` shows each config file's path and version. `view` shows the effective config with each value's origin (`local`, `global`, `default`). `get`/`set` use dotted keys inside `site`, `okf`, `mcp`, `sync`, `files` and `inbox` (not sources, collections or inbox items); values are JSON and lists replace the whole list; `set` validates before writing and refuses files older than v3. `migrate` rewrites a v1/v2 config as v3 and keeps `config.json.bak`.
+
+---
+
 ## `eru print`
 
 ```

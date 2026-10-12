@@ -35,6 +35,7 @@ open Eru.Cli.ManifestValidateCli
 open Eru.Cli.RemoveCli
 open Eru.Cli.DisconnectCli
 open Eru.Cli.PrintCli
+open Eru.Cli.ConfigCli
 open Eru.Cli.CachePruneCli
 open Eru.Cli.CacheClearCli
 open Eru.Cli.BrowseCli
@@ -94,6 +95,7 @@ let main argv =
         | RemoveCmd cmd               -> RemoveCli.run deps cmd
         | DisconnectCmd cmd           -> DisconnectCli.run deps cmd
         | PrintCmd cmd                -> PrintCli.run deps cmd
+        | ConfigCommand cmd           -> ConfigCli.run (ConfigAdapter.configIO (deps.GetCwd())) cmd
         | CachePruneCmd pruneArgs     -> CachePruneCli.runPrune pruneArgs
         | CacheClearCmd clearArgs    -> CacheClearCli.runClear clearArgs
         | BrowseCmd cmd               -> BrowseCli.run deps cmd

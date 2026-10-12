@@ -263,6 +263,8 @@ are also written as version 3. See the [CLI reference](cli.md#eru-init) for flag
 
 ## Upgrading from earlier versions
 
+Run `eru config list` to see each file's version and `eru config migrate` (or `eru config migrate --global`) to rewrite an old file as version 3 now; the original is kept as `config.json.bak` and `--dryrun` previews the result.
+
 Version 3 is a breaking format change, but eru migrates older files automatically when it reads them. The
 migrated result is held in memory and written back in the v3 format only the next time eru saves that file
 (for example `eru source add` or `eru inbox default`); a read-only command such as `eru sync` leaves the file on

@@ -100,6 +100,7 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru collection create <name>` | Create a new collection |
 | `eru collection add <name> -f <source:path>` | Add a file reference to a collection |
 | `eru print <source:path\|hash>` | Print a document's contents to stdout |
+| `eru config list\|view\|get\|set\|migrate` | Inspect, edit and migrate configuration |
 | `eru remove <path>` | Delete a pulled file and drop it from the lock file |
 | `eru disconnect <path>` | Stop tracking a file but keep it on disk |
 | `eru browse` | Browse the knowledge cache in an interactive terminal UI |

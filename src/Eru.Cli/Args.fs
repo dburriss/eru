@@ -548,6 +548,71 @@ type CacheArgs =
             | Prune _ -> "Remove orphaned content files not referenced by any source index."
             | Clear _ -> "Delete all cached indexes and files."
 
+type ConfigListArgs =
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _ -> "Output format: table (default), text, json."
+
+type ConfigViewArgs =
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _ -> "Output format: table (default), text, json."
+
+type ConfigGetArgs =
+    | [<MainCommand; ExactlyOnce>]     Key of key: string
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Key _    -> "Dotted setting key, e.g. sync.commitOnPull or files.blockPatterns."
+            | Output _ -> "Output format: table (default), text (bare value), json."
+
+type ConfigSetArgs =
+    | [<MainCommand>]                  Key_Value of key_and_value: string list
+    | [<Unique; AltCommandLine("-g")>] Global
+    | [<Unique>]                       Unset
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Key_Value _ -> "Dotted key and a JSON value (e.g. sync.commitOnPull true, files.blockPatterns '[\"*.exe\"]'). Bare words are taken as strings."
+            | Global      -> "Write to the global config (~/.config/eru/config.json) instead of the local one."
+            | Unset       -> "Remove the key instead of setting it."
+            | Output _    -> "Output format: table (default), text, json."
+
+type ConfigMigrateArgs =
+    | [<Unique>]                       Local
+    | [<Unique; AltCommandLine("-g")>] Global
+    | [<Unique>]                       Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Local    -> "Migrate the local config (default)."
+            | Global   -> "Migrate the global config."
+            | Dryrun   -> "Print the migrated config without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
+[<CliPrefix(CliPrefix.None)>]
+type ConfigArgs =
+    | [<SubCommand>] List    of ParseResults<ConfigListArgs>
+    | [<SubCommand>] View    of ParseResults<ConfigViewArgs>
+    | [<SubCommand>] Get     of ParseResults<ConfigGetArgs>
+    | [<SubCommand>] Set     of ParseResults<ConfigSetArgs>
+    | [<SubCommand>] Migrate of ParseResults<ConfigMigrateArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | List _    -> "List the config files, their paths and versions."
+            | View _    -> "Show the effective config and where each value comes from."
+            | Get _     -> "Show the effective value of one setting."
+            | Set _     -> "Set or remove a setting in the local (or global) config."
+            | Migrate _ -> "Rewrite a config file at the latest version (keeps a .bak)."
+
 type BrowseArgs =
     | [<Hidden>] Placeholder
     interface IArgParserTemplate with
@@ -682,6 +747,7 @@ type EruArgs =
     | [<SubCommand>] Disconnect of ParseResults<DisconnectArgs>
     | [<SubCommand>] Print      of ParseResults<PrintArgs>
     | [<SubCommand>] Cache      of ParseResults<CacheArgs>
+    | [<SubCommand>] Config     of ParseResults<ConfigArgs>
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
     | [<SubCommand>] Site       of ParseResults<SiteArgs>
@@ -704,6 +770,7 @@ type EruArgs =
             | Disconnect _ -> "Remove a tracked artifact from the lock file without deleting the local file."
             | Print _      -> "Print the contents of a document by 'source:path' or path hash."
             | Cache _      -> "Manage the local knowledge cache."
+            | Config _     -> "Inspect, change and migrate eru configuration."
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
             | Browse _     -> "Interactively browse sources and tracked files."
             | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
