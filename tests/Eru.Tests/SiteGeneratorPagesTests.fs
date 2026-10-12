@@ -307,3 +307,52 @@ let ``document pages open with the graph and end with the related lists`` () =
         Assert.Equal(1, doc.Split("Links from this document").Length - 1)
         Assert.Contains("class=\"doc-graph\" hidden", doc)
         Assert.Contains("section.hidden = false", readOut out "js/graph.js"))
+
+// ── relative links in document bodies ────────────────────────────────────────
+
+let private linkIndex =
+    Map.ofList [
+        "authentication/explanation.md", makeEntry (Some "files/a1") "Auth"
+        "authentication/how-to.md", makeEntry (Some "files/a2") "How to"
+        "authorization/explanation.md", makeEntry (Some "files/z1") "Authz"
+    ]
+
+let private linkBody =
+    String.concat "\n" [
+        "# How"
+        "[a](explanation.md) [b](./explanation.md) [c](../authorization/explanation.md)"
+        "[d](explanation.md#part-3) [e](missing.md) [f](https://example.com/explanation.md)"
+        "[g](mailto:x@y.z) [h](#local) ![i](img.png)"
+        "[r][ref]"
+        ""
+        "[ref]: explanation.md"
+        ""
+        "`[code](explanation.md)`"
+        ""
+        "```"
+        "[fence](explanation.md)"
+        "```"
+    ]
+
+let private linkContent =
+    Map.ofList [ "files/a1", "# Auth"; "files/a2", linkBody; "files/z1", "# Authz" ]
+
+[<Fact>]
+let ``relative body links resolve to the flattened page of the right folder`` () =
+    generateWith (makeDeps linkIndex linkContent Map.empty) "{}" (fun out ->
+        let html = readOut out "files/src/authentication_how-to.md.html"
+        let own = "../../files/src/authentication_explanation.md.html"
+        let other = "../../files/src/authorization_explanation.md.html"
+        Assert.Contains($"href=\"{own}\">a<", html)
+        Assert.Contains($"href=\"{own}\">b<", html)
+        Assert.Contains($"href=\"{other}\">c<", html)
+        Assert.Contains($"href=\"{own}#part-3\">d<", html)
+        Assert.Contains($"href=\"{own}\">r<", html)
+        // untouched: dangling, external, mailto, anchor, image, code
+        Assert.Contains("href=\"missing.md\"", html)
+        Assert.Contains("href=\"https://example.com/explanation.md\"", html)
+        Assert.Contains("href=\"mailto:x@y.z\"", html)
+        Assert.Contains("href=\"#local\"", html)
+        Assert.Contains("src=\"img.png\"", html)
+        Assert.Contains("[code](explanation.md)", html)
+        Assert.Contains("[fence](explanation.md)", html))

@@ -1358,7 +1358,8 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
             | Some _ ->
                 match cachedContent doc with
                 | Some content ->
-                    let htmlContent = MarkdownRenderer.render content
+                    let htmlContent =
+                        MarkdownRenderer.renderWith (rewriteLink Map.empty docUrls (prefixFor 2) (dirOf doc.RemotePath) (Some doc.Source)) content
                     let sourceSlug = Uri.EscapeDataString doc.Source
                     let fileSlug = doc.RemotePath.Replace('/', '_').Replace('\\', '_').Replace(' ', '-')
                     let data = HtmlTemplates.documentPageData env doc htmlContent (relatedFor doc)
