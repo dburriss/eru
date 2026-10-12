@@ -8,7 +8,7 @@
     <PackageId>Eru.Tool</PackageId>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>eru</ToolCommandName>
-    <Version>0.13.0</Version>
+    <Version>0.13.1</Version>
     <Authors>Devon Burriss</Authors>
     <Description>A CLI tool for sharing knowledge files across projects via git-backed sources.</Description>
     <Title>eru</Title>
@@ -16,20 +16,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>ai cli knowledge mcp dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>`eru config` inspects and manages configuration: `list` shows the global and local config files with their paths and versions, `view` shows the effective config with the origin (`local`, `global` or `default`) of each value, `get &lt;key&gt;` shows one setting, `set &lt;key&gt; &lt;json-value&gt; [--global] [--unset]` edits a setting (validated before writing, files left untouched on error) and `migrate [--local|--global] [--dryrun]` rewrites an older config as version 3, keeping a `.bak` of the original
-Configurable generated site. Every page is built from four slots (`top`, `left`, `right`, `main`) of widgets, set under `site.layout` (site-wide) and per page; a slot is an ordered list or `false`. Widgets: `breadcrumbs`, `title`, `meta`, `verified`, `generated`, `description`, `tags`, `stale`, `cli`, `content`, `list`, `toc`, `related`, `graph`, `facets`, `links`
-`site.pages` defines custom pages at `pages/&lt;id&gt;/index.html`: a `filter` (by `source`, `bundle`, `type`, `tag`, `status`, `ext`, `path` globs, `stale`, with `not`) with `sort`, `group`, `limit` and `open` (`page`, `resource` or `source`), a `content` page rendering a repo Markdown file (`content.file`) or an indexed document (`content.doc`), or both. The built-in pages (`browse`, `sources`, `tags`, `types`, `bundles`) can be dropped with `false` or overridden by a page of the same id, and `site.home` picks the page at `index.html`
-Three list views, `cards`, `list` and `table`, chosen with `site.defaultView` or a page's `view`; `site.cards.columns` (1-6) sets the card grid's maximum columns. Table headers sort when JavaScript is available
-`site.document` configures document pages: `layout` for every document and `rules` that match on `type`, `tag`, `bundle`, `source` and the other filter fields, so different documents get different layouts. The `verified` widget shows the trust tier with each verifier and date; `generated` shows who or what generated a document and when
-`eru site serve` rebuilds when a local Markdown file used by a content page changes
-Site config errors (unknown page or widget, a widget in a slot it is not valid in, a bad view or column, a missing or out-of-repo content file) fail with a message naming the key; a failed rebuild writes nothing, so `eru site serve` keeps serving the last good build
-**Breaking:** the generated site has refreshed defaults. Every page gets a facet column on the left and, when it has headings or links, a table of contents on the right; lists are a card grid of up to three columns; the top nav is built from the pages that exist. Document pages are rebuilt from widgets, and the default document layout shows the link graph at the top of the page and the linked-document lists at the bottom. To get close to the old look, set `site.layout.left` and `site.layout.right` to `false` and `site.cards.columns` to `1`
-Browse filtering is driven by markup instead of per-list ids: any element marked `data-doc` is filterable, `data-&lt;facet&gt;` attributes hold its values as JSON arrays and `data-facet="&lt;name&gt;"` on a sidebar list makes it a filter. Types and bundles are now checkbox facets on Browse. Custom CSS or scripts that relied on `#file-list`, `#file-count` or the `source-filters`, `ext-filters` and `tag-filters` ids need updating
-The page-level `SiteFeatures` flags `TagPages` and `SourcePages` are removed from `GenerateOptions`; drop pages with `site.pages.&lt;id&gt;: false` instead (`types` and `bundles` were previously tied to `TagPages`)
-**Breaking:** config files are now version 3. Settings are grouped into top-level sections, shared by `~/.config/eru/config.json` and `.eru/config.json`, and the `settings` / `defaults` blocks are removed. Section names are singular and the entities a section holds always live under `items`. Version 1 and 2 files are migrated automatically when read and rewritten as version 3 only on the next save (read-only commands leave the file untouched); newly created configs are written as version 3
-Every settings section is now valid in both the global and the local file, merging local-over-global per key. `sync.stateFile` was previously local-only, and `sync.branch` and `mcp.refreshIntervalMinutes` global-only
-`eru inbox default` writes `inbox.default`
-Reading a version 1 config (sources with `basePath`) migrates `basePath` to a `manifest` bundle instead of dropping it</PackageReleaseNotes>
+    <PackageReleaseNotes>`eru site` rewrites relative Markdown links in document bodies (`explanation.md`, `./x.md#anchor`, `../other/x.md`) to the generated page; links to unindexed files, external links and code are left as written</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/dburriss/eru</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dburriss/eru</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

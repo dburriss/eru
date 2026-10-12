@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-10-12
+
 ### Fixed
 
 - `eru site` rewrites relative Markdown links in document bodies (`explanation.md`, `./x.md#anchor`, `../other/x.md`) to the generated page; links to unindexed files, external links and code are left as written
