@@ -68,6 +68,18 @@ Add to `.github/mcp.json`. Without the .NET tool installed, `dnx` runs it on dem
 
 The same `dnx` command and args work for Claude Code's `.mcp.json` (with `"type": "stdio"`).
 
+## Install the skills and MCP server with APM
+
+eru ships a root `apm.yml`, so a project that uses [APM](https://github.com/microsoft/apm) can install the
+`eru`, `semantic-search` and `organizing-documentation` skills and the `eru` MCP server in one step:
+
+```bash
+apm install dburriss/eru
+```
+
+To pin a version, append a tag or commit SHA (`dburriss/eru#v0.13.1`). The MCP entry runs `dnx Eru.Tool -- mcp`,
+so it needs the .NET 10 SDK.
+
 ## Tune the collection cache refresh interval
 
 The server merges the same global (`~/.config/eru/config.json`) and local (`.eru/config.json`) configuration as
