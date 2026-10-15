@@ -4,7 +4,7 @@
 
 ### Added
 
-- Root `apm.yml` so eru can be installed as an [APM](https://github.com/microsoft/apm) package (`apm install dburriss/eru`): the `eru`, `semantic-search` and `organizing-documentation` skills plus the `eru` MCP server
+- Root `apm.yml` so eru can be installed as an [APM](https://github.com/microsoft/apm) package (`apm install dburriss/eru`): the `eru`, `semantic-search` and `organizing-documentation` skills plus the `ingestor` agent and the `eru` MCP server
 
 ## [0.13.1] - 2026-10-12
 

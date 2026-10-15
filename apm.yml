@@ -1,13 +1,14 @@
-# APM package: eru's skills and MCP server. Consume with `apm install dburriss/eru`.
+# APM package: eru's skills, ingestor agent and MCP server. Consume with `apm install dburriss/eru`.
 name: eru
 version: 0.1.0
-description: eru knowledge skills (eru, semantic-search, organizing-documentation) and the eru MCP server
+description: eru knowledge skills (eru, semantic-search, organizing-documentation), the ingestor agent and the eru MCP server
 author: dburriss
 dependencies:
   apm:
     - dburriss/eru/skills/eru
     - dburriss/eru/skills/semantic-search
     - dburriss/eru/skills/organizing-documentation
+    - dburriss/eru/agents/ingestor.agent.md
   mcp:
     - name: eru
       registry: false
