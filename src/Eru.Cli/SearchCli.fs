@@ -49,7 +49,7 @@ let private renderTable (results: LocalSearch.SearchResult list) =
             let tags  = r.Tags |> String.concat ", "
             let local = r.LocalPath   |> Option.defaultValue ""
             let desc  = r.Description |> Option.defaultValue ""
-            t.AddRow(hash, r.SourceName, r.RemotePath, tags, local, desc) |> ignore
+            t.AddRowEscaped(hash, r.SourceName, r.RemotePath, tags, local, desc) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

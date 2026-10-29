@@ -43,7 +43,7 @@ let private renderTable (bundles: Bundle list) =
     else
         let t = makeTable ["Path"; "Kind"]
         for b in bundles do
-            t.AddRow(pathLabel b.Path, kindLabel b.Kind) |> ignore
+            t.AddRowEscaped(pathLabel b.Path, kindLabel b.Kind) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

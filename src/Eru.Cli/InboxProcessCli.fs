@@ -81,7 +81,7 @@ let private renderTable (isDryRun: bool) (note: string option) (items: InboxProc
                 agentSummary item.Agent
             ]
             let cells = if showTimings then cells @ [ item.Timings |> Option.map timingsSummary |> Option.defaultValue "" ] else cells
-            t.AddRow(cells |> Array.ofList) |> ignore
+            t.AddRowEscaped(cells |> Array.ofList) |> ignore
         AnsiConsole.Write(t)
 
 // How much of the agent's most-recently-streamed text to show next to the spinner —

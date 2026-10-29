@@ -43,9 +43,9 @@ let private renderTable (result: OkfValidate.ValidateResult) =
     else
         let t = makeTable ["Status"; "Path"; "Rule"; "Message"]
         for v in result.Violations do
-            t.AddRow("✗", v.Path, v.Rule, v.Message) |> ignore
+            t.AddRowEscaped("✗", v.Path, v.Rule, v.Message) |> ignore
         for w in result.Warnings do
-            t.AddRow("⚠", w.Path, w.Rule, w.Message) |> ignore
+            t.AddRowEscaped("⚠", w.Path, w.Rule, w.Message) |> ignore
         AnsiConsole.Write(t)
         eprintfn $"{result.Violations.Length} violation(s) found; {result.TotalConcepts} concept(s) conformant."
 

@@ -36,7 +36,7 @@ let private renderTable (result: BuildResult) =
     else
         let t = makeTable ["From"; "To"]
         for e in result.Edges do
-            t.AddRow(nodeKey e.From, nodeKey e.To) |> ignore
+            t.AddRowEscaped(nodeKey e.From, nodeKey e.To) |> ignore
         AnsiConsole.Write(t)
 
 let private quoteDot (s: string) = "\"" + s.Replace("\"", "\\\"") + "\""

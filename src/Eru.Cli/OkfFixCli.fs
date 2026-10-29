@@ -50,9 +50,9 @@ let private renderTable (r: OkfFix.FixResult) =
     if not r.Changes.IsEmpty || not r.Manual.IsEmpty then
         let t = makeTable ["Status"; "Path"; "Rule"; "Detail"]
         for c in r.Changes do
-            t.AddRow("✓", c.Path, c.Rule, $"{verb r c}: {c.Description}") |> ignore
+            t.AddRowEscaped("✓", c.Path, c.Rule, $"{verb r c}: {c.Description}") |> ignore
         for v in r.Manual do
-            t.AddRow("✗", v.Path, v.Rule, v.Message) |> ignore
+            t.AddRowEscaped("✗", v.Path, v.Rule, v.Message) |> ignore
         AnsiConsole.Write(t)
     printfn "%s" (summary r)
 

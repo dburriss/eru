@@ -39,7 +39,7 @@ let private renderTable (result: ManifestValidate.ValidateResult) =
     else
         let t = makeTable ["Status"; "Path"]
         for path in result.Missing do
-            t.AddRow("missing", path) |> ignore
+            t.AddRowEscaped("missing", path) |> ignore
         AnsiConsole.Write(t)
         eprintfn $"{result.Missing.Length} reference(s) resolved to no local files."
 

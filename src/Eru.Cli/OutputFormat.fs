@@ -1,5 +1,6 @@
 module Eru.Cli.OutputFormat
 
+open System
 open Spectre.Console
 
 type OutputFormat = Text | Json | Table
@@ -28,3 +29,9 @@ let makeTable (headers: string list) : Spectre.Console.Table =
     t.ShowHeaders <- true
     headers |> List.iter (fun h -> t.AddColumn(TableColumn(h)) |> ignore)
     t
+
+type Table with
+    /// Adds a row whose cells are rendered literally: paths, messages and descriptions can
+    /// contain square brackets, which `Table.AddRow` would otherwise parse as Spectre markup.
+    member t.AddRowEscaped([<ParamArray>] cells: string[]) : Table =
+        t.AddRow(cells |> Array.map Markup.Escape)

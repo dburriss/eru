@@ -69,11 +69,11 @@ let private renderJson (detail: SourceView.SourceDetail) =
 
 let private renderTable (detail: SourceView.SourceDetail) =
     let meta = makeTable ["Field"; "Value"]
-    meta.AddRow("Name",  detail.Name)  |> ignore
-    meta.AddRow("Scope", detail.Scope) |> ignore
-    detail.Url    |> Option.iter (fun v -> meta.AddRow("URL",    v) |> ignore)
-    detail.Branch |> Option.iter (fun v -> meta.AddRow("Branch", v) |> ignore)
-    if not detail.Bundles.IsEmpty then meta.AddRow("Bundles", bundlesText detail.Bundles) |> ignore
+    meta.AddRowEscaped("Name",  detail.Name)  |> ignore
+    meta.AddRowEscaped("Scope", detail.Scope) |> ignore
+    detail.Url    |> Option.iter (fun v -> meta.AddRowEscaped("URL",    v) |> ignore)
+    detail.Branch |> Option.iter (fun v -> meta.AddRowEscaped("Branch", v) |> ignore)
+    if not detail.Bundles.IsEmpty then meta.AddRowEscaped("Bundles", bundlesText detail.Bundles) |> ignore
     AnsiConsole.Write(meta)
     match detail.Manifest with
     | SourceView.NotCached ->
@@ -90,7 +90,7 @@ let private renderTable (detail: SourceView.SourceDetail) =
                 let hash = Patterns.pathShortHash f.Path
                 let tags = f.Tags |> String.concat ", "
                 let desc = f.Description |> Option.defaultValue ""
-                ft.AddRow(label, hash, f.Path, tags, desc) |> ignore
+                ft.AddRowEscaped(label, hash, f.Path, tags, desc) |> ignore
         AnsiConsole.Write(ft)
         if capped then
             printfn $"  ... and {total - entries.Length} more (pass --full to see all)"

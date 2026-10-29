@@ -12,6 +12,10 @@
 
 - A `README.md` with a frontmatter `type` is now a concept: `eru okf validate`, `fix` and `verify` handle it like any other concept, it is listed in generated catalogs and discovered with its metadata. A README without a `type` is still skipped. `eru site` still hides READMEs by default through `site.ignorePatterns`
 
+### Fixed
+
+- Table output no longer crashes (`Could not find color or style 'Go'`) when a path, message or description contains square brackets, e.g. every `eru okf validate` broken-link warning; table cells are now rendered literally in all commands
+
 ## [0.13.1] - 2026-10-12
 
 ### Fixed

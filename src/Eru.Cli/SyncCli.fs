@@ -72,7 +72,7 @@ let private renderJson (result: Sync.SyncResult) =
 let private renderTable (result: Sync.SyncResult) =
     let t = makeTable ["Status"; "Path"; "Reason"]
     for e in result.Entries do
-        t.AddRow(statusLabel result.DryRun e.Status, e.LocalPath, reason e.Status) |> ignore
+        t.AddRowEscaped(statusLabel result.DryRun e.Status, e.LocalPath, reason e.Status) |> ignore
     AnsiConsole.Write(t)
     let nCurrent, nDrifted, nLocalDrifted, nMissing, nSkipped, nBlocked = counts result.Entries
     if result.DryRun then

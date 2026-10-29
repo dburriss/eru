@@ -36,7 +36,7 @@ let private renderTable (rows: InboxList.InboxRow list) =
     else
         let t = makeTable ["Name"; "Path"; "Raw Path"; "Default Channel"; "Channels"; "Scope"]
         for row in rows do
-            t.AddRow(row.Name, row.Path, row.RawPath, row.DefaultChannel, row.Channels |> String.concat ", ", row.Scope) |> ignore
+            t.AddRowEscaped(row.Name, row.Path, row.RawPath, row.DefaultChannel, row.Channels |> String.concat ", ", row.Scope) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

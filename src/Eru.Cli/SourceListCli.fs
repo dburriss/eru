@@ -54,7 +54,7 @@ let private renderTable (rows: SourceList.SourceRow list) =
             let branch  = row.Branch |> Option.defaultValue ""
             let bundles = bundlesText row.Bundles
             let tags    = row.Tags |> String.concat ", "
-            t.AddRow(row.Name, url, branch, bundles, row.Scope, tags) |> ignore
+            t.AddRowEscaped(row.Name, url, branch, bundles, row.Scope, tags) |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

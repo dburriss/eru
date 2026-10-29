@@ -45,7 +45,7 @@ let private renderTable (rows: InboxChannelList.ChannelRow list) =
     else
         let t = makeTable ["Name"; "Agent"; "Description"]
         for row in rows do
-            t.AddRow(row.Name, row.Agent |> Option.map agentSummary |> Option.defaultValue "", row.Description |> Option.defaultValue "") |> ignore
+            t.AddRowEscaped(row.Name, row.Agent |> Option.map agentSummary |> Option.defaultValue "", row.Description |> Option.defaultValue "") |> ignore
         AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

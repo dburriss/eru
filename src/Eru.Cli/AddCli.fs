@@ -50,9 +50,9 @@ let private renderTable (entries: Add.PullEntry list) (isDryRun: bool) =
         match e with
         | Add.Pulled lock ->
             let action = if isDryRun then "would pull" else "pulled"
-            t.AddRow(action, lock.RemotePath, lock.LocalPath) |> ignore
+            t.AddRowEscaped(action, lock.RemotePath, lock.LocalPath) |> ignore
         | Add.Blocked path ->
-            t.AddRow("blocked", path, "") |> ignore
+            t.AddRowEscaped("blocked", path, "") |> ignore
     AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

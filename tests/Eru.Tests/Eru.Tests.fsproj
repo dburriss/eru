@@ -50,6 +50,7 @@
     <Compile Include="SiteWidgetTests.fs" />
     <Compile Include="SiteViewTests.fs" />
     <Compile Include="OkfLinksTests.fs" />
+    <Compile Include="OutputFormatTests.fs" />
     <Compile Include="OkfValidateTests.fs" />
     <Compile Include="OkfFixTests.fs" />
     <Compile Include="OkfVerifyTests.fs" />

@@ -56,7 +56,7 @@ let private runList (io: ConfigIO) (fmt: OutputFormat) : int =
             printfn "%s  %s  version: %s  [%s]" r.Scope r.Path (versionText r.Version) (fileStatus r)
     | Table ->
         let t = makeTable [ "Scope"; "Path"; "Version"; "Status" ]
-        for r in rows do t.AddRow(r.Scope, Markup.Escape r.Path, versionText r.Version, Markup.Escape (fileStatus r)) |> ignore
+        for r in rows do t.AddRowEscaped(r.Scope, r.Path, versionText r.Version, fileStatus r) |> ignore
         AnsiConsole.Write t
     if fmt <> Json && rows |> List.exists (fun r -> r.NeedsMigration) then
         eprintfn "Hint: run 'eru config migrate' (or 'eru config migrate --global') to upgrade outdated files."
@@ -73,8 +73,8 @@ let private runView (io: ConfigIO) (fmt: OutputFormat) : int =
             for e in v.Entities do printfn "%s %s  [%s]" e.Kind e.Name e.Origin
         | Table ->
             let t = makeTable [ "Key"; "Value"; "Origin" ]
-            for s in v.Settings do t.AddRow(s.Key, Markup.Escape s.Value, s.Origin) |> ignore
-            for e in v.Entities do t.AddRow(e.Kind, Markup.Escape e.Name, e.Origin) |> ignore
+            for s in v.Settings do t.AddRowEscaped(s.Key, s.Value, s.Origin) |> ignore
+            for e in v.Entities do t.AddRowEscaped(e.Kind, e.Name, e.Origin) |> ignore
             AnsiConsole.Write t
         0
 
@@ -87,7 +87,7 @@ let private runGet (io: ConfigIO) (key: string) (fmt: OutputFormat) : int =
         | Text  -> printfn "%s" s.Value
         | Table ->
             let t = makeTable [ "Key"; "Value"; "Origin" ]
-            t.AddRow(s.Key, Markup.Escape s.Value, s.Origin) |> ignore
+            t.AddRowEscaped(s.Key, s.Value, s.Origin) |> ignore
             AnsiConsole.Write t
         0
 

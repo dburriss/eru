@@ -46,13 +46,13 @@ let private renderTable (results: (string * SourceFiles.SourceFileRow list) list
     let t = makeTable ["Hash"; "Source"; "Bundle"; "Path"; "Tags"; "Description"]
     for (sourceName, rows) in results do
         if rows.IsEmpty then
-            t.AddRow("", sourceName, "", "(no files found in index)", "", "") |> ignore
+            t.AddRowEscaped("", sourceName, "", "(no files found in index)", "", "") |> ignore
         else
             for row in rows do
                 let tags   = row.Tags |> String.concat ", "
                 let desc   = row.Description |> Option.defaultValue ""
                 let bundle = row.Bundle |> Option.map (fun p -> if p = "" then "(root)" else p) |> Option.defaultValue "(unassigned)"
-                t.AddRow(row.Hash, sourceName, bundle, row.Path, tags, desc) |> ignore
+                t.AddRowEscaped(row.Hash, sourceName, bundle, row.Path, tags, desc) |> ignore
     AnsiConsole.Write(t)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =

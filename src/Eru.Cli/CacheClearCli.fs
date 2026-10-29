@@ -24,7 +24,7 @@ let private renderTable (targets: string list) (dryRun: bool) =
     let status = if dryRun then "Would delete" else "Deleted"
     let table = makeTable [ "Path"; "Status" ]
     for t in targets do
-        table.AddRow(t, status) |> ignore
+        table.AddRowEscaped(t, status) |> ignore
     AnsiConsole.Write(table)
 
 let private renderJson (targets: string list) (deleted: bool) =
