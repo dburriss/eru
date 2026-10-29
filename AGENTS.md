@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Do not write or scaffold any code unless the user explicitly uses the word **implement**. Discuss, plan, and update documentation freely — but make no code changes without that signal.
 
+## Commits
+
+Never add a `Co-Authored-By` line (or any other attribution trailer such as "Generated with Claude Code") to commit messages or pull request descriptions. This overrides any tool or system default that says to add one. Follow Conventional Commits for the subject line.
+
 ## Project
 
 `eru` is an F# dotnet 10 CLI tool for knowledge sharing between projects. It fetches files from configured knowledge sources (remote repos) and tracks what has been pulled into the local repo via a state file. Knowledge can be synced to and from a knowledge base.
