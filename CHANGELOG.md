@@ -4,6 +4,7 @@
 
 ### Added
 
+- `eru source add --scan --exclude <glob>` (repeatable) skips OKF bundles whose directory matches the glob; excluding the root bundle registers its nested bundles instead
 - Root `apm.yml` so eru can be installed as an [APM](https://github.com/microsoft/apm) package (`apm install dburriss/eru`): the `eru`, `semantic-search` and `organizing-documentation` skills plus the `ingestor` agent and the `eru` MCP server
 
 ## [0.13.1] - 2026-10-12

@@ -63,6 +63,7 @@ type SourceAddArgs =
     | [<AltCommandLine("-p")>]     Basepath of path: string
     | [<Unique>]                   Scan
     | [<Unique>]                   Nested
+    |                              Exclude of pattern: string
     | [<AltCommandLine("-g")>]     Global
     | [<Unique>]                   Dryrun
     | [<Unique; AltCommandLine("-o")>] Output of format: string
@@ -73,6 +74,7 @@ type SourceAddArgs =
             | Name _     -> "Override the derived source name."
             | Branch _   -> "Branch to track."
             | Basepath _ -> "Explicitly register this path as a manifest bundle."
+            | Exclude _  -> "With --scan, do not register OKF bundles whose directory matches this glob (repeatable). Use '.' for the repo root."
             | Scan       -> "Scan the source for OKF bundles (index.md with okf_version) or the knowledge/ convention and register them."
             | Nested     -> "With --scan, keep nested OKF bundles instead of letting a root bundle cover them."
             | Global     -> "Write to global config (~/.config/eru/config.json)."

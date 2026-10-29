@@ -9,6 +9,7 @@ module SourceAdd =
         BasePath : string option
         Scan     : bool
         Nested   : bool
+        Exclude  : string list
         IsGlobal : bool
         DryRun   : bool
     }
@@ -42,11 +43,19 @@ module SourceAdd =
         | -1 -> ""
         | i  -> indexPath.Substring(0, i)
 
+    // `.` or `/` names the repo root (same convention as SourceBundleAdd); other patterns are globs.
+    let private isExcluded (patterns: string list) (dir: string) : bool =
+        let isRoot p = p = "." || p = "/"
+        (dir = "" && patterns |> List.exists isRoot)
+        || Patterns.matchesAny (patterns |> List.filter (isRoot >> not)) dir
+
     // --scan: every index.md carrying okf_version marks an okf bundle. A root bundle
     // covers its descendants, so nested ones are dropped unless `nested` is set. Falls back to the
     // knowledge/ convention when no okf index is found.
     // With `nested`, every okf bundle is kept, even under a covering root bundle.
-    let private scanBundles (deps: Deps) (url: string) (branch: string option) (nested: bool) : Bundle list =
+    // Directories matching `exclude` are dropped before nesting is resolved, so excluding a root
+    // bundle lets its nested bundles be registered on their own.
+    let private scanBundles (deps: Deps) (url: string) (branch: string option) (nested: bool) (exclude: string list) : Bundle list =
         let actualBranch = branch |> Option.defaultValue "HEAD"
         let indexPaths =
             match deps.ListRemoteFiles url branch None with
@@ -67,6 +76,7 @@ module SourceAdd =
                     |> List.map (fst >> indexDir)
                     |> List.sort
                 | Error _ -> []
+            |> List.filter (isExcluded exclude >> not)
         let rec dropNested (dirs: string list) (kept: string list) =
             match dirs with
             | [] -> List.rev kept
@@ -74,7 +84,7 @@ module SourceAdd =
                 let covered = kept |> List.exists (fun k -> k = "" || d = k || d.StartsWith(k + "/"))
                 dropNested rest (if covered then kept else d :: kept)
         match (if nested then okfDirs else dropNested okfDirs []) with
-        | [] -> detectConventionBundle deps url branch
+        | [] -> detectConventionBundle deps url branch |> List.filter (fun b -> not (isExcluded exclude b.Path))
         | dirs -> dirs |> List.map (fun d -> { Path = d; Kind = Okf })
 
     let private executeValid (deps: Deps) (cmd: Command) : Result<string, string> =
@@ -83,7 +93,7 @@ module SourceAdd =
         let bundles =
             match cmd.BasePath with
             | Some bp -> [ { Path = bp; Kind = Manifest } ]
-            | None when cmd.Scan -> scanBundles deps cmd.Url cmd.Branch cmd.Nested
+            | None when cmd.Scan -> scanBundles deps cmd.Url cmd.Branch cmd.Nested cmd.Exclude
             | None    -> []
 
         let newSource : SourceConfig = {
@@ -157,4 +167,5 @@ module SourceAdd =
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
         if cmd.Nested && not cmd.Scan then Error "--nested only applies together with --scan."
+        elif not (List.isEmpty cmd.Exclude) && not cmd.Scan then Error "--exclude only applies together with --scan."
         else executeValid deps cmd

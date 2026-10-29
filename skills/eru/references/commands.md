@@ -143,6 +143,7 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [-g] [--
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
 | `-p <basepath>` | Explicitly register this path as a manifest bundle |
+| `--exclude <glob>` | With `--scan`, skip OKF bundles whose directory matches the glob; repeatable. Applied before nesting is resolved, so `--exclude .` (the repo root) registers the nested bundles instead. A pattern without `/` matches the directory's last segment (`legacy`); one with `/` matches the full path (`docs/legacy`). `docs/**` matches below `docs` but not `docs` itself. Case-insensitive; not persisted. Errors without `--scan` |
 | `--scan` | Detect bundles: every `index.md` with `okf_version` becomes an `okf` bundle (a root marker covers nested ones), falling back to the `knowledge/` convention. Without `--scan` no bundles are registered — add them with `eru source bundle add <source> <path>`. OKF discovery (and the site) only indexes concept files that have a `type` |
 | `-g` | Write to global config |
 | `--dryrun` | Show what would be added without writing anything |

@@ -177,6 +177,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
                 BasePath = input.BasePath
                 Scan     = true
                 Nested   = false
+                Exclude  = []
                 IsGlobal = false
                 DryRun   = false
             }

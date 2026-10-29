@@ -57,6 +57,7 @@ let private simpleCmd url : SourceAdd.Command = {
     BasePath = None
     Scan     = false
     Nested   = false
+    Exclude  = []
     IsGlobal = false
     DryRun   = false
 }
@@ -389,4 +390,38 @@ let ``remove fails when source not found in global config`` () =
     let written   = ref None
     let deps      = makeDeps None (Some globalCfg) [] (ref None) written
     assertError (SourceRemove.execute deps (removeCmd "missing" true false))
+    Assert.True(written.Value.IsNone)
+
+let private scanBundlesOf files (cmd: SourceAdd.Command) =
+    let written = ref None
+    let deps = okfDeps files written
+    let result = SourceAdd.execute deps cmd
+    result, written.Value |> Option.map (fun cfg -> (LocalConfig.sources cfg).[0].Bundles)
+
+let private kbUrl = "https://github.com/acme/kb.git"
+
+[<Fact>]
+let ``--scan --exclude . registers nested bundles instead of the root`` () =
+    let _, bundles = scanBundlesOf [ "index.md", okfIndex; "a/index.md", okfIndex; "b/index.md", okfIndex ] { simpleCmd kbUrl with Scan = true; Exclude = [ "." ] }
+    Assert.Equal<Bundle list>([ { Path = "a"; Kind = Okf }; { Path = "b"; Kind = Okf } ], bundles.Value)
+
+[<Fact>]
+let ``--scan --exclude a keeps only the root, and with --nested drops just a`` () =
+    let files = [ "index.md", okfIndex; "a/index.md", okfIndex; "b/index.md", okfIndex ]
+    let _, plain = scanBundlesOf files { simpleCmd kbUrl with Scan = true; Exclude = [ "a" ] }
+    Assert.Equal<Bundle list>([ { Path = ""; Kind = Okf } ], plain.Value)
+    let _, nested = scanBundlesOf files { simpleCmd kbUrl with Scan = true; Nested = true; Exclude = [ "a" ] }
+    Assert.Equal<Bundle list>([ { Path = ""; Kind = Okf }; { Path = "b"; Kind = Okf } ], nested.Value)
+
+[<Fact>]
+let ``--scan --exclude glob drops children but keeps the parent`` () =
+    let files = [ "docs/index.md", okfIndex; "docs/x/index.md", okfIndex ]
+    let _, bundles = scanBundlesOf files { simpleCmd kbUrl with Scan = true; Nested = true; Exclude = [ "docs/*" ] }
+    Assert.Equal<Bundle list>([ { Path = "docs"; Kind = Okf } ], bundles.Value)
+
+[<Fact>]
+let ``--exclude without --scan is rejected`` () =
+    let written = ref None
+    let deps = makeDeps (Some emptyLocal) None [] written (ref None)
+    assertError (SourceAdd.execute deps { simpleCmd kbUrl with Exclude = [ "a" ] })
     Assert.True(written.Value.IsNone)
