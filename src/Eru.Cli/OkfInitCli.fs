@@ -20,4 +20,4 @@ let (|OkfInitCmd|_|) (r: ParseResults<EruArgs>) =
         | _ -> None)
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
-    OkfFixCli.runMode deps OkfFix.CreateOnly cmd.Path cmd.DryRun "reference" cmd.Format
+    OkfFixCli.runMode deps OkfFix.CreateOnly cmd.Path cmd.DryRun None cmd.Format

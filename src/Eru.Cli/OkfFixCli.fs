@@ -6,7 +6,7 @@ open System.Text.Json
 open Eru
 open Eru.Cli.OutputFormat
 
-type Cmd = { Path: string; DryRun: bool; DefaultType: string; Format: OutputFormat }
+type Cmd = { Path: string; DryRun: bool; DefaultType: string option; Format: OutputFormat }
 
 let (|OkfFixCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
@@ -16,7 +16,7 @@ let (|OkfFixCmd|_|) (r: ParseResults<EruArgs>) =
                     Some {
                         Path        = fixArgs.GetResult OkfFixArgs.Path
                         DryRun      = fixArgs.Contains OkfFixArgs.Dry_Run
-                        DefaultType = fixArgs.TryGetResult OkfFixArgs.Default_Type |> Option.defaultValue "reference"
+                        DefaultType = fixArgs.TryGetResult OkfFixArgs.Default_Type
                         Format      = parseFormat (fixArgs.TryGetResult OkfFixArgs.Output)
                     }
                 | _ -> None)
@@ -57,13 +57,14 @@ let private renderTable (r: OkfFix.FixResult) =
     printfn "%s" (summary r)
 
 /// Shared by `eru okf init` and `eru okf fix`; exit code 1 if anything needs manual attention.
-let runMode (deps: Eru.Deps) (mode: OkfFix.Mode) (path: string) (dryRun: bool) (defaultType: string) (format: OutputFormat) : int =
-    let ignorePatterns =
+let runMode (deps: Eru.Deps) (mode: OkfFix.Mode) (path: string) (dryRun: bool) (typeOverride: string option) (format: OutputFormat) : int =
+    let ignorePatterns, fixTypes, defaultType =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-        | Ok g, Ok l -> Config.resolveOkfIgnorePatterns g l
-        | _          -> Config.defaultOkfIgnorePatterns
+        | Ok g, Ok l -> Config.resolveOkfIgnorePatterns g l, Config.resolveOkfFixTypes g l, Config.resolveOkfDefaultType g l
+        | _          -> Config.defaultOkfIgnorePatterns, [], Config.defaultOkfType
     let cmd : OkfFix.Command =
-        { Path = path; IgnorePatterns = ignorePatterns; Mode = mode; DefaultType = defaultType; DryRun = dryRun }
+        { Path = path; IgnorePatterns = ignorePatterns; Mode = mode; DefaultType = defaultType
+          TypeOverride = typeOverride; FixTypes = fixTypes; DryRun = dryRun }
     match OkfFix.execute deps cmd with
     | Error e -> renderError e; 1
     | Ok result ->

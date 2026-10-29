@@ -121,8 +121,17 @@ module InboxConfig =
 // entity collection inside a section is always called `items`, so a setting can later
 // be added to any section without breaking the file shape. All fields are optional so
 // an absent key falls through to the other file and then to the built-in default.
+// One `okf.fixTypes` entry: `eru okf fix` gives files matching `Pattern` that have no
+// `type` the value `Type`; `None` (JSON null) leaves matching files alone.
+type OkfFixTypeRule = {
+    Pattern: string
+    Type: string option
+}
+
 type OkfSection = {
     IgnorePatterns: string list option
+    FixTypes: OkfFixTypeRule list option
+    DefaultType: string option
 }
 
 type McpSection = {
@@ -204,7 +213,7 @@ module SourceConfig =
     let empty : SourceConfig = { Name = ""; Url = None; Branch = None; Bundles = [] }
 
 module OkfSection =
-    let empty : OkfSection = { IgnorePatterns = None }
+    let empty : OkfSection = { IgnorePatterns = None; FixTypes = None; DefaultType = None }
 
 module McpSection =
     let empty : McpSection = { RefreshIntervalMinutes = None }
@@ -493,6 +502,7 @@ module Config =
     // Repo conventions that hold non-concept markdown. Anchored at the bundle root;
     // dot-directories are always skipped separately (see Patterns.isOkfIgnored).
     let defaultOkfIgnorePatterns = ["apm_modules/**"; "inbox/**"; "node_modules/**"]
+    let defaultOkfType = "reference"
 
     // First Some wins: the local file's section value, then the global file's.
     let private first (local: 'S option) (fromGlobal: 'S option) (get: 'S -> 'a option) : 'a option =
@@ -504,6 +514,20 @@ module Config =
             (globalCfg |> Option.bind (fun g -> g.Okf))
             (fun (s: OkfSection) -> s.IgnorePatterns)
         |> Option.defaultValue defaultOkfIgnorePatterns
+
+    let resolveOkfFixTypes (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : OkfFixTypeRule list =
+        first
+            (localCfg  |> Option.bind (fun l -> l.Okf))
+            (globalCfg |> Option.bind (fun g -> g.Okf))
+            (fun (s: OkfSection) -> s.FixTypes)
+        |> Option.defaultValue []
+
+    let resolveOkfDefaultType (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string =
+        first
+            (localCfg  |> Option.bind (fun l -> l.Okf))
+            (globalCfg |> Option.bind (fun g -> g.Okf))
+            (fun (s: OkfSection) -> s.DefaultType)
+        |> Option.defaultValue defaultOkfType
 
     let supportedVersion = 3
 
@@ -787,7 +811,7 @@ module Config =
                     HideEmptyBundles = get (fun d -> d.SiteHideEmptyBundles) }
           Okf =
             section (fun (s: OkfSection) -> s = OkfSection.empty)
-                { IgnorePatterns = get (fun d -> d.OkfIgnorePatterns) }
+                { OkfSection.empty with IgnorePatterns = get (fun d -> d.OkfIgnorePatterns) }
           Mcp =
             section (fun (s: McpSection) -> s = McpSection.empty)
                 { RefreshIntervalMinutes = get (fun d -> d.McpRefreshIntervalMinutes) }
@@ -820,7 +844,7 @@ module Config =
                     HideEmptyBundles = get (fun s -> s.SiteHideEmptyBundles) }
           Okf =
             section (fun (s: OkfSection) -> s = OkfSection.empty)
-                { IgnorePatterns = get (fun s -> s.OkfIgnorePatterns) }
+                { OkfSection.empty with IgnorePatterns = get (fun s -> s.OkfIgnorePatterns) }
           Mcp = None
           Sync =
             section (fun (s: SyncSection) -> s = SyncSection.empty)

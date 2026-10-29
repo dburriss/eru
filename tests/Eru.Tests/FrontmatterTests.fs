@@ -223,6 +223,33 @@ let ``classifyFile treats README.md as ReadmeFile`` (path: string) =
 let ``classifyFile still treats other files as concepts`` () =
     Assert.Equal(Frontmatter.ConceptFile, Frontmatter.classifyFile "docs/readme-first.md")
 
+// --- classifyContent ---
+
+let private classifyContent path content =
+    Frontmatter.classifyContent YamlAdapter.parse path content
+
+[<Theory>]
+[<InlineData("README.md")>]
+[<InlineData("readme.md")>]
+[<InlineData("docs/README.md")>]
+let ``classifyContent treats a typed README as a concept`` (path: string) =
+    Assert.Equal(Frontmatter.ConceptFile, classifyContent path "---\ntype: guide\n---\n# Hi\n")
+
+[<Theory>]
+[<InlineData("# Plain prose\n")>]
+[<InlineData("---\ntitle: x\n---\n")>]
+[<InlineData("---\ntype: \"\"\n---\n")>]
+[<InlineData("---\ntype: \"   \"\n---\n")>]
+[<InlineData("---\ntype: [unclosed\n---\n")>]
+let ``classifyContent keeps an untyped or unparseable README as ReadmeFile`` (content: string) =
+    Assert.Equal(Frontmatter.ReadmeFile, classifyContent "docs/README.md" content)
+
+[<Fact>]
+let ``classifyContent leaves non-README results unchanged`` () =
+    Assert.Equal(Frontmatter.IndexFile, classifyContent "index.md" "---\ntype: x\n---\n")
+    Assert.Equal(Frontmatter.LogFile, classifyContent "log.md" "---\ntype: x\n---\n")
+    Assert.Equal(Frontmatter.ConceptFile, classifyContent "a.md" "no frontmatter")
+
 [<Fact>]
 let ``generated falls back to a legacy timestamp`` () =
     let result = parse "---\ntimestamp: 2026-01-02T03:04:05Z\n---\n"

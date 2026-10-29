@@ -691,7 +691,7 @@ type OkfFixArgs =
             match a with
             | Path _         -> "Directory to repair so it passes `eru okf validate`."
             | Dry_Run        -> "Report what would change without writing anything."
-            | Default_Type _ -> "`type` to give concept files that have none (default: reference)."
+            | Default_Type _ -> "`type` to give concept files that have none, overriding `okf.fixTypes` (default: `okf.defaultType`, else reference)."
             | Output _       -> "Output format: table (default), text, json."
 
 type OkfVerifyArgs =

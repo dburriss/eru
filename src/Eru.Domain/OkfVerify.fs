@@ -86,13 +86,14 @@ module OkfVerify =
         | None ->
         let by = cmd.By.Trim()
         let fileName = Path.GetFileName cmd.Path
-        if Frontmatter.classifyFile fileName <> Frontmatter.ConceptFile then
-            Error $"{fileName} is not a concept file; `verified` only applies to concept .md files"
-        else
-            match deps.ReadLocalFile cmd.Path with
-            | Error e -> Error e
-            | Ok None -> Error $"file not found: {cmd.Path}"
-            | Ok (Some content) ->
+        match deps.ReadLocalFile cmd.Path with
+        | Error e -> Error e
+        | Ok None -> Error $"file not found: {cmd.Path}"
+        | Ok (Some content) ->
+            if Frontmatter.classifyContent deps.ParseYamlBlock fileName content <> Frontmatter.ConceptFile then
+                let hint = if Frontmatter.classifyFile fileName = Frontmatter.ReadmeFile then " (a README.md needs a `type`)" else ""
+                Error $"{fileName} is not a concept file; `verified` only applies to concept .md files{hint}"
+            else
                 match Frontmatter.tryParse deps.ParseYamlBlock content with
                 | Frontmatter.NoBlock -> Error $"{cmd.Path} has no frontmatter; run `eru okf fix` first"
                 | Frontmatter.MalformedYaml msg -> Error $"{cmd.Path} frontmatter is not valid YAML ({msg}); fix it by hand"

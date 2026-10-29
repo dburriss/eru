@@ -35,7 +35,7 @@ module Init =
     let private emptyGlobal : GlobalConfig =
         { GlobalConfig.empty with
             Site = Some { SiteSection.empty with IgnorePatterns = Some Config.defaultSiteIgnorePatterns }
-            Okf  = Some { IgnorePatterns = Some Config.defaultOkfIgnorePatterns }
+            Okf  = Some { OkfSection.empty with IgnorePatterns = Some Config.defaultOkfIgnorePatterns }
             Files =
                 Some { BlockPatterns = Some Config.defaultBlockPatterns
                        AllowPatterns = Some Config.defaultAllowPatterns

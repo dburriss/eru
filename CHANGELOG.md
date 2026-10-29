@@ -5,7 +5,12 @@
 ### Added
 
 - `eru source add --scan --exclude <glob>` (repeatable) skips OKF bundles whose directory matches the glob; excluding the root bundle registers its nested bundles instead
+- `okf.fixTypes` (an ordered list of `{pattern, type}` globs) and `okf.defaultType` config settings: `eru okf fix` types untyped files by glob, including READMEs, and `--default-type` now overrides a matching rule
 - Root `apm.yml` so eru can be installed as an [APM](https://github.com/microsoft/apm) package (`apm install dburriss/eru`): the `eru`, `semantic-search` and `organizing-documentation` skills plus the `ingestor` agent and the `eru` MCP server
+
+### Changed
+
+- A `README.md` with a frontmatter `type` is now a concept: `eru okf validate`, `fix` and `verify` handle it like any other concept, it is listed in generated catalogs and discovered with its metadata. A README without a `type` is still skipped. `eru site` still hides READMEs by default through `site.ignorePatterns`
 
 ## [0.13.1] - 2026-10-12
 

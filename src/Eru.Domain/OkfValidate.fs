@@ -156,7 +156,7 @@ module OkfValidate =
                 | Error e -> violations.Add { Path = rel; Rule = "read-error"; Message = e }
                 | Ok None -> ()
                 | Ok (Some content) ->
-                    match Frontmatter.classifyFile rel with
+                    match Frontmatter.classifyContent deps.ParseYamlBlock rel content with
                     | Frontmatter.IndexFile ->
                         let outcome = Frontmatter.tryParse deps.ParseYamlBlock content
                         validateIndex rel outcome |> Option.iter violations.Add

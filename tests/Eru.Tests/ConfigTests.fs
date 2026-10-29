@@ -630,7 +630,7 @@ let ``merge resolves every section key local-over-global`` () =
     let g : GlobalConfig =
         { GlobalConfig.empty with
             Site  = Some { SiteSection.empty with IgnorePatterns = Some [ "g.md" ]; HideEmptyBundles = Some false }
-            Okf   = Some { IgnorePatterns = Some [ "g/**" ] }
+            Okf   = Some { OkfSection.empty with IgnorePatterns = Some [ "g/**" ] }
             Mcp   = Some { RefreshIntervalMinutes = Some 10 }
             Sync  = Some { Branch = Some "main"; CommitOnPull = Some false; StateFile = Some "g.lock" }
             Files = Some { BlockPatterns = Some [ "*.g" ]; AllowPatterns = Some [ "g" ]; AllowBinaries = Some false }
@@ -720,3 +720,34 @@ let ``merge prefers local OkfIgnorePatterns over global default`` () =
     let l : LocalConfig = { LocalConfig.empty with Okf = Some { OkfSection.empty with IgnorePatterns = Some [] } }
     let result = Config.merge (Some g) (Some l) |> unwrapOk "okf ignore local override"
     Assert.Empty result.OkfIgnorePatterns
+
+// ── okf.fixTypes / okf.defaultType ───────────────────────────────────────────
+
+let private fixRule pattern typ : OkfFixTypeRule = { Pattern = pattern; Type = typ }
+
+[<Fact>]
+let ``okf fixTypes and defaultType have defaults`` () =
+    Assert.Empty(Config.resolveOkfFixTypes None None)
+    Assert.Equal("reference", Config.resolveOkfDefaultType None None)
+
+[<Fact>]
+let ``local okf fixTypes and defaultType override global`` () =
+    let g = { makeGlobal [] [] with Okf = Some { OkfSection.empty with FixTypes = Some [ fixRule "README.md" (Some "guide") ]; DefaultType = Some "note" } }
+    Assert.Equal<OkfFixTypeRule list>([ fixRule "README.md" (Some "guide") ], Config.resolveOkfFixTypes (Some g) None)
+    Assert.Equal("note", Config.resolveOkfDefaultType (Some g) None)
+    let l : LocalConfig = { LocalConfig.empty with Okf = Some { OkfSection.empty with FixTypes = Some []; DefaultType = Some "adr" } }
+    Assert.Empty(Config.resolveOkfFixTypes (Some g) (Some l))
+    Assert.Equal("adr", Config.resolveOkfDefaultType (Some g) (Some l))
+
+[<Fact>]
+let ``okf fixTypes round-trips through JSON including a null type`` () =
+    let json = """{ "version": 3, "okf": { "defaultType": "note", "fixTypes": [ { "pattern": "README.md", "type": "guide" }, { "pattern": "docs/internal/**", "type": null } ] } }"""
+    match Serialization.deserialize<LocalConfig> json with
+    | Error e -> Assert.Fail e
+    | Ok cfg ->
+        let okf = cfg.Okf.Value
+        Assert.Equal(Some "note", okf.DefaultType)
+        Assert.Equal<OkfFixTypeRule list>([ fixRule "README.md" (Some "guide"); fixRule "docs/internal/**" None ], okf.FixTypes.Value)
+        match Serialization.deserialize<LocalConfig> (Serialization.serialize cfg) with
+        | Ok again -> Assert.Equal(cfg.Okf, again.Okf)
+        | Error e -> Assert.Fail e

@@ -145,9 +145,9 @@ let ``walkBundle propagates a ListRemoteFiles error`` () =
     | Ok _ -> Assert.Fail "expected Error"
 
 [<Fact>]
-let ``walkBundle treats README.md as non-concept with empty metadata`` () =
+let ``walkBundle treats an untyped README.md as non-concept with empty metadata`` () =
     let listFiles _ _ _ = Ok [ "README.md" ]
-    let fetch _ _ paths = Ok (paths |> List.map (fun p -> p, "---\ntype: ADR\ntags: [x]\n---\n"))
+    let fetch _ _ paths = Ok (paths |> List.map (fun p -> p, "---\ntags: [x]\ndescription: d\n---\n"))
     let deps = makeDeps listFiles fetch
     match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
     | Error e -> Assert.Fail e
@@ -155,6 +155,22 @@ let ``walkBundle treats README.md as non-concept with empty metadata`` () =
         Assert.Equal(None, f.Type)
         Assert.Empty(f.Contribution.Tags)
     | Ok other -> Assert.Fail $"expected one file, got {other.Length}"
+
+[<Fact>]
+let ``walkBundle treats a typed README.md as a concept with full metadata`` () =
+    let listFiles _ _ _ = Ok [ "README.md"; "docs/readme.md" ]
+    let fetch _ _ paths =
+        Ok (paths |> List.map (fun p -> p, if p = "README.md" then "---\ntype: guide\ntags: [X]\ndescription: d\n---\n" else "# prose\n"))
+    let deps = makeDeps listFiles fetch
+    match BundleDiscovery.walkBundle deps [] "kb" "https://x.com" "main" rootBundle with
+    | Error e -> Assert.Fail e
+    | Ok files ->
+        let typed = files |> List.find (fun f -> f.RemotePath = "README.md")
+        Assert.Equal(Some "guide", typed.Type)
+        Assert.Equal<string list>([ "x" ], typed.Contribution.Tags)
+        Assert.Equal(Some "d", typed.Contribution.Description)
+        let untyped = files |> List.find (fun f -> f.RemotePath = "docs/readme.md")
+        Assert.Equal(None, untyped.Type)
 
 [<Fact>]
 let ``walkBundle skips dot-directories and ignore-pattern matches`` () =

@@ -105,6 +105,8 @@ module ConfigCmd =
         "files.allowPatterns",            Some (defaultOf Config.defaultAllowPatterns)
         "files.allowBinaries",            Some (defaultOf Config.defaultAllowBinaries)
         "okf.ignorePatterns",             Some (defaultOf Config.defaultOkfIgnorePatterns)
+        "okf.fixTypes",                   Some (defaultOf ([] : string list))
+        "okf.defaultType",                Some (defaultOf Config.defaultOkfType)
         "site.ignorePatterns",            Some (defaultOf Config.defaultSiteIgnorePatterns)
         "site.hideEmptyBundles",          Some (defaultOf Config.defaultSiteHideEmptyBundles)
         "inbox.default",                  None

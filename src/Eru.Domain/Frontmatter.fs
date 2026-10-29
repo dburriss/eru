@@ -279,12 +279,23 @@ module Frontmatter =
         | ReadmeFile
         | ConceptFile
 
-    // Classifies a bundle-relative path by its filename, per OKF §11 conventions.
+    // Classifies a bundle-relative path by its filename alone, per OKF §11 conventions.
     // README.md is human prose rather than a concept, so it is excluded like the
-    // reserved index.md/log.md (case-insensitive, any depth).
+    // reserved index.md/log.md (case-insensitive, any depth). Callers that have the
+    // file content should use `classifyContent`, which promotes a typed README.
     let classifyFile (relPath: string) : FileClass =
         match System.IO.Path.GetFileName(relPath: string) with
         | "index.md" -> IndexFile
         | "log.md"   -> LogFile
         | name when name.Equals("readme.md", System.StringComparison.OrdinalIgnoreCase) -> ReadmeFile
         | _          -> ConceptFile
+
+    // Like `classifyFile`, but a README.md with a non-blank frontmatter `type` is a
+    // concept. A README without one (or with unparseable frontmatter) stays a ReadmeFile.
+    let classifyContent (parseYaml: Yaml.Parse) (relPath: string) (content: string) : FileClass =
+        match classifyFile relPath with
+        | ReadmeFile ->
+            match type_ (parse parseYaml content) with
+            | Some t when not (System.String.IsNullOrWhiteSpace t) -> ConceptFile
+            | _ -> ReadmeFile
+        | other -> other

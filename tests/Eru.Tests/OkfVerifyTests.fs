@@ -70,6 +70,20 @@ let ``errors for non-concept files`` () =
     Assert.True(match run "index.md" "---\ntype: x\n---\n" "human:me@x" false with Error _, _ -> true | _ -> false)
 
 [<Fact>]
+let ``verifies a README that has a type`` () =
+    let _, out = ok "README.md" "---\ntype: guide\n---\nbody\n"
+    Assert.Equal("---\ntype: guide\nverified:\n" + entry + "---\nbody\n", out)
+
+[<Fact>]
+let ``errors for a README without a type`` () =
+    match run "README.md" "# prose\n" "human:me@x" false with
+    | Error e, _ -> Assert.Contains("needs a `type`", e)
+    | Ok _, _ -> Assert.Fail "expected Error"
+    match run "docs/README.md" "---\ntitle: x\n---\n" "human:me@x" false with
+    | Error e, _ -> Assert.Contains("not a concept file", e)
+    | Ok _, _ -> Assert.Fail "expected Error"
+
+[<Fact>]
 let ``rejects placeholder and empty actors`` () =
     for by in [ ""; "unknown"; "false"; "human:" ] do
         Assert.True(match run "a.md" "---\ntype: table\n---\n" by false with Error _, _ -> true | _ -> false)

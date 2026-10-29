@@ -976,14 +976,14 @@ Validation targets OKF v0.2. Separately, **warnings** (shown with `⚠`, never a
 | `broken-wikilink` | `[[Title]]` / `[[Title\|alias]]` matches no note by file name or `title` |
 | `broken-anchor` | `[text](note.md#heading)` or `[[Note#heading]]` names a heading the target note does not have. GitHub-style and generated-site heading anchors are both accepted |
 
-External URLs (`https:`, `mailto:`, …), same-page `#anchor` links, and anything in fenced code or inline code are not checked. Like the other warnings these never affect the exit code, because OKF permits dangling links; pass `--strict-links` to report them as violations (exit 1) instead, for example in CI. `log.md` and `README.md` are not link-checked.
+External URLs (`https:`, `mailto:`, …), same-page `#anchor` links, and anything in fenced code or inline code are not checked. Like the other warnings these never affect the exit code, because OKF permits dangling links; pass `--strict-links` to report them as violations (exit 1) instead, for example in CI. `log.md` and untyped `README.md` files are not link-checked.
 
 The bundle-root `index.md` frontmatter should contain only `okf_version`. That key is what makes eru detect a directory as an OKF bundle (see [`eru source bundle add`](#eru-source-bundle-add)).
 
 **What is not a concept file.** These are skipped, not validated or counted:
 
 - `index.md` and `log.md` (validated against their own rules instead).
-- `README.md`, at any depth and case-insensitively. READMEs are human prose, not concepts.
+- `README.md` without a `type`, at any depth and case-insensitively. Untyped READMEs are human prose, not concepts. A README whose frontmatter has a non-empty `type` is a normal concept.
 - Anything under a dot-directory (`.git`, `.github`, `.claude`, `.agents`, …). Always skipped, not configurable.
 - Paths matching `okf.ignorePatterns` (default `apm_modules/**`, `inbox/**`, `node_modules/**`), read from the local/global config. See the [config file reference](config-file.md). Patterns are relative to `<path>`.
 
@@ -1028,7 +1028,8 @@ Repair a directory tree so it passes `eru okf validate`, and create any missing 
 |---|---|
 | Root `index.md` has no `okf_version`, or other keys | Frontmatter set to exactly `okf_version` (an existing value is kept; new bundles get `okf_version: "0.2"`) |
 | Non-root `index.md` has frontmatter | Frontmatter removed |
-| Concept has no frontmatter, or no/empty `type` | `type` added (text edit; other keys and order are preserved) |
+| Concept has no frontmatter, or no/empty `type` | `type` added (text edit; other keys and order are preserved). The type is `--default-type`, else the first matching `okf.fixTypes` rule, else `okf.defaultType`, else `reference` |
+| README without a `type` matching an `okf.fixTypes` rule | `type` added from the rule, so the README becomes a concept. Unmatched READMEs are never touched |
 | `verified` is not a list of well-formed `{by, at}` entries (a placeholder like `unknown`/`false`, a missing `by`/`at`, an `at` without a UTC offset, `by: unknown`) | Malformed entries are stripped, valid ones kept; the key is removed when none remain (absent = unverified). Use `eru okf verify` to record a confirmation |
 | `log.md` date heading is not `YYYY-MM-DD` | Rewritten when the heading parses as a date (invariant culture, so `03/04/2026` is read as March 4) |
 | Folder with concepts has no `index.md` | Catalog index created |
@@ -1043,7 +1044,7 @@ eru okf fix <path> [--dry-run] [--default-type <type>] [-o <format>]
 |---|---|
 | `<path>` | Directory to repair (required) |
 | `--dry-run` | Report what would change without writing |
-| `--default-type` | `type` for concepts that have none (default: `reference`) |
+| `--default-type` | `type` for concepts that have none. Overrides a matching `okf.fixTypes` rule (default: `okf.defaultType`, else `reference`) |
 | `-o` / `--output` | Output format: table (default), text, json |
 
 ### `eru okf verify`
@@ -1062,7 +1063,7 @@ eru okf verify <file> [--by <actor>] [--at <timestamp>] [--dry-run] [-o <format>
 | `--dry-run` | Report what would change without writing |
 | `-o` / `--output` | Output format: table (default), text, json |
 
-An existing well-formed list gets the new entry appended; a bare `{by, at}` mapping is normalized to a list first; a malformed value (e.g. `verified: unknown`) is replaced and the output says so. Fails if the file has no frontmatter or `type` (run `eru okf fix`), is `index.md`/`log.md`/`README.md`, or if `--by` is empty or a placeholder.
+An existing well-formed list gets the new entry appended; a bare `{by, at}` mapping is normalized to a list first; a malformed value (e.g. `verified: unknown`) is replaced and the output says so. Fails if the file has no frontmatter or `type` (run `eru okf fix`), is `index.md`/`log.md`/a `README.md` without a `type`, or if `--by` is empty or a placeholder.
 
 **Examples**
 

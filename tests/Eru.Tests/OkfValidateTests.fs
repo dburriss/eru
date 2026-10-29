@@ -157,6 +157,18 @@ let ``README.md is not a concept and raises no violation`` () =
     Assert.Equal(1, result.TotalConcepts)
 
 [<Fact>]
+let ``README.md with a type is validated as a concept`` () =
+    let result = run [ "README.md", "---\ntype: guide\n---\n# Hi\n"; "docs/readme.md", "# prose\n"; "tables/orders.md", conceptWithType ]
+    Assert.Empty(result.Violations)
+    Assert.Equal(2, result.TotalConcepts)
+
+[<Fact>]
+let ``typed README with a bad shape yields warnings`` () =
+    let result = run [ "README.md", "---\ntype: guide\nverified: false\n---\n" ]
+    Assert.Equal(1, result.TotalConcepts)
+    Assert.Contains("verified-shape", result.Warnings |> List.map (fun w -> w.Rule))
+
+[<Fact>]
 let ``files under dot-directories are skipped`` () =
     let result = run [ ".claude/skills/x.md", "no frontmatter"; ".github/a/b.md", "no frontmatter"; "tables/orders.md", conceptWithType ]
     Assert.Empty(result.Violations)

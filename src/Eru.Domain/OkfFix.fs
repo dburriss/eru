@@ -22,7 +22,12 @@ module OkfFix =
         { Path: string
           IgnorePatterns: string list
           Mode: Mode
+          /// Fallback `type` for concepts that have none and match no `FixTypes` rule.
           DefaultType: string
+          /// Explicit `--default-type`: beats a matching `FixTypes` rule's type.
+          TypeOverride: string option
+          /// Ordered `okf.fixTypes` rules; the first matching pattern wins.
+          FixTypes: OkfFixTypeRule list
           DryRun: bool }
 
     type Change = { Path: string; Rule: string; Description: string; Created: bool }
@@ -122,6 +127,16 @@ module OkfFix =
                 sb.Append(r).Append("\n") |> ignore
         sb.ToString()
 
+    /// The `type` rule for `rel`: `None` when no `FixTypes` pattern matches, `Some None` when the
+    /// matching rule excludes the file (`type: null`), else `Some (Some type)`.
+    let private ruleFor (cmd: Command) (rel: string) : string option option =
+        cmd.FixTypes
+        |> List.tryFind (fun r -> Patterns.matchesGlob r.Pattern rel)
+        |> Option.map (fun r ->
+            match r.Type with
+            | Some t when not (String.IsNullOrWhiteSpace t) -> Some t
+            | _ -> None)
+
     /// The repair for one existing file, as (new content, rule, description).
     let private repairFile
         (deps: Deps)
@@ -130,8 +145,20 @@ module OkfFix =
         (content: string)
         (manual: ResizeArray<OkfValidate.Violation>)
         : (string * string * string) option =
-        match Frontmatter.classifyFile rel with
+        let rule = ruleFor cmd rel
+        // A README is only repaired when a `FixTypes` rule gives it a type; an untyped README
+        // that matches no rule (or an excluding one) is left alone.
+        let cls =
+            match Frontmatter.classifyContent deps.ParseYamlBlock rel content, rule with
+            | Frontmatter.ReadmeFile, Some (Some _) -> Frontmatter.ConceptFile
+            | c, _ -> c
+        let typ =
+            match cmd.TypeOverride, rule with
+            | Some t, _ | None, Some (Some t) -> t
+            | None, _ -> cmd.DefaultType
+        match cls with
         | Frontmatter.ReadmeFile -> None
+        | Frontmatter.ConceptFile when rule = Some None -> None
         | Frontmatter.LogFile ->
             let fixedContent, unfixable = fixLog rel content
             manual.AddRange unfixable
@@ -154,14 +181,14 @@ module OkfFix =
         | Frontmatter.ConceptFile ->
             match Frontmatter.tryParse deps.ParseYamlBlock content with
             | Frontmatter.NoBlock ->
-                Some(setType cmd.DefaultType content, "no-frontmatter", $"added frontmatter with type: {cmd.DefaultType}")
+                Some(setType typ content, "no-frontmatter", $"added frontmatter with type: {typ}")
             | Frontmatter.MalformedYaml msg ->
                 manual.Add { Path = rel; Rule = "malformed-yaml"; Message = $"frontmatter is not valid YAML ({msg}); fix it by hand" }
                 None
             | Frontmatter.Parsed m ->
                 let typed, typeNote =
                     match Frontmatter.type_ m with
-                    | None -> setType cmd.DefaultType content, [ $"added type: {cmd.DefaultType}" ]
+                    | None -> setType typ content, [ $"added type: {typ}" ]
                     | Some _ -> content, []
                 let valid, invalid = Frontmatter.verifiedEntries m
                 let final, verifiedNote =
@@ -210,7 +237,7 @@ module OkfFix =
             // Directories that hold concepts (plus their ancestors and the root) get a catalog index.md.
             let concepts =
                 current.Keys
-                |> Seq.filter (fun rel -> Frontmatter.classifyFile rel = Frontmatter.ConceptFile)
+                |> Seq.filter (fun rel -> Frontmatter.classifyContent deps.ParseYamlBlock rel current.[rel] = Frontmatter.ConceptFile)
                 |> Seq.sort
                 |> List.ofSeq
 

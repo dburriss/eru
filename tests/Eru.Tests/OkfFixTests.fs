@@ -52,7 +52,7 @@ let private runWith mode dryRun (files: (string * string) list) =
     let writes = Dictionary<string, string>()
     let deps = makeDeps (Map.ofList files) writes
     let cmd : OkfFix.Command =
-        { Path = "/bundle"; IgnorePatterns = []; Mode = mode; DefaultType = "reference"; DryRun = dryRun }
+        { Path = "/bundle"; IgnorePatterns = []; Mode = mode; DefaultType = "reference"; TypeOverride = None; FixTypes = []; DryRun = dryRun }
     match OkfFix.execute deps cmd with
     | Ok r -> r, writes
     | Error e -> failwith e
@@ -154,7 +154,7 @@ let ``readme and ignored paths are untouched`` () =
     let writes = Dictionary<string, string>()
     let deps = makeDeps (Map.ofList [ "index.md", rootIndex; "README.md", "# hi"; "inbox/x.md", "raw" ]) writes
     let cmd : OkfFix.Command =
-        { Path = "/bundle"; IgnorePatterns = [ "inbox/**" ]; Mode = OkfFix.Fix; DefaultType = "reference"; DryRun = false }
+        { Path = "/bundle"; IgnorePatterns = [ "inbox/**" ]; Mode = OkfFix.Fix; DefaultType = "reference"; TypeOverride = None; FixTypes = []; DryRun = false }
     OkfFix.execute deps cmd |> ignore
     Assert.Empty(writes)
 
@@ -220,3 +220,68 @@ let ``init never touches verified`` () =
     let r, writes = runWith OkfFix.CreateOnly false [ "a.md", withVerified "verified: unknown\n" ]
     Assert.DoesNotContain(r.Changes, fun c -> c.Rule = "verified-shape")
     Assert.False(writes.ContainsKey "a.md")
+
+// --- okf.fixTypes / --default-type / typed READMEs ---
+
+let private fixWith (fixTypes: OkfFixTypeRule list) (typeOverride: string option) (files: (string * string) list) =
+    let writes = Dictionary<string, string>()
+    let deps = makeDeps (Map.ofList files) writes
+    let cmd : OkfFix.Command =
+        { Path = "/bundle"; IgnorePatterns = []; Mode = OkfFix.Fix; DefaultType = "reference"
+          TypeOverride = typeOverride; FixTypes = fixTypes; DryRun = false }
+    match OkfFix.execute deps cmd with
+    | Ok r -> r, writes
+    | Error e -> failwith e
+
+let private rule pattern typ : OkfFixTypeRule = { Pattern = pattern; Type = typ }
+
+[<Fact>]
+let ``untyped README matching a fixTypes rule gets the type and is cataloged`` () =
+    let files = [ "index.md", rootIndex; "docs/README.md", "# Docs\n" ]
+    let _, writes = fixWith [ rule "README.md" (Some "guide") ] None files
+    Assert.Equal("---\ntype: guide\n---\n# Docs\n", writes.["docs/README.md"])
+    Assert.Contains("[README](README.md) | guide", writes.["docs/index.md"])
+
+[<Fact>]
+let ``untyped README with no matching rule is untouched`` () =
+    let r, writes = fixWith [ rule "docs/**" (Some "guide") ] None [ "index.md", rootIndex; "README.md", "# hi\n" ]
+    Assert.DoesNotContain(r.Changes, fun c -> c.Path = "README.md")
+    Assert.False(writes.ContainsKey "README.md")
+
+[<Fact>]
+let ``typed README is repaired without any rule`` () =
+    let files = [ "index.md", rootIndex; "README.md", "---\ntype: guide\nverified: unknown\n---\n" ]
+    let r, writes = fixWith [] None files
+    Assert.Contains(r.Changes, fun c -> c.Path = "README.md" && c.Rule = "verified-shape")
+    Assert.Equal<string list>([ "README.md" ], writes.Keys |> List.ofSeq)
+
+[<Fact>]
+let ``fixTypes keeps an existing type`` () =
+    let r, _ = fixWith [ rule "*.md" (Some "guide") ] None [ "index.md", rootIndex; "a.md", "---\ntype: adr\n---\n" ]
+    Assert.DoesNotContain(r.Changes, fun c -> c.Path = "a.md")
+
+[<Fact>]
+let ``first matching fixTypes rule wins and null leaves the file alone`` () =
+    let files = [ "index.md", rootIndex; "docs/a.md", "# a\n"; "docs/internal/b.md", "# b\n" ]
+    let rules = [ rule "docs/internal/**" None; rule "docs/**" (Some "guide") ]
+    let _, writes = fixWith rules None files
+    Assert.Equal("---\ntype: guide\n---\n# a\n", writes.["docs/a.md"])
+    Assert.False(writes.ContainsKey "docs/internal/b.md")
+
+[<Fact>]
+let ``type precedence is flag then rule then default`` () =
+    let files = [ "index.md", rootIndex; "docs/a.md", "# a\n"; "b.md", "# b\n" ]
+    let rules = [ rule "docs/**" (Some "guide") ]
+    let _, ruled = fixWith rules None files
+    Assert.StartsWith("---\ntype: guide\n", ruled.["docs/a.md"])
+    Assert.StartsWith("---\ntype: reference\n", ruled.["b.md"])
+    let _, flagged = fixWith rules (Some "note") files
+    Assert.StartsWith("---\ntype: note\n", flagged.["docs/a.md"])
+    Assert.StartsWith("---\ntype: note\n", flagged.["b.md"])
+
+[<Fact>]
+let ``flag does not type an unmatched README or override a null rule`` () =
+    let files = [ "index.md", rootIndex; "README.md", "# hi\n"; "docs/a.md", "# a\n" ]
+    let _, writes = fixWith [ rule "docs/**" None ] (Some "note") files
+    Assert.False(writes.ContainsKey "README.md")
+    Assert.False(writes.ContainsKey "docs/a.md")

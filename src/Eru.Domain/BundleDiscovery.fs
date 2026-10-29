@@ -18,7 +18,7 @@ module BundleDiscovery =
     }
 
     let private toDiscoveredFile (parseYaml: Yaml.Parse) (remotePath: string) (content: string) : DiscoveredFile =
-        match Frontmatter.classifyFile remotePath with
+        match Frontmatter.classifyContent parseYaml remotePath content with
         | Frontmatter.IndexFile | Frontmatter.LogFile | Frontmatter.ReadmeFile ->
             { RemotePath   = remotePath
               Content      = content
@@ -74,7 +74,7 @@ module BundleDiscovery =
                     files
                     |> List.map (fun (remotePath, content) -> toDiscoveredFile deps.ParseYamlBlock remotePath content)
                     |> List.filter (fun d ->
-                        match Frontmatter.classifyFile d.RemotePath with
+                        match Frontmatter.classifyContent deps.ParseYamlBlock d.RemotePath d.Content with
                         | Frontmatter.ConceptFile -> d.Type |> Option.exists (fun t -> not (System.String.IsNullOrWhiteSpace t))
                         | _ -> true)
                     |> Ok
