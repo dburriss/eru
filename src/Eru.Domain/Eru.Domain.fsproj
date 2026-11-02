@@ -11,6 +11,7 @@
     <Compile Include="Frontmatter.fs" />
     <Compile Include="SiteConfig.fs" />
     <Compile Include="Config.fs" />
+    <Compile Include="EnvConfig.fs" />
     <Compile Include="Patterns.fs" />
     <Compile Include="LockFile.fs" />
     <Compile Include="Deps.fs" />

@@ -121,7 +121,7 @@ let private renderRankedTable (hits: RankedSearch.RankedHit list) =
 let private effectiveConfig (deps: Eru.Deps) : Result<EffectiveConfig, string> =
     match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
     | Error e, _ | _, Error e -> Error e
-    | Ok g, Ok l -> Config.merge g l |> Result.map (Config.withManifests deps.ReadCachedManifest)
+    | Ok g, Ok l -> DepsConfig.merge deps g l |> Result.map (Config.withManifests deps.ReadCachedManifest)
 
 let private runRanked (deps: Eru.Deps) (cmd: Cmd) (terms: string list) : int =
     use cts = new CancellationTokenSource()

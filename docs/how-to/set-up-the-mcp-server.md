@@ -68,6 +68,31 @@ Add to `.github/mcp.json`. Without the .NET tool installed, `dnx` runs it on dem
 
 The same `dnx` command and args work for Claude Code's `.mcp.json` (with `"type": "stdio"`).
 
+## Pass settings through the client
+
+Every config setting can be overridden with an `ERU__` environment variable (see
+[environment variables](../reference/config-file.md#environment-variables)), so a client can configure the server
+without touching a config file. Put them in the server's `env` block:
+
+```json
+{
+  "mcpServers": {
+    "eru": {
+      "command": "eru",
+      "args": ["mcp"],
+      "env": {
+        "ERU__SEARCH__MODE": "hybrid",
+        "ERU__MCP__REFRESHINTERVALMINUTES": "15"
+      }
+    }
+  }
+}
+```
+
+The same `env` key works in VS Code's `.vscode/mcp.json` and in Claude Code's `.mcp.json`. The values take effect
+on start and survive the background refresh. A bad value stops the server at startup with a message on stderr
+naming the variable.
+
 ## Install the skills, agent and MCP server with APM
 
 eru ships a root `apm.yml`, so a project that uses [APM](https://github.com/microsoft/apm) can install the

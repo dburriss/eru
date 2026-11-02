@@ -85,7 +85,7 @@ let run (deps: Deps) (cmd: Cmd) : int =
         | None ->
             let globalCfg = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
             let localCfg  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
-            match Config.merge globalCfg localCfg with
+            match DepsConfig.merge deps globalCfg localCfg with
             | Ok eff  -> eff.InboxWatchIntervalSeconds
             | Error _ -> 30
 

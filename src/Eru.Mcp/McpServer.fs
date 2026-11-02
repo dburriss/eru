@@ -21,7 +21,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
             | Error _   -> None
 
         let eff =
-            Config.merge globalCfgOpt localCfgOpt
+            DepsConfig.merge deps globalCfgOpt localCfgOpt
             |> Result.defaultWith (fun _ ->
                 EffectiveConfig.empty)
             |> Config.withManifests deps.ReadCachedManifest

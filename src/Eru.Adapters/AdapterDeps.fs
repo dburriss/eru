@@ -42,6 +42,7 @@ module AdapterDeps =
         {
             ReadGlobalConfig         = ConfigAdapter.readGlobalConfig
             ReadLocalConfig          = fun () -> ConfigAdapter.readLocalConfig cwd
+            ReadEnvConfig            = ConfigAdapter.readEnvConfig
             WriteLocalConfig         = ConfigAdapter.writeLocalConfig cwd
             WriteGlobalConfig        = ConfigAdapter.writeGlobalConfig
             ReadLockEntries          = fun stateFile ->

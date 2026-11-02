@@ -298,7 +298,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             try
                 let eff =
                     match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-                    | Ok g, Ok l -> Config.merge g l |> Result.map (Config.withManifests deps.ReadCachedManifest)
+                    | Ok g, Ok l -> DepsConfig.merge deps g l |> Result.map (Config.withManifests deps.ReadCachedManifest)
                     | Error e, _ | _, Error e -> Error e
                 let request: RankedSearch.Request =
                     { Query = text; Tags = []; Mode = None; Limit = 100 }

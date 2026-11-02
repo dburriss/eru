@@ -544,36 +544,58 @@ module Config =
     let private first (local: 'S option) (fromGlobal: 'S option) (get: 'S -> 'a option) : 'a option =
         local |> Option.bind get |> Option.orElse (fromGlobal |> Option.bind get)
 
-    let resolveOkfIgnorePatterns (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
-        first
+    // The environment layer sits above both files: env, then local, then global.
+    let private first3 (env: 'S option) (local: 'S option) (fromGlobal: 'S option) (get: 'S -> 'a option) : 'a option =
+        env |> Option.bind get |> Option.orElse (first local fromGlobal get)
+
+    // `...With` variants take the environment layer; the plain ones are the file-only resolution.
+    let resolveOkfIgnorePatternsWith (envCfg: LocalConfig option) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
+        first3
+            (envCfg    |> Option.bind (fun e -> e.Okf))
             (localCfg  |> Option.bind (fun l -> l.Okf))
             (globalCfg |> Option.bind (fun g -> g.Okf))
             (fun (s: OkfSection) -> s.IgnorePatterns)
         |> Option.defaultValue defaultOkfIgnorePatterns
 
-    let resolveOkfFixTypes (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : OkfFixTypeRule list =
-        first
+    let resolveOkfIgnorePatterns (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
+        resolveOkfIgnorePatternsWith None globalCfg localCfg
+
+    let resolveOkfFixTypesWith (envCfg: LocalConfig option) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : OkfFixTypeRule list =
+        first3
+            (envCfg    |> Option.bind (fun e -> e.Okf))
             (localCfg  |> Option.bind (fun l -> l.Okf))
             (globalCfg |> Option.bind (fun g -> g.Okf))
             (fun (s: OkfSection) -> s.FixTypes)
         |> Option.defaultValue []
 
-    let resolveOkfDefaultType (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string =
-        first
+    let resolveOkfFixTypes (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : OkfFixTypeRule list =
+        resolveOkfFixTypesWith None globalCfg localCfg
+
+    let resolveOkfDefaultTypeWith (envCfg: LocalConfig option) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string =
+        first3
+            (envCfg    |> Option.bind (fun e -> e.Okf))
             (localCfg  |> Option.bind (fun l -> l.Okf))
             (globalCfg |> Option.bind (fun g -> g.Okf))
             (fun (s: OkfSection) -> s.DefaultType)
         |> Option.defaultValue defaultOkfType
 
-    let resolveSearchIgnorePatterns (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
-        first
+    let resolveOkfDefaultType (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string =
+        resolveOkfDefaultTypeWith None globalCfg localCfg
+
+    let resolveSearchIgnorePatternsWith (envCfg: LocalConfig option) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
+        first3
+            (envCfg    |> Option.bind (fun e -> e.Search))
             (localCfg  |> Option.bind (fun l -> l.Search))
             (globalCfg |> Option.bind (fun g -> g.Search))
             (fun (s: SearchSection) -> s.IgnorePatterns)
         |> Option.defaultValue defaultSearchIgnorePatterns
 
-    let resolveSearchMode (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<SearchMode, string> =
-        first
+    let resolveSearchIgnorePatterns (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
+        resolveSearchIgnorePatternsWith None globalCfg localCfg
+
+    let resolveSearchModeWith (envCfg: LocalConfig option) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<SearchMode, string> =
+        first3
+            (envCfg    |> Option.bind (fun e -> e.Search))
             (localCfg  |> Option.bind (fun l -> l.Search))
             (globalCfg |> Option.bind (fun g -> g.Search))
             (fun (s: SearchSection) -> s.Mode)
@@ -583,6 +605,9 @@ module Config =
                 match SearchMode.tryParse m with
                 | Some mode -> Ok mode
                 | None -> Error $"search.mode must be one of lex, sem, hybrid (got '{m}')"
+
+    let resolveSearchMode (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<SearchMode, string> =
+        resolveSearchModeWith None globalCfg localCfg
 
     let supportedVersion = 3
 
@@ -634,7 +659,9 @@ module Config =
                         Error $"Local source '{ls.Name}' has no URL and was not found in global config"))
             (Ok [])
 
-    let merge (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<EffectiveConfig, string> =
+    // `envCfg` is the environment layer (see EnvConfig): it overrides the same keys in the
+    // local and global files, and holds settings only, never sources, collections or inboxes.
+    let mergeWithEnv (envCfg: LocalConfig option) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<EffectiveConfig, string> =
         let globalSources = globalCfg |> Option.map GlobalConfig.sources |> Option.defaultValue []
         let localSources  = localCfg  |> Option.map LocalConfig.sources  |> Option.defaultValue []
 
@@ -670,6 +697,7 @@ module Config =
                 checkCollectionSources (globalCols @ localCols) mergedSources
             validateCollections |> Result.map (fun () -> mergedSources))
         |> Result.bind (fun mergedSources ->
+            let eSite  = envCfg    |> Option.bind (fun e -> e.Site)
             let lSite  = localCfg  |> Option.bind (fun l -> l.Site)
             let gSite  = globalCfg |> Option.bind (fun g -> g.Site)
             let parseSite (who: string) (sec: SiteSection option) =
@@ -680,15 +708,22 @@ module Config =
             |> Result.bind (fun gs ->
                 parseSite "local config" lSite
                 |> Result.map (fun ls -> SiteSettings.merge gs ls))
+            |> Result.bind (fun gl ->
+                parseSite "environment (ERU__SITE__*)" eSite
+                |> Result.map (fun es -> SiteSettings.merge gl es))
             |> Result.bind (fun site -> SiteSettings.validate site |> Result.map (fun () -> site))
-            |> Result.bind (fun site -> resolveSearchMode globalCfg localCfg |> Result.map (fun mode -> site, mode))
+            |> Result.bind (fun site -> resolveSearchModeWith envCfg globalCfg localCfg |> Result.map (fun mode -> site, mode))
             |> Result.map (fun (site, searchMode) ->
+            let eMcp   = envCfg    |> Option.bind (fun e -> e.Mcp)
             let lMcp   = localCfg  |> Option.bind (fun l -> l.Mcp)
             let gMcp   = globalCfg |> Option.bind (fun g -> g.Mcp)
+            let eSync  = envCfg    |> Option.bind (fun e -> e.Sync)
             let lSync  = localCfg  |> Option.bind (fun l -> l.Sync)
             let gSync  = globalCfg |> Option.bind (fun g -> g.Sync)
+            let eFiles = envCfg    |> Option.bind (fun e -> e.Files)
             let lFiles = localCfg  |> Option.bind (fun l -> l.Files)
             let gFiles = globalCfg |> Option.bind (fun g -> g.Files)
+            let eInbox = envCfg    |> Option.bind (fun e -> e.Inbox)
             let lInbox = localCfg  |> Option.bind (fun l -> l.Inbox)
             let gInbox = globalCfg |> Option.bind (fun g -> g.Inbox)
 
@@ -706,27 +741,45 @@ module Config =
 
             {
                 Sources      = mergedSources
-                CommitOnPull = first lSync gSync (fun (s: SyncSection) -> s.CommitOnPull) |> Option.defaultValue false
-                StateFile    = first lSync gSync (fun (s: SyncSection) -> s.StateFile) |> Option.defaultValue "eru.lock"
+                CommitOnPull = first3 eSync lSync gSync (fun (s: SyncSection) -> s.CommitOnPull) |> Option.defaultValue false
+                StateFile    = first3 eSync lSync gSync (fun (s: SyncSection) -> s.StateFile) |> Option.defaultValue "eru.lock"
                 Collections  =
                     let globalCols = globalCfg |> Option.map (GlobalConfig.collections >> collectionFiles) |> Option.defaultValue []
                     let localCols  = localCfg  |> Option.map (LocalConfig.collections  >> collectionFiles) |> Option.defaultValue []
                     globalCols @ localCols
                 McpRefreshIntervalMinutes =
-                    first lMcp gMcp (fun (s: McpSection) -> s.RefreshIntervalMinutes) |> Option.defaultValue 60
-                BlockPatterns = first lFiles gFiles (fun (s: FilesSection) -> s.BlockPatterns) |> Option.defaultValue defaultBlockPatterns
-                AllowPatterns = first lFiles gFiles (fun (s: FilesSection) -> s.AllowPatterns) |> Option.defaultValue defaultAllowPatterns
-                AllowBinaries = first lFiles gFiles (fun (s: FilesSection) -> s.AllowBinaries) |> Option.defaultValue defaultAllowBinaries
-                SiteIgnorePatterns = first lSite gSite (fun (s: SiteSection) -> s.IgnorePatterns) |> Option.defaultValue defaultSiteIgnorePatterns
-                SiteHideEmptyBundles = first lSite gSite (fun (s: SiteSection) -> s.HideEmptyBundles) |> Option.defaultValue defaultSiteHideEmptyBundles
+                    first3 eMcp lMcp gMcp (fun (s: McpSection) -> s.RefreshIntervalMinutes) |> Option.defaultValue 60
+                BlockPatterns = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.BlockPatterns) |> Option.defaultValue defaultBlockPatterns
+                AllowPatterns = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.AllowPatterns) |> Option.defaultValue defaultAllowPatterns
+                AllowBinaries = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.AllowBinaries) |> Option.defaultValue defaultAllowBinaries
+                SiteIgnorePatterns = first3 eSite lSite gSite (fun (s: SiteSection) -> s.IgnorePatterns) |> Option.defaultValue defaultSiteIgnorePatterns
+                SiteHideEmptyBundles = first3 eSite lSite gSite (fun (s: SiteSection) -> s.HideEmptyBundles) |> Option.defaultValue defaultSiteHideEmptyBundles
                 Site = site
-                OkfIgnorePatterns = resolveOkfIgnorePatterns globalCfg localCfg
+                OkfIgnorePatterns = resolveOkfIgnorePatternsWith envCfg globalCfg localCfg
                 SearchMode = searchMode
-                SearchIgnorePatterns = resolveSearchIgnorePatterns globalCfg localCfg
+                SearchIgnorePatterns = resolveSearchIgnorePatternsWith envCfg globalCfg localCfg
                 Inboxes = mergedInboxes
-                DefaultInbox = first lInbox gInbox (fun (s: InboxSection) -> s.Default)
-                InboxWatchIntervalSeconds = first lInbox gInbox (fun (s: InboxSection) -> s.WatchIntervalSeconds) |> Option.defaultValue 30
+                DefaultInbox = first3 eInbox lInbox gInbox (fun (s: InboxSection) -> s.Default)
+                InboxWatchIntervalSeconds = first3 eInbox lInbox gInbox (fun (s: InboxSection) -> s.WatchIntervalSeconds) |> Option.defaultValue 30
             }))
+
+    let merge (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<EffectiveConfig, string> =
+        mergeWithEnv None globalCfg localCfg
+
+    // Shape checks on the environment layer alone, so a bad ERU__ value can be reported at startup
+    // rather than surfacing as a failed merge (or a silent fall-back to defaults) in some command.
+    // Cross-references such as page ids are left to the merge, where the files are known.
+    let validateEnv (envCfg: LocalConfig option) : Result<unit, string> =
+        match envCfg with
+        | None -> Ok ()
+        | Some e ->
+            e.Site
+            |> Option.map (fun s -> SiteSettings.parse s |> Result.map ignore |> Result.mapError (fun m -> $"environment (ERU__SITE__*): {m}"))
+            |> Option.defaultValue (Ok ())
+            |> Result.bind (fun () ->
+                resolveSearchModeWith envCfg None None
+                |> Result.map ignore
+                |> Result.mapError (fun m -> $"environment (ERU__SEARCH__MODE): {m}"))
 
     let withManifests
         (readCachedManifest: string -> Result<SourceManifest option, string>)

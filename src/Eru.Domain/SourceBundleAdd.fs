@@ -137,6 +137,7 @@ module SourceBundleAdd =
                 match kind, src.Url with
                 | Okf, Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
-                    discoverAndMergeBundle deps (Config.resolveOkfIgnorePatterns globalCfg localCfg) cmd.SourceName url branch updatedSrc.Bundles newBundle
+                    let envCfg = match deps.ReadEnvConfig () with Ok e -> e | Error _ -> None
+                    discoverAndMergeBundle deps (Config.resolveOkfIgnorePatternsWith envCfg globalCfg localCfg) cmd.SourceName url branch updatedSrc.Bundles newBundle
                 | _ -> ()
                 Ok $"Added bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'.{warning}"

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Every config setting can be overridden with an environment variable that mirrors its path in the config file: `ERU__` plus the key path joined with `__` (`search.mode` is `ERU__SEARCH__MODE`, `mcp.refreshIntervalMinutes` is `ERU__MCP__REFRESHINTERVALMINUTES`), with list items indexed (`ERU__FILES__BLOCKPATTERNS__0`). The environment overrides the local and global config in the CLI, `eru browse` and `eru mcp`, so an MCP client can pass settings in its `env` block. An invalid value stops the command at startup and names the variable; `eru config get` and `eru config view` show such a value with origin `env`, and it is never written to a config file. See [environment variables](docs/reference/config-file.md#environment-variables)
+
+### Changed
+
+- `ERU_SEARCH_MODE` is now an alias for `ERU__SEARCH__MODE`, so an invalid value is reported at startup by every command instead of only by `eru search`
+
 ## [0.14.0] - 2026-11-02
 
 ### Added

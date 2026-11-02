@@ -53,6 +53,15 @@ let private (|McpCmd|_|) (r: ParseResults<EruArgs>) =
         | EruArgs.Mcp _ -> Some ()
         | _             -> None)
 
+// A bad ERU__ variable stops every command (CLI, `eru browse` and `eru mcp` alike) up front: several
+// call sites fall back to built-in defaults when the config fails to merge, which would silently
+// drop all settings. Variables that are not settings only warn, on stderr (stdout is the MCP channel).
+let private checkEnvironment (deps: Deps) : Result<unit, string> =
+    ConfigAdapter.readEnvLayer ()
+    |> Result.bind (fun layer ->
+        for w in layer.Warnings do eprintfn "[eru] WARNING: %s" w
+        deps.ReadEnvConfig () |> Result.bind Config.validateEnv)
+
 [<EntryPoint>]
 let main argv =
     let parser = ArgumentParser.Create<EruArgs>(programName = "eru")
@@ -60,6 +69,10 @@ let main argv =
         let parsed  = parser.ParseCommandLine argv
         let isDebug = parsed.Contains EruArgs.Debug
         let deps    = AdapterDeps.create isDebug
+
+        match checkEnvironment deps with
+        | Error e -> eprintfn "eru: %s" e; 1
+        | Ok () ->
 
         match parsed with
         | McpCmd ()                   -> Eru.Mcp.Server.run deps |> Async.AwaitTask |> Async.RunSynchronously; 0

@@ -59,9 +59,9 @@ let private renderTable (r: OkfFix.FixResult) =
 /// Shared by `eru okf init` and `eru okf fix`; exit code 1 if anything needs manual attention.
 let runMode (deps: Eru.Deps) (mode: OkfFix.Mode) (path: string) (dryRun: bool) (typeOverride: string option) (format: OutputFormat) : int =
     let ignorePatterns, fixTypes, defaultType =
-        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-        | Ok g, Ok l -> Config.resolveOkfIgnorePatterns g l, Config.resolveOkfFixTypes g l, Config.resolveOkfDefaultType g l
-        | _          -> Config.defaultOkfIgnorePatterns, [], Config.defaultOkfType
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig (), deps.ReadEnvConfig () with
+        | Ok g, Ok l, Ok e -> Config.resolveOkfIgnorePatternsWith e g l, Config.resolveOkfFixTypesWith e g l, Config.resolveOkfDefaultTypeWith e g l
+        | _                -> Config.defaultOkfIgnorePatterns, [], Config.defaultOkfType
     let cmd : OkfFix.Command =
         { Path = path; IgnorePatterns = ignorePatterns; Mode = mode; DefaultType = defaultType
           TypeOverride = typeOverride; FixTypes = fixTypes; DryRun = dryRun }

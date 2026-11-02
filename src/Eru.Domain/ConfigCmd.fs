@@ -16,6 +16,8 @@ type ConfigIO = {
     ParseLocal      : string -> Result<LocalConfig, string>
     SerializeGlobal : GlobalConfig -> string
     SerializeLocal  : LocalConfig -> string
+    // The ERU__* environment overrides as config-shaped JSON text; None when none are set.
+    ReadEnv         : unit -> Result<string option, string>
 }
 
 module ConfigCmd =
@@ -29,7 +31,7 @@ module ConfigCmd =
         Problem        : string option
     }
 
-    type Origin = FromLocal | FromGlobal | FromDefault
+    type Origin = FromEnv | FromLocal | FromGlobal | FromDefault
 
     type SettingRow = { Key: string; Value: string; Origin: string }
 
@@ -43,7 +45,7 @@ module ConfigCmd =
 
     let private scopeName = function LocalScope -> "local" | GlobalScope -> "global"
 
-    let private originName = function FromLocal -> "local" | FromGlobal -> "global" | FromDefault -> "default"
+    let private originName = function FromEnv -> "env" | FromLocal -> "local" | FromGlobal -> "global" | FromDefault -> "default"
 
     // A file with no "version" property is treated as the oldest shape.
     let private onDiskVersion (raw: string) : Result<int, string> =
@@ -92,8 +94,8 @@ module ConfigCmd =
 
     let private render (node: JsonNode) : string = node.ToJsonString()
 
-    // Settings whose effective value is "local, else global, else built-in default".
-    // Mirrors the `first local global` fields in `Config.merge`.
+    // Settings whose effective value is "env, else local, else global, else built-in default".
+    // Mirrors the `first3 env local global` fields in `Config.mergeWithEnv`.
     let private defaultOf (value: obj) : JsonNode = JsonSerializer.SerializeToNode value
 
     let private knownSettings : (string * JsonNode option) list = [
@@ -118,21 +120,34 @@ module ConfigCmd =
     let private splitKey (key: string) : string list =
         key.Split('.', System.StringSplitOptions.RemoveEmptyEntries ||| System.StringSplitOptions.TrimEntries) |> Array.toList
 
-    let private resolve (local: JsonNode option) (global': JsonNode option) (key: string) : (JsonNode * Origin) option =
+    let private resolve (env: JsonNode option) (local: JsonNode option) (global': JsonNode option) (key: string) : (JsonNode * Origin) option =
         let path = splitKey key
         let from origin node = node |> Option.bind (fun n -> walk n path) |> Option.map (fun v -> v, origin)
-        from FromLocal local |> Option.orElse (from FromGlobal global')
+        from FromEnv env |> Option.orElse (from FromLocal local) |> Option.orElse (from FromGlobal global')
+
+    // The environment layer, normalized like a file: parsed and re-serialized so key paths
+    // use the current names.
+    let private envNode (io: ConfigIO) : Result<JsonNode option, string> =
+        io.ReadEnv ()
+        |> Result.bind (function
+            | None -> Ok None
+            | Some raw ->
+                io.ParseLocal raw
+                |> Result.mapError (fun e -> $"environment ({EnvConfig.prefix}*): {e}")
+                |> Result.bind (io.SerializeLocal >> parseNode))
 
     let private nodes (io: ConfigIO) =
-        normalizedNode io LocalScope
-        |> Result.bind (fun l -> normalizedNode io GlobalScope |> Result.map (fun g -> l, g))
+        envNode io
+        |> Result.bind (fun e ->
+            normalizedNode io LocalScope
+            |> Result.bind (fun l -> normalizedNode io GlobalScope |> Result.map (fun g -> e, l, g)))
 
     let get (io: ConfigIO) (key: string) : Result<SettingRow, string> =
         if splitKey key |> List.isEmpty then Error "key must not be empty"
         else
         nodes io
-        |> Result.bind (fun (l, g) ->
-            match resolve l g key with
+        |> Result.bind (fun (e, l, g) ->
+            match resolve e l g key with
             | Some (v, origin) -> Ok { Key = key; Value = render v; Origin = originName origin }
             | None ->
                 match knownSettings |> List.tryFind (fun (k, _) -> k = key) with
@@ -142,18 +157,19 @@ module ConfigCmd =
 
     let view (io: ConfigIO) : Result<View, string> =
         nodes io
-        |> Result.bind (fun (l, g) ->
+        |> Result.bind (fun (e, l, g) ->
+            let parsedEnv    = io.ReadEnv () |> Result.bind (function Some r -> io.ParseLocal r |> Result.map Some | None -> Ok None)
             let parsedGlobal = io.ReadRaw (io.Path GlobalScope) |> Result.bind (function Some r -> io.ParseGlobal r |> Result.map Some | None -> Ok None)
             let parsedLocal  = io.ReadRaw (io.Path LocalScope)  |> Result.bind (function Some r -> io.ParseLocal r  |> Result.map Some | None -> Ok None)
-            match parsedGlobal, parsedLocal with
-            | Error e, _ | _, Error e -> Error e
-            | Ok pg, Ok pl ->
-                Config.merge pg pl
+            match parsedEnv, parsedGlobal, parsedLocal with
+            | Error err, _, _ | _, Error err, _ | _, _, Error err -> Error err
+            | Ok pe, Ok pg, Ok pl ->
+                Config.mergeWithEnv pe pg pl
                 |> Result.map (fun eff ->
                     let settings =
                         knownSettings
                         |> List.map (fun (key, def) ->
-                            match resolve l g key with
+                            match resolve e l g key with
                             | Some (v, o) -> { Key = key; Value = render v; Origin = originName o }
                             | None ->
                                 let v = def |> Option.map render |> Option.defaultValue "null"

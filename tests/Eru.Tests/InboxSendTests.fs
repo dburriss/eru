@@ -22,6 +22,7 @@ let private makeDeps
     {
         ReadGlobalConfig   = fun () -> Ok globalCfg
         ReadLocalConfig    = fun () -> Ok localCfg
+        ReadEnvConfig    = fun () -> Ok None
         WriteLocalConfig   = fun _ -> Ok ()
         WriteGlobalConfig  = fun _ -> Ok ()
         ReadLockEntries    = fun _ -> Ok []

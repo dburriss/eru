@@ -24,6 +24,7 @@
     <Compile Include="EntryIdTests.fs" />
     <Compile Include="ConfigTests.fs" />
     <Compile Include="ConfigCmdTests.fs" />
+    <Compile Include="EnvConfigTests.fs" />
     <Compile Include="IndexBlendTests.fs" />
     <Compile Include="BundleDiscoveryTests.fs" />
     <Compile Include="SourceTests.fs" />

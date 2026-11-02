@@ -45,6 +45,7 @@ let private makeDeps
     {
         ReadGlobalConfig        = fun () -> Ok (Some (makeGlobal (sourceIndex |> Map.toList |> List.map (fun (n, _) -> makeSource n $"https://example.com/{n}.git"))))
         ReadLocalConfig         = fun () -> Ok None
+        ReadEnvConfig         = fun () -> Ok None
         WriteLocalConfig        = fun _ -> Ok ()
         WriteGlobalConfig       = fun _ -> Ok ()
         ReadLockEntries         = fun _ -> Ok []

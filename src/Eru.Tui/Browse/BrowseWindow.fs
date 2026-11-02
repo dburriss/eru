@@ -87,7 +87,7 @@ type BrowseWindow(deps: Deps, initialTab: ActiveTab, sources: SourceList.SourceR
     let reloadLockEntries () =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Ok gc, Ok lc ->
-            match Config.merge gc lc with
+            match DepsConfig.merge deps gc lc with
             | Ok eff ->
                 match deps.ReadLockEntries eff.StateFile with
                 | Ok entries ->

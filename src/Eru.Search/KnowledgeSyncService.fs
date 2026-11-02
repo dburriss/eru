@@ -20,7 +20,7 @@ type KnowledgeSyncService(deps: Deps, startupEff: EffectiveConfig, logger: ILogg
         let globalCfgOpt = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
         let localCfgOpt  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
         let baseEff =
-            Config.merge globalCfgOpt localCfgOpt
+            DepsConfig.merge deps globalCfgOpt localCfgOpt
             |> Result.defaultWith (fun _ -> currentEff)
         Config.withManifests deps.ReadCachedManifest baseEff
 

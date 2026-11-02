@@ -138,7 +138,7 @@ module Sync =
         let localCfg  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
 
         let baseEff =
-            match Config.merge globalCfg localCfg with
+            match DepsConfig.merge deps globalCfg localCfg with
             | Ok e  -> e
             | Error _ -> EffectiveConfig.empty
 
@@ -417,7 +417,7 @@ module Sync =
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
 
-        match Config.merge globalCfg localCfg with
+        match DepsConfig.merge deps globalCfg localCfg with
         | Error e -> Error e
         | Ok eff ->
 
@@ -571,7 +571,7 @@ module Sync =
     let summarizeIndexes (deps: Deps) : IndexSummary list =
         let globalCfg = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
         let localCfg  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
-        match Config.merge globalCfg localCfg with
+        match DepsConfig.merge deps globalCfg localCfg with
         | Error _ -> []
         | Ok eff ->
             eff.Sources

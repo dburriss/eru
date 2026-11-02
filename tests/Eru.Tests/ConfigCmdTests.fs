@@ -8,7 +8,7 @@ let private globalPath = "/home/u/.config/eru/config.json"
 let private localPath  = "/repo/.eru/config.json"
 
 // In-memory filesystem over the real serializer/migration chain.
-let private makeIO (files: (string * string) list) =
+let private makeIOWithEnv (env: string option) (files: (string * string) list) =
     let fs = System.Collections.Generic.Dictionary<string, string>()
     for (p, c) in files do fs[p] <- c
     let io : ConfigIO = {
@@ -27,8 +27,11 @@ let private makeIO (files: (string * string) list) =
                 Serialization.deserialize<LocalConfigV1>
         SerializeGlobal = Serialization.serialize<GlobalConfig>
         SerializeLocal  = Serialization.serialize<LocalConfig>
+        ReadEnv         = fun () -> Ok env
     }
     io, fs
+
+let private makeIO (files: (string * string) list) = makeIOWithEnv None files
 
 let private ok label = function
     | Ok x -> x
@@ -200,3 +203,49 @@ let ``migrate rejects a newer version and a missing file`` () =
     let io, _ = makeIO [ localPath, """{"version":4}""" ]
     Assert.True (ConfigCmd.migrate io LocalScope false |> Result.isError)
     Assert.True (ConfigCmd.migrate io GlobalScope false |> Result.isError)
+
+// ── environment overrides ───────────────────────────────────────────────────
+
+let private envJson = """{"version":3,"mcp":{"refreshIntervalMinutes":5},"search":{"mode":"hybrid"}}"""
+
+[<Fact>]
+let ``get reports an environment override with origin env`` () =
+    let io, _ = makeIOWithEnv (Some envJson) [ globalPath, v3Global; localPath, v2Local ]
+    let mode = ConfigCmd.get io "search.mode" |> ok "mode"
+    Assert.Equal("\"hybrid\"", mode.Value)
+    Assert.Equal("env", mode.Origin)
+    let mcp = ConfigCmd.get io "mcp.refreshIntervalMinutes" |> ok "mcp"
+    Assert.Equal("5", mcp.Value)
+    Assert.Equal("env", mcp.Origin)
+
+[<Fact>]
+let ``get still reads the files for keys the environment does not set`` () =
+    let io, _ = makeIOWithEnv (Some envJson) [ globalPath, v3Global; localPath, v2Local ]
+    let commit = ConfigCmd.get io "sync.commitOnPull" |> ok "commit"
+    Assert.Equal("local", commit.Origin)
+    let block = ConfigCmd.get io "files.blockPatterns" |> ok "block"
+    Assert.Equal("global", block.Origin)
+
+[<Fact>]
+let ``view lists environment overrides with origin env`` () =
+    let io, _ = makeIOWithEnv (Some envJson) [ globalPath, v3Global; localPath, v2Local ]
+    let v = ConfigCmd.view io |> ok "view"
+    let origin key = (v.Settings |> List.find (fun s -> s.Key = key)).Origin
+    Assert.Equal("env", origin "search.mode")
+    Assert.Equal("env", origin "mcp.refreshIntervalMinutes")
+    Assert.Equal("local", origin "sync.commitOnPull")
+
+[<Fact>]
+let ``set never writes an environment value into the file`` () =
+    let io, files = makeIOWithEnv (Some envJson) [ localPath, """{"version":3}""" ]
+    ConfigCmd.set io LocalScope "sync.stateFile" (Some "\"mine.lock\"") |> ok "set" |> ignore
+    Assert.Contains("mine.lock", files.[localPath])
+    Assert.DoesNotContain("hybrid", files.[localPath])
+    Assert.DoesNotContain("refreshIntervalMinutes", files.[localPath])
+
+[<Fact>]
+let ``set validates the file alone, so a bad environment value does not block it`` () =
+    let bad = """{"version":3,"search":{"mode":"nope"}}"""
+    let io, files = makeIOWithEnv (Some bad) [ localPath, """{"version":3}""" ]
+    ConfigCmd.set io LocalScope "search.mode" (Some "\"sem\"") |> ok "set" |> ignore
+    Assert.Contains("sem", files.[localPath])

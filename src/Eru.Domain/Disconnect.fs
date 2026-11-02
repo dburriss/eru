@@ -20,7 +20,7 @@ module Disconnect =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Error e, _ | _, Error e -> Error e
         | Ok globalCfg, Ok localCfg ->
-        match Config.merge globalCfg localCfg with
+        match DepsConfig.merge deps globalCfg localCfg with
         | Error e -> Error e
         | Ok eff ->
         match deps.ReadLockEntries eff.StateFile with

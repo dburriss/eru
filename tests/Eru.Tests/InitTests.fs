@@ -12,6 +12,7 @@ let private makeDeps
     {
         ReadGlobalConfig   = fun () -> Ok globalCfg
         ReadLocalConfig    = fun () -> Ok None
+        ReadEnvConfig    = fun () -> Ok None
         WriteLocalConfig   = fun _ -> Ok ()
         WriteGlobalConfig  = fun cfg -> capturedGlobal.Value <- Some cfg; Ok ()
         ReadLockEntries    = fun _ -> Ok []

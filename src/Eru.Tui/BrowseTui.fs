@@ -15,7 +15,7 @@ let run (deps: Deps) : int =
     let lockEntries =
         match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
         | Ok gc, Ok lc ->
-            match Config.merge gc lc with
+            match DepsConfig.merge deps gc lc with
             | Ok eff ->
                 match deps.ReadLockEntries eff.StateFile with
                 | Ok entries -> entries

@@ -63,6 +63,7 @@ let makeDeps (sourceIndex: Map<string, IndexEntry>) (content: Map<string, string
     {
         ReadGlobalConfig        = fun () -> Ok (Some { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some [ makeSource "src" ] } })
         ReadLocalConfig         = fun () -> Ok None
+        ReadEnvConfig         = fun () -> Ok None
         WriteLocalConfig        = fun _ -> Ok ()
         WriteGlobalConfig       = fun _ -> Ok ()
         ReadLockEntries         = fun _ -> Ok []

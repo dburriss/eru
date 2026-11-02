@@ -196,7 +196,7 @@ independently, so setting `site.hideEmptyBundles` locally does not hide a `site.
 | `okf` | `ignorePatterns` | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) are always skipped and need no pattern, and so is a `README.md` without a `type`. Use `**/inbox/**` to match nested directories. |
 | `okf` | `fixTypes` | `[]` | Ordered list of `{ "pattern": <glob>, "type": <string or null> }`. `eru okf fix` gives matching files that have no `type` that `type`; the first matching rule wins and `null` leaves the file alone. A pattern without `/` matches the file name at any depth (`README.md`); with `/` it matches the path from the bundle root. This is how an untyped `README.md` becomes a concept. An existing `type` is never overwritten, and `--default-type` overrides a rule's type. |
 | `okf` | `defaultType` | `"reference"` | `type` `eru okf fix` gives concept files that have none and match no `fixTypes` rule. Overridden by `--default-type`. |
-| `search` | `mode` | `"lex"` | How `eru search` and the MCP `search_knowledge` tool rank files: `lex` (BM25 keywords), `sem` (meaning, local embedding model) or `hybrid` (both fused). `--mode` and the MCP `mode` parameter override it, and so do the `ERU_SEARCH_MODE` environment variable. `sem` and `hybrid` fall back to `lex` with a warning while the embedding model is not installed. |
+| `search` | `mode` | `"lex"` | How `eru search` and the MCP `search_knowledge` tool rank files: `lex` (BM25 keywords), `sem` (meaning, local embedding model) or `hybrid` (both fused). `--mode` and the MCP `mode` parameter override it, and so does the `ERU__SEARCH__MODE` environment variable (`ERU_SEARCH_MODE` is accepted as an alias). `sem` and `hybrid` fall back to `lex` with a warning while the embedding model is not installed. |
 | `search` | `ignorePatterns` | `["index.md", "log.md"]` | Gitignore-style globs; matching files are never searched. A pattern without `/` matches the file name at any depth, one with `/` the path. READMEs are searched by default; this is separate from `site.ignorePatterns`, which hides them from the generated site. |
 | `inbox` | `default` | — | Name of the inbox `eru inbox send -i` falls back to (set with `eru inbox default <name>`) when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 | `inbox` | `watchIntervalSeconds` | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
@@ -242,15 +242,50 @@ Notes:
 }
 ```
 
+## Environment variables
+
+Every key in the [settings sections](#settings-sections) can also be set with an environment variable, so a
+setting can be changed per process (an MCP client's `env` block, a shell session, CI) without editing a file.
+The variable name mirrors the key's path in the config file: prefix `ERU__`, then each path segment separated
+by `__`. Names are case-insensitive.
+
+| Config key | Environment variable |
+|---|---|
+| `search.mode` | `ERU__SEARCH__MODE` |
+| `mcp.refreshIntervalMinutes` | `ERU__MCP__REFRESHINTERVALMINUTES` |
+| `files.allowBinaries` | `ERU__FILES__ALLOWBINARIES` |
+| `site.cards.columns` | `ERU__SITE__CARDS__COLUMNS` |
+
+- **Values.** Booleans are `true` or `false`, numbers are whole numbers, and `null` unsets the key for that layer.
+  A blank variable counts as not set. A key that is always a string (`sync.stateFile`, `search.mode`, a pattern)
+  stays a string even if it looks like a number.
+- **Lists** use indexed names starting at 0 with no gaps: `ERU__FILES__BLOCKPATTERNS__0=*.exe`,
+  `ERU__FILES__BLOCKPATTERNS__1=*.dll`. A list set this way replaces the files' list; it does not extend it.
+  Giving a list as a single value is an error.
+- **Objects inside lists and structured settings** follow the same rule: `ERU__OKF__FIXTYPES__0__PATTERN=README.md`,
+  `ERU__OKF__FIXTYPES__0__TYPE=concept`, `ERU__SITE__LAYOUT__TOP__0=tags`. Keys you choose yourself, such as page
+  ids under `site.pages`, are lower-cased.
+- **Settings only.** `source`, `collection` and `inbox.items` are configured in the files only; an `ERU__` variable
+  for one of them is ignored with a warning, as is any other name that is not a setting.
+- **Alias.** `ERU_SEARCH_MODE` is read as `ERU__SEARCH__MODE`; the `ERU__` form wins if both are set.
+
+The environment is the highest-precedence layer (below an explicit command-line flag such as `--mode`) and applies
+to every command, including `eru mcp` and `eru browse`. It applies to every key without exception, `files.*`
+included. An invalid value, such as `ERU__MCP__REFRESHINTERVALMINUTES=soon`, stops the command at startup and names
+the variable. `eru config get` and `eru config view` show a value that comes from the environment with origin `env`.
+Environment values are never written to a config file: `eru config set` and the other commands that save a config
+only touch the file.
+
 ## Merge and precedence
 
 `eru` loads both files (either may be absent) and combines them into an `EffectiveConfig` used for the rest of
 the run:
 
+0. **Environment** — an `ERU__` variable overrides the same key from either file (see [Environment variables](#environment-variables)); steps 4 and 5 below take it into account.
 1. **Validate** — check `version` on each present file, then check for duplicate source names within each file's `source.items`, then check every global source has a `url`.
 2. **Resolve sources** — for each local source, use it directly if it has a `url`; otherwise look it up by name in the global sources (error if not found). Append any global sources not already named locally.
 3. **Validate collections** — every `CollectionFileRef.Source` (global and local `collection.items` combined) must match a resolved source name.
-4. **Resolve settings** — for each key in the [settings sections](#settings-sections): the local value if set, else the global value if set, else the built-in default. Scalars and pattern lists resolve per key; a list set locally replaces (does not extend) the global list.
+4. **Resolve settings** — for each key in the [settings sections](#settings-sections): the environment value if set, else the local value if set, else the global value if set, else the built-in default. Scalars and pattern lists resolve per key; a list set locally replaces (does not extend) the global list.
 5. **Inboxes** — `inbox.items` merge by name: a local inbox wins outright over a global one of the same name; global inboxes not named locally are appended. `inbox.default` and `inbox.watchIntervalSeconds` resolve like any other key.
 6. **Collections** — concatenate global `collection.items`' files, then local ones, into `EffectiveConfig.Collections` (no name-based override).
 

@@ -51,9 +51,9 @@ let private renderTable (result: OkfValidate.ValidateResult) =
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
     let ignorePatterns =
-        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
-        | Ok g, Ok l -> Config.resolveOkfIgnorePatterns g l
-        | _          -> Config.defaultOkfIgnorePatterns
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig (), deps.ReadEnvConfig () with
+        | Ok g, Ok l, Ok e -> Config.resolveOkfIgnorePatternsWith e g l
+        | _                -> Config.defaultOkfIgnorePatterns
     match OkfValidate.execute deps { Path = cmd.Path; IgnorePatterns = ignorePatterns; StrictLinks = cmd.StrictLinks } with
     | Error e -> renderError e; 1
     | Ok result ->

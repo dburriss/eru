@@ -1,6 +1,7 @@
 namespace Eru.Adapters
 
 open Eru
+open System
 open System.IO
 
 module ConfigAdapter =
@@ -32,6 +33,29 @@ module ConfigAdapter =
                     json
                 |> Result.map Some
             with ex -> Error ex.Message
+
+    let private processEnvironment () : (string * string) seq =
+        Environment.GetEnvironmentVariables()
+        |> Seq.cast<System.Collections.DictionaryEntry>
+        |> Seq.map (fun e -> string e.Key, string e.Value)
+        |> Seq.toList
+        |> Seq.ofList
+
+    /// The `ERU__*` environment layer: config-file-shaped JSON (None when nothing is overridden)
+    /// plus warnings about variables that are not settings.
+    let readEnvLayer () : Result<EnvConfig.Layer, string> =
+        EnvConfig.read (processEnvironment ())
+
+    /// The environment layer as a local-config-shaped record, for `Config.mergeWithEnv`.
+    let readEnvConfig () : Result<LocalConfig option, string> =
+        readEnvLayer ()
+        |> Result.bind (fun layer ->
+            match layer.Json with
+            | None -> Ok None
+            | Some json ->
+                Serialization.deserialize<LocalConfig> (json.ToJsonString())
+                |> Result.map Some
+                |> Result.mapError (fun e -> $"invalid {EnvConfig.prefix}* environment variable: {e}"))
 
     let writeLocalConfig (cwd: string) (cfg: LocalConfig) : Result<unit, string> =
         let path = Paths.localConfigPath cwd
@@ -82,4 +106,8 @@ module ConfigAdapter =
                     Serialization.deserialize<LocalConfigV1>
             SerializeGlobal = Serialization.serialize<GlobalConfig>
             SerializeLocal  = Serialization.serialize<LocalConfig>
+            ReadEnv =
+                fun () ->
+                    readEnvLayer ()
+                    |> Result.map (fun layer -> layer.Json |> Option.map (fun j -> j.ToJsonString()))
         }

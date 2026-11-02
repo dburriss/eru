@@ -24,6 +24,7 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
     {
         ReadGlobalConfig        = fun () -> Ok None
         ReadLocalConfig         = fun () -> Ok None
+        ReadEnvConfig         = fun () -> Ok None
         WriteLocalConfig        = fun _ -> Ok ()
         WriteGlobalConfig       = fun _ -> Ok ()
         ReadLockEntries         = fun _ -> Ok []

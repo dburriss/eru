@@ -27,6 +27,9 @@ type AgentRunResult = {
 type Deps = {
     ReadGlobalConfig         : unit   -> Result<GlobalConfig option, string>
     ReadLocalConfig          : unit   -> Result<LocalConfig option, string>
+    // The environment layer (ERU__* variables, see EnvConfig). Read-only: write paths work on the
+    // raw global/local configs above, so an override is never saved into a config file.
+    ReadEnvConfig            : unit   -> Result<LocalConfig option, string>
     WriteLocalConfig         : LocalConfig  -> Result<unit, string>
     WriteGlobalConfig        : GlobalConfig -> Result<unit, string>
     ReadLockEntries          : string -> Result<LockEntry list, string>
@@ -62,3 +65,16 @@ type Deps = {
     PushToRemote             : string -> string option -> string -> (string * string) list -> Result<string, string>
     RunAgent                 : AgentConfig -> string -> string -> (string -> unit) -> Result<AgentRunResult, string> // agent -> workingDir -> prompt -> onChunk (called with each streamed text fragment as the agent responds)
 }
+
+module DepsConfig =
+    /// The effective config for already-read global and local files, with the environment
+    /// layer on top. Use this instead of `Config.merge` wherever settings are read.
+    let merge (deps: Deps) (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<EffectiveConfig, string> =
+        deps.ReadEnvConfig ()
+        |> Result.bind (fun envCfg -> Config.mergeWithEnv envCfg globalCfg localCfg)
+
+    /// Reads both files and the environment and merges them.
+    let load (deps: Deps) : Result<EffectiveConfig, string> =
+        match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+        | Error e, _ | _, Error e -> Error e
+        | Ok g, Ok l -> merge deps g l

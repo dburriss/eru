@@ -21,7 +21,7 @@ let run (deps: Deps) (args: ParseResults<SiteGenerateArgs>) : int =
     let cfgResult =
         let globalCfg = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
         let localCfg  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
-        Config.merge globalCfg localCfg
+        DepsConfig.merge deps globalCfg localCfg
         |> Result.map (fun eff -> Config.withManifests deps.ReadCachedManifest eff)
 
     match cfgResult with
