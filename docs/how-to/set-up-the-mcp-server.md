@@ -80,6 +80,28 @@ apm install dburriss/eru
 To pin a version, append a tag or commit SHA (`dburriss/eru#v0.13.1`). The MCP entry runs `dnx Eru.Tool -- mcp`,
 so it needs the .NET 10 SDK.
 
+## Choose a search mode
+
+`search_knowledge` ranks files by keywords (BM25) by default, which needs nothing installed. For questions and
+paraphrases ("how do I recover when a call keeps failing" finding a page about retries), switch to semantic or
+hybrid search, which also uses a small local embedding model:
+
+```bash
+eru config set search.mode '"hybrid"' --global
+```
+
+A client can also pass `mode` on a single call. The model (`bge-small-en-v1.5`, about 33 MB) is downloaded once,
+by the server in the background after startup, never during a search; until it is there, `sem` and `hybrid`
+calls run the keyword search and say so in the result's `warnings`. To control that:
+
+- `FERRET_OFFLINE=1` — never download. Put the model in place yourself and point `FERRET_MODEL_DIR` at the
+  directory holding `model_quantized.onnx` and `vocab.txt`.
+- `FERRET_MODEL_URL` — download from a mirror instead of Hugging Face (checksums are still verified).
+
+Search indexes live in `~/.cache/eru/ferret` and are rebuilt on demand; `eru cache clear` removes them.
+To keep generated files such as `index.md` out of results, adjust `search.ignorePatterns`
+(see the [config reference](../reference/config-file.md)).
+
 ## Tune the collection cache refresh interval
 
 The server merges the same global (`~/.config/eru/config.json`) and local (`.eru/config.json`) configuration as

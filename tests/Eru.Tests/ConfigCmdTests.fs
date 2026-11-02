@@ -79,6 +79,21 @@ let ``get reports local override, global value and default with origin`` () =
     Assert.Equal("default", def.Origin)
 
 [<Fact>]
+let ``get reports the built-in defaults of the search settings`` () =
+    let io, _ = makeIO []
+    let mode = ConfigCmd.get io "search.mode" |> ok "mode"
+    Assert.Equal("\"lex\"", mode.Value)
+    Assert.Equal("default", mode.Origin)
+    let ignore = ConfigCmd.get io "search.ignorePatterns" |> ok "ignore"
+    Assert.Equal("""["index.md","log.md"]""", ignore.Value)
+
+[<Fact>]
+let ``set writes a search setting`` () =
+    let io, files = makeIO [ localPath, """{"version":3}""" ]
+    ConfigCmd.set io LocalScope "search.mode" (Some "\"hybrid\"") |> ok "set mode" |> ignore
+    Assert.Contains("hybrid", files.[localPath])
+
+[<Fact>]
 let ``get of an unknown unset key is an error`` () =
     let io, _ = makeIO []
     Assert.True (ConfigCmd.get io "nope.nothing" |> Result.isError)

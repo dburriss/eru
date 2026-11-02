@@ -64,7 +64,6 @@ let private makeDeps
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ _ -> Ok None
-        BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
@@ -319,7 +318,6 @@ let private makePopulateDeps
         WriteSourceIndex        = store.Write
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ _ -> Ok None
-        BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = Eru.Adapters.YamlAdapter.parse
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []

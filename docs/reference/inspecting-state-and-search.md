@@ -120,36 +120,58 @@ If no index has been built for a source, `eru source files` returns an error ask
 ## `eru search`
 
 Searches all files eru knows about: manifest-advertised files, collection entries, and locally pulled files.
+With terms, files are **ranked by content**, best first. With no terms, the known files are listed.
 
 ```bash
-eru search adr                          # substring search across paths and descriptions
-eru search --tags template              # filter by tag (AND across multiple tags)
-eru search adr --tags template          # combined: term match AND tag filter
+eru search adr template                 # ranked: files about adr and templates first
+eru search retries for AWS calls        # natural-language terms work; rarer words count more
+eru search adr --limit 5                # the best five files
+eru search "retry failed requests" --mode hybrid   # keywords and meaning together
+eru search --tags template              # no terms: list files carrying the tag
+eru search adr --tags template          # ranked, but only files tagged template
 ```
+
+| Flag | Description |
+|---|---|
+| `--tags`, `-t` | Only files carrying every tag (AND, case-insensitive). Repeat for several. |
+| `--limit <n>` | Maximum files returned (default 15). A note on stderr says when more matched. |
+| `--mode <lex\|sem\|hybrid>` | `lex` ranks by keywords (default), `sem` by meaning, `hybrid` fuses both. Overrides `search.mode`. |
+| `--output`, `-o` | `table` (default), `text` or `json`. |
 
 **What is shown:**
 
 | Column | What it is |
 |---|---|
-| Source | Source name |
-| Path | Remote path of the file |
+| Score | Relevance within this result (blank for files matched on metadata only) |
 | Hash | 8-character SHA-256 of the remote path |
+| Path | `source:remotePath` for source files, the repo-relative path otherwise |
 | Tags | Merged tags from the source index and collection config |
 | Local Path | Where the file lives locally, if it has been pulled (blank otherwise) |
 | Description | Description from the source index or collection config |
 
-**Where the data comes from (priority order):**
+`--output text` also prints up to three matching lines under each file. `--output json` is an array with
+`path`, `sourceName`, `remotePath`, `hash`, `tags`, `description`, `localPath`, `score` and `excerpts`.
+
+**How files are ranked:** BM25 over the file content. Words are lowercased, stop words are dropped and word
+forms are matched (`mock` finds `mocked`). Terms are combined with OR, so files matching more and rarer terms
+rise to the top. Terms in the path, a heading or the front matter `title`, `description` and `tags` count extra.
+The ranking is done by [Ferret](https://github.com/dburriss/ferret); its indexes live in `~/.cache/eru/ferret`
+and are rebuilt on demand (`eru cache clear` removes them).
+
+`sem` and `hybrid` embed the files with a small local model (`bge-small-en-v1.5`, about 33 MB) and need no
+service. If the model is not installed, `eru search` answers with `lex`, then downloads the model so the next
+search is semantic; set `FERRET_OFFLINE=1` to skip the download, `FERRET_MODEL_DIR` to use a copy you already
+have, or `FERRET_MODEL_URL` to download from a mirror.
+
+**Where the files come from:**
 
 1. **Source index** (`~/.cache/eru/sources/<name>/index.json`) — all files advertised by each source, with tags merged from manifest entries and file frontmatter. This is the primary data source after `eru sync` has run.
-2. **Config collections** — files declared in collection configs but not yet in the index (e.g. before the first sync). Collection-level tags are always joined in at search time.
-3. **Lock file** (`.eru/eru.lock`) — used to populate `Local Path` for pulled files, and to surface any lock-only entries not covered by the index or collections.
+2. **Lock file** (`.eru/eru.lock`) — pulled files, and any lock-only entries not covered by the index.
+3. **Local `knowledge/` directory** in the current directory.
 
-**Filtering:**
-
-- Terms (positional args): OR semantics, case-insensitive substring match against remote path, local path, and description. Omit to match everything.
-- `--tags`: AND semantics, case-insensitive exact match. All specified tags must be present.
-
-Run `eru sync` to refresh the source index so that newly manifest-advertised files appear in search results.
+Entries with no readable file (advertised but never fetched) cannot be ranked by content; they are matched on
+path and description and listed after the ranked files. Files matching `search.ignorePatterns` (default
+`index.md` and `log.md`) are skipped. Run `eru sync` to refresh the source index so newly advertised files appear.
 
 ---
 

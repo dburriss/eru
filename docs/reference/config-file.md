@@ -32,6 +32,7 @@ global file per key (see [Merge and precedence](#merge-and-precedence)).
   "version": 3,
   "site":  { "ignorePatterns": [], "hideEmptyBundles": false },
   "okf":   { "ignorePatterns": [] },
+  "search": { "mode": "lex", "ignorePatterns": ["index.md", "log.md"] },
   "mcp":   { "refreshIntervalMinutes": 60 },
   "sync":  { "branch": "main", "commitOnPull": false, "stateFile": "eru.lock" },
   "files": { "blockPatterns": [], "allowPatterns": [], "allowBinaries": false },
@@ -195,6 +196,8 @@ independently, so setting `site.hideEmptyBundles` locally does not hide a `site.
 | `okf` | `ignorePatterns` | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) are always skipped and need no pattern, and so is a `README.md` without a `type`. Use `**/inbox/**` to match nested directories. |
 | `okf` | `fixTypes` | `[]` | Ordered list of `{ "pattern": <glob>, "type": <string or null> }`. `eru okf fix` gives matching files that have no `type` that `type`; the first matching rule wins and `null` leaves the file alone. A pattern without `/` matches the file name at any depth (`README.md`); with `/` it matches the path from the bundle root. This is how an untyped `README.md` becomes a concept. An existing `type` is never overwritten, and `--default-type` overrides a rule's type. |
 | `okf` | `defaultType` | `"reference"` | `type` `eru okf fix` gives concept files that have none and match no `fixTypes` rule. Overridden by `--default-type`. |
+| `search` | `mode` | `"lex"` | How `eru search` and the MCP `search_knowledge` tool rank files: `lex` (BM25 keywords), `sem` (meaning, local embedding model) or `hybrid` (both fused). `--mode` and the MCP `mode` parameter override it, and so do the `ERU_SEARCH_MODE` environment variable. `sem` and `hybrid` fall back to `lex` with a warning while the embedding model is not installed. |
+| `search` | `ignorePatterns` | `["index.md", "log.md"]` | Gitignore-style globs; matching files are never searched. A pattern without `/` matches the file name at any depth, one with `/` the path. READMEs are searched by default; this is separate from `site.ignorePatterns`, which hides them from the generated site. |
 | `inbox` | `default` | — | Name of the inbox `eru inbox send -i` falls back to (set with `eru inbox default <name>`) when more than one inbox is configured. Not needed when exactly one inbox is configured — it's used automatically. |
 | `inbox` | `watchIntervalSeconds` | `30` | `eru inbox watch`'s polling fallback interval, in seconds, in case filesystem events are missed. Overridden by that command's own `--interval` flag when passed. |
 

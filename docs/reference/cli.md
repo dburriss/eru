@@ -80,21 +80,26 @@ eru add knowledge:docs/adr-template.md --dryrun
 
 ## `eru search`
 
-Search across all files eru knows about: manifest-advertised files (from the source index), collection entries, and locally pulled files.
+Search across all files eru knows about: manifest-advertised files (from the source index), collection entries, and locally pulled files. With terms, files are ranked by content, best first; with no terms, known files are listed. See [inspecting state and searching](inspecting-state-and-search.md#eru-search).
 
 ```
-eru search [<terms>...] [-t <tag>]
+eru search [<terms>...] [-t <tag>] [--limit <n>] [--mode lex|sem|hybrid] [-o table|text|json]
 ```
 
 | Argument / Flag | Description |
 |---|---|
-| `<terms>` | Search terms (space-separated) |
+| `<terms>` | Search terms (space-separated). Files are ranked by relevance. |
 | `-t <tag>` | Filter results by tag; repeat for multiple tags |
+| `--limit <n>` | Maximum files returned (default 15) |
+| `--mode <mode>` | `lex` (keywords, default), `sem` (meaning) or `hybrid` (both). Overrides `search.mode`. If the embedding model is missing, `lex` runs and the model is downloaded for next time (`FERRET_OFFLINE=1` skips the download). |
+| `-o <format>` | `table` (default), `text` or `json` |
 
 **Examples**
 
 ```bash
 eru search adr template
+eru search retries for AWS calls --limit 5
+eru search "recover from failed calls" --mode hybrid
 eru search --tag devops
 eru search pipeline --tag ci --tag devops
 ```

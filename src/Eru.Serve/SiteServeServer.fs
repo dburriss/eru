@@ -44,6 +44,7 @@ let private rd (f: HttpContext -> Task<unit>) : RequestDelegate =
 
 let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
     task {
+        use searcher = new RankedSearch.Searcher(Paths.ferretCacheDir())
         let absOutputDir = Path.GetFullPath opts.OutputDir
         let genOpts = { SiteGenerator.GenerateOptions.defaults with OutputDir = opts.OutputDir }
 
@@ -66,17 +67,20 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
             Task.CompletedTask)) |> ignore
 
         app.MapGet("/api/search", rd (fun ctx -> task {
-            let q     = ctx.Request.Query["q"].ToString().ToLowerInvariant()
-            let terms = q.Split(' ', StringSplitOptions.RemoveEmptyEntries) |> Array.toList
-            let backend : SearchFn =
-                match Environment.GetEnvironmentVariable "ERU_SEARCH_BACKEND" with
-                | "indexed" -> IndexedSearch.search
-                | "ck"      -> CkSearch.search
-                | _         -> SimpleScan.search
-            let candidates = CandidateBuilder.build deps cfg (deps.GetCwd())
-            let hits        = backend terms candidates
+            let q = ctx.Request.Query["q"].ToString()
+            // The browser narrows its cards to the returned paths, so it wants every match, not a page of them.
+            let limit =
+                match Int32.TryParse(ctx.Request.Query["limit"].ToString()) with
+                | true, n when n > 0 -> n
+                | _ -> 500
+            let request : RankedSearch.Request = { Query = q; Tags = []; Mode = None; Limit = limit }
+            let result =
+                match RankedSearch.execute searcher deps cfg (deps.GetCwd()) request ctx.RequestAborted with
+                | Ok r -> r
+                | Error e -> { RankedSearch.Hits = []; Truncated = false; Warnings = [ e ]; Mode = cfg.SearchMode }
             let searchHits =
-                hits |> List.map (fun (f, excerpts) ->
+                result.Hits |> List.map (fun h ->
+                    let f = h.Candidate
                     // Use "{sourceName}:{remotePath}" format to match card.dataset.id in the browser
                     let path =
                         match f.RemotePath, f.SourceName with
@@ -87,10 +91,12 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
                         SourceName  = f.SourceName
                         Tags        = f.Tags
                         Description = f.Description
-                        Excerpts    = excerpts })
+                        Excerpts    = h.Excerpts
+                        Score       = h.Score })
                 |> List.toArray
             ctx.Response.ContentType <- "application/json"
-            do! ctx.Response.WriteAsync(JsonSerializer.Serialize({ Hits = searchHits }, jsonOpts))
+            let body = { Hits = searchHits; Truncated = result.Truncated; Warnings = result.Warnings |> List.toArray }
+            do! ctx.Response.WriteAsync(JsonSerializer.Serialize(body, jsonOpts))
         })) |> ignore
 
         app.MapGet("/api/sync", RequestDelegate(fun (ctx: HttpContext) ->

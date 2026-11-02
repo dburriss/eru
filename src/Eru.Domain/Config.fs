@@ -138,6 +138,32 @@ type McpSection = {
     RefreshIntervalMinutes: int option
 }
 
+// How `eru search` and the MCP `search_knowledge` tool rank files: BM25 keywords (`lex`),
+// by meaning with a local embedding model (`sem`), or both fused (`hybrid`).
+type SearchMode =
+    | Lex
+    | Sem
+    | Hybrid
+
+module SearchMode =
+    let toString (m: SearchMode) : string =
+        match m with
+        | Lex    -> "lex"
+        | Sem    -> "sem"
+        | Hybrid -> "hybrid"
+
+    let tryParse (s: string) : SearchMode option =
+        match (if isNull s then "" else s.Trim().ToLowerInvariant()) with
+        | "lex"    -> Some Lex
+        | "sem"    -> Some Sem
+        | "hybrid" -> Some Hybrid
+        | _        -> None
+
+type SearchSection = {
+    Mode: string option
+    IgnorePatterns: string list option
+}
+
 type SyncSection = {
     Branch: string option
     CommitOnPull: bool option
@@ -172,6 +198,7 @@ type GlobalConfig = {
     Site: SiteSection option
     Okf: OkfSection option
     Mcp: McpSection option
+    Search: SearchSection option
     Sync: SyncSection option
     Files: FilesSection option
     Inbox: InboxSection option
@@ -184,6 +211,7 @@ type LocalConfig = {
     Site: SiteSection option
     Okf: OkfSection option
     Mcp: McpSection option
+    Search: SearchSection option
     Sync: SyncSection option
     Files: FilesSection option
     Inbox: InboxSection option
@@ -204,6 +232,8 @@ type EffectiveConfig = {
     SiteHideEmptyBundles      : bool
     Site                      : SiteSettings
     OkfIgnorePatterns         : string list
+    SearchMode                : SearchMode
+    SearchIgnorePatterns      : string list
     Inboxes                   : Map<string, InboxConfig>
     DefaultInbox              : string option
     InboxWatchIntervalSeconds : int
@@ -217,6 +247,9 @@ module OkfSection =
 
 module McpSection =
     let empty : McpSection = { RefreshIntervalMinutes = None }
+
+module SearchSection =
+    let empty : SearchSection = { Mode = None; IgnorePatterns = None }
 
 module SyncSection =
     let empty : SyncSection = { Branch = None; CommitOnPull = None; StateFile = None }
@@ -238,7 +271,7 @@ module CollectionSection =
 module GlobalConfig =
     let empty : GlobalConfig = {
         Version = 3
-        Site = None; Okf = None; Mcp = None; Sync = None; Files = None
+        Site = None; Okf = None; Mcp = None; Search = None; Sync = None; Files = None
         Inbox = None; Source = None; Collection = None
     }
 
@@ -266,7 +299,7 @@ module GlobalConfig =
 module LocalConfig =
     let empty : LocalConfig = {
         Version = 3
-        Site = None; Okf = None; Mcp = None; Sync = None; Files = None
+        Site = None; Okf = None; Mcp = None; Search = None; Sync = None; Files = None
         Inbox = None; Source = None; Collection = None
     }
 
@@ -503,6 +536,9 @@ module Config =
     // dot-directories are always skipped separately (see Patterns.isOkfIgnored).
     let defaultOkfIgnorePatterns = ["apm_modules/**"; "inbox/**"; "node_modules/**"]
     let defaultOkfType = "reference"
+    // Generated structural markdown that duplicates the file it indexes. READMEs stay searchable.
+    let defaultSearchIgnorePatterns = ["index.md"; "log.md"]
+    let defaultSearchMode = Lex
 
     // First Some wins: the local file's section value, then the global file's.
     let private first (local: 'S option) (fromGlobal: 'S option) (get: 'S -> 'a option) : 'a option =
@@ -528,6 +564,25 @@ module Config =
             (globalCfg |> Option.bind (fun g -> g.Okf))
             (fun (s: OkfSection) -> s.DefaultType)
         |> Option.defaultValue defaultOkfType
+
+    let resolveSearchIgnorePatterns (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : string list =
+        first
+            (localCfg  |> Option.bind (fun l -> l.Search))
+            (globalCfg |> Option.bind (fun g -> g.Search))
+            (fun (s: SearchSection) -> s.IgnorePatterns)
+        |> Option.defaultValue defaultSearchIgnorePatterns
+
+    let resolveSearchMode (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<SearchMode, string> =
+        first
+            (localCfg  |> Option.bind (fun l -> l.Search))
+            (globalCfg |> Option.bind (fun g -> g.Search))
+            (fun (s: SearchSection) -> s.Mode)
+        |> function
+            | None -> Ok defaultSearchMode
+            | Some m ->
+                match SearchMode.tryParse m with
+                | Some mode -> Ok mode
+                | None -> Error $"search.mode must be one of lex, sem, hybrid (got '{m}')"
 
     let supportedVersion = 3
 
@@ -626,7 +681,8 @@ module Config =
                 parseSite "local config" lSite
                 |> Result.map (fun ls -> SiteSettings.merge gs ls))
             |> Result.bind (fun site -> SiteSettings.validate site |> Result.map (fun () -> site))
-            |> Result.map (fun site ->
+            |> Result.bind (fun site -> resolveSearchMode globalCfg localCfg |> Result.map (fun mode -> site, mode))
+            |> Result.map (fun (site, searchMode) ->
             let lMcp   = localCfg  |> Option.bind (fun l -> l.Mcp)
             let gMcp   = globalCfg |> Option.bind (fun g -> g.Mcp)
             let lSync  = localCfg  |> Option.bind (fun l -> l.Sync)
@@ -665,6 +721,8 @@ module Config =
                 SiteHideEmptyBundles = first lSite gSite (fun (s: SiteSection) -> s.HideEmptyBundles) |> Option.defaultValue defaultSiteHideEmptyBundles
                 Site = site
                 OkfIgnorePatterns = resolveOkfIgnorePatterns globalCfg localCfg
+                SearchMode = searchMode
+                SearchIgnorePatterns = resolveSearchIgnorePatterns globalCfg localCfg
                 Inboxes = mergedInboxes
                 DefaultInbox = first lInbox gInbox (fun (s: InboxSection) -> s.Default)
                 InboxWatchIntervalSeconds = first lInbox gInbox (fun (s: InboxSection) -> s.WatchIntervalSeconds) |> Option.defaultValue 30
@@ -815,6 +873,7 @@ module Config =
           Mcp =
             section (fun (s: McpSection) -> s = McpSection.empty)
                 { RefreshIntervalMinutes = get (fun d -> d.McpRefreshIntervalMinutes) }
+          Search = None
           Sync =
             section (fun (s: SyncSection) -> s = SyncSection.empty)
                 { Branch       = get (fun d -> d.Branch)
@@ -846,6 +905,7 @@ module Config =
             section (fun (s: OkfSection) -> s = OkfSection.empty)
                 { OkfSection.empty with IgnorePatterns = get (fun s -> s.OkfIgnorePatterns) }
           Mcp = None
+          Search = None
           Sync =
             section (fun (s: SyncSection) -> s = SyncSection.empty)
                 { Branch       = None
@@ -959,6 +1019,8 @@ module EffectiveConfig =
         SiteHideEmptyBundles      = Config.defaultSiteHideEmptyBundles
         Site                      = SiteSettings.empty
         OkfIgnorePatterns         = Config.defaultOkfIgnorePatterns
+        SearchMode                = Config.defaultSearchMode
+        SearchIgnorePatterns      = Config.defaultSearchIgnorePatterns
         Inboxes                   = Map.empty
         DefaultInbox              = None
         InboxWatchIntervalSeconds = 30

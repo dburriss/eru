@@ -7,6 +7,7 @@
     <ProjectReference Include="../../src/Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../../src/Eru.Adapters/Eru.Adapters.fsproj" />
     <ProjectReference Include="../../src/Eru.Site/Eru.Site.fsproj" />
+    <ProjectReference Include="../../src/Eru.Search/Eru.Search.fsproj" />
     <ProjectReference Include="../../src/Eru.Cli/Eru.Cli.fsproj" />
   </ItemGroup>
   <ItemGroup>
@@ -44,6 +45,7 @@
     <Compile Include="GitAdapterTests.fs" />
     <Compile Include="IndexBuilderTests.fs" />
     <Compile Include="SiteTestSupport.fs" />
+    <Compile Include="RankedSearchTests.fs" />
     <Compile Include="HtmlTemplatesTests.fs" />
     <Compile Include="SiteConfigTests.fs" />
     <Compile Include="SiteFilterTests.fs" />

@@ -263,9 +263,6 @@ module Sync =
                                                                 StaleAfter    = d.StaleAfter
                                                                 Resource      = d.Resource
                                                         } }
-                                        match cacheRelPath with
-                                        | Some relPath -> deps.BuildSearchIndex src.Name relPath
-                                        | None         -> ()
                             // Only after every walk succeeded: drop previously discovered entries the
                             // walk no longer saw, so files removed upstream disappear. A failed walk
                             // keeps the old entries rather than leaving the index empty.
@@ -331,9 +328,6 @@ module Sync =
                                     StaleAfter    = Frontmatter.staleAfter fm
                                     Resource      = Frontmatter.resource fm
                             }
-                            match cacheRelPath with
-                            | Some relPath -> deps.BuildSearchIndex sourceName relPath
-                            | None         -> ()
                         deps.WriteSourceIndex sourceName { existingIdx with Entries = entries } |> ignore)
 
         // Step 3: Fetch and cache lock-only entries (not covered by manifest or collection)
@@ -389,9 +383,6 @@ module Sync =
                                         StaleAfter    = Frontmatter.staleAfter fm
                                         Resource      = Frontmatter.resource fm
                                 }
-                                match cacheRelPath with
-                                | Some relPath -> deps.BuildSearchIndex sourceName relPath
-                                | None         -> ()
                             deps.WriteSourceIndex sourceName { existingIdx with Entries = entries } |> ignore)
 
             // Step 4: Set LocalPath on index entries from lock file

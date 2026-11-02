@@ -3,7 +3,9 @@ namespace Eru.Mcp
 open System
 open System.ComponentModel
 open System.IO
+open System.Runtime.InteropServices
 open System.Text.Json
+open System.Threading
 open Eru
 open Eru.Adapters
 open Eru.Search
@@ -11,151 +13,87 @@ open ModelContextProtocol.Protocol
 open ModelContextProtocol.Server
 
 [<McpServerToolType>]
-type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService) =
+type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService, searcher: RankedSearch.Searcher) =
 
-    let backend : SearchFn =
-        match Environment.GetEnvironmentVariable "ERU_SEARCH_BACKEND" with
-        | "indexed" -> IndexedSearch.search
-        | "ck"      -> CkSearch.search
-        | _         -> SimpleScan.search
+    let defaultLimit = RankedSearch.defaultLimit
 
-    let parseTerms (query: string) =
-        query.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-        |> Array.toList
-        |> List.map (fun t -> t.ToLowerInvariant())
-
-    let parseTags (tags: string) =
-        tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
-        |> Array.toList
-        |> List.map (fun t -> t.Trim().ToLowerInvariant())
-
-    let hasTags (required: string list) (itemTags: string list) =
-        required = [] ||
-        required |> List.forall (fun t ->
-            itemTags |> List.exists (fun it -> it.ToLowerInvariant() = t))
-
-    let resolveAbsPath (sourceName: string) (entry: IndexEntry) (localEntry: LockEntry option) : string option =
-        // Prefer local file if available
-        let localPath = entry.LocalPath |> Option.orElse (localEntry |> Option.map (fun e -> e.LocalPath))
-        match localPath with
-        | Some p when File.Exists p -> Some p
-        | _ ->
-            match entry.CacheRelPath with
-            | Some rel ->
-                let abs = Path.Combine(Paths.sourceCacheDir sourceName, rel)
-                if File.Exists abs then Some abs else None
-            | None -> None
+    let label (c: CandidateFile) =
+        let tagsStr = if c.Tags = [] then "" else " [tags: " + String.concat "," c.Tags + "]"
+        let descStr = c.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
+        match c.Source with
+        | Lock ->
+            let sourcePart = c.SourceName |> Option.map (fun s -> $" (from {s})") |> Option.defaultValue ""
+            $"[lock] {c.RelPath}{sourcePart}{descStr}"
+        | Local      -> $"[local] {c.RelPath}{tagsStr}{descStr}"
+        | Cache      -> $"[collection] {c.RelPath}{tagsStr}{descStr}"
 
     [<McpServerTool(Name = "search_knowledge", UseStructuredContent = true, OutputSchemaType = typeof<SearchResult>)>]
-    [<Description("Full-text search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns matching file paths, metadata, and content excerpts.")>]
+    [<Description("Ranked search across cached collection files, locally pulled artifacts (.eru/eru.lock), and local knowledge/ directories. Returns the best matching files first with file paths, metadata, a relevance score and up to 3 content excerpts each. Output is bounded by `limit`; `truncated` says whether more files matched.")>]
     member _.Search(
-        [<Description("Search terms (space-separated, OR semantics). Matched against file content and path. Leave empty to list all known artifacts.")>] query: string,
-        [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string) : CallToolResult =
+        [<Description("Search terms, space-separated. Files are ranked by relevance (rarer terms count more, matches in the path, headings and front matter count extra) and word forms are matched, so 'mock' finds 'mocked'. Leave empty to list known artifacts.")>] query: string,
+        [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string,
+        [<Optional; DefaultParameterValue(15)>] [<Description("Maximum number of files to return (default 15).")>] limit: int,
+        [<Optional; DefaultParameterValue(null: string)>] [<Description("Ranking mode: 'lex' (keywords, default), 'sem' (meaning) or 'hybrid' (both). Semantic modes fall back to 'lex' with a warning when the embedding model is not installed.")>] mode: string) : CallToolResult =
 
-        let eff          = syncService.CurrentEff
-        let termList     = parseTerms query
-        let requiredTags = parseTags tags
-
-        let isPathAllowed path =
-            not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
-
-        let isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
-
-        let metadataOnlyCandidates = System.Collections.Generic.List<CandidateFile>()
-
-        // Build lock entry map for LocalPath resolution (used for metadata-only detection)
-        let lockEntryMap =
-            match deps.ReadLockEntries eff.StateFile with
-            | Ok entries -> entries |> List.map (fun e -> (e.SourceName, e.RemotePath), e) |> Map.ofList
-            | Error _    -> Map.empty
-
-        // Collect metadata-only candidates: index entries with no resolved local file
-        for src in eff.Sources do
-            match SourceIndexAdapter.readIndex src.Name with
-            | Ok (Some idx) ->
-                for KeyValue(remotePath, entry) in idx.Entries do
-                    if not (isGlob remotePath) && isPathAllowed remotePath then
-                        let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
-                        let colTags =
-                            eff.Collections
-                            |> List.tryFind (fun c -> c.Source = src.Name && c.RemotePath = remotePath)
-                            |> Option.map (fun c -> c.Tags)
-                            |> Option.defaultValue []
-                        let allTags = (entry.Tags @ colTags) |> List.distinct
-                        if hasTags requiredTags allTags then
-                            match resolveAbsPath src.Name entry lockEntry with
-                            | None ->
-                                metadataOnlyCandidates.Add({
-                                    AbsPath     = ""
-                                    RelPath     = $"{src.Name}/{remotePath}"
-                                    RemotePath  = Some remotePath
-                                    Source      = Cache
-                                    SourceName  = Some src.Name
-                                    Tags        = allTags
-                                    Description = entry.Description
-                                })
-                            | Some _ -> ()
-            | _ -> ()
-
+        let eff = syncService.CurrentEff
         let cwd = deps.GetCwd()
-        let candidates =
-            CandidateBuilder.build deps eff cwd
-            |> List.filter (fun c -> hasTags requiredTags c.Tags)
+        let requestedMode =
+            if String.IsNullOrWhiteSpace mode then Ok None
+            else
+                match SearchMode.tryParse mode with
+                | Some m -> Ok (Some m)
+                | None   -> Error $"mode must be one of lex, sem, hybrid (got '{mode}')"
 
-        let hits = backend termList candidates
+        let request (m: SearchMode option) : RankedSearch.Request =
+            { Query = query
+              Tags  = RankedSearch.parseTags tags
+              Mode  = m
+              Limit = if limit < 1 then defaultLimit else limit }
 
-        // Metadata-only hits: term match against path and description (no content)
-        let metaHits =
-            metadataOnlyCandidates
-            |> Seq.filter (fun c ->
-                termList = [] ||
-                termList |> List.exists (fun t ->
-                    c.RelPath.ToLowerInvariant().Contains(t) ||
-                    (c.Description |> Option.exists (fun d -> d.ToLowerInvariant().Contains(t)))))
-            |> Seq.map (fun c -> (c, []))
-            |> Seq.toList
+        let outcome =
+            requestedMode
+            |> Result.bind (fun m -> RankedSearch.execute searcher deps eff cwd (request m) CancellationToken.None)
 
-        let allHits = hits @ metaHits
+        match outcome with
+        | Error e ->
+            CallToolResult(IsError = System.Nullable true, Content = [| TextContentBlock(Text = $"Error: {e}") |])
+        | Ok result ->
+            let results =
+                result.Hits |> List.map (fun h ->
+                    if h.Excerpts.IsEmpty then label h.Candidate
+                    else
+                        let excerptBlock = h.Excerpts |> String.concat "\n  > "
+                        $"{label h.Candidate}\n  > {excerptBlock}")
 
-        let results =
-            allHits |> List.map (fun (f, excerpts) ->
-                let label =
-                    match f.Source with
-                    | Lock ->
-                        let sourcePart = f.SourceName |> Option.map (fun s -> $" (from {s})") |> Option.defaultValue ""
-                        let descPart   = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
-                        $"[lock] {f.RelPath}{sourcePart}{descPart}"
-                    | Local ->
-                        let tagsStr = if f.Tags = [] then "" else " [tags: " + String.concat "," f.Tags + "]"
-                        let descStr = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
-                        $"[local] {f.RelPath}{tagsStr}{descStr}"
-                    | Cache ->
-                        let tagsStr = if f.Tags = [] then "" else " [tags: " + String.concat "," f.Tags + "]"
-                        let descStr = f.Description |> Option.map (fun d -> " — " + d) |> Option.defaultValue ""
-                        $"[collection] {f.RelPath}{tagsStr}{descStr}"
-                if excerpts.IsEmpty then label
-                else
-                    let excerptBlock = excerpts |> String.concat "\n  > "
-                    $"{label}\n  > {excerptBlock}")
+            let notes =
+                [ if result.Truncated then
+                      yield $"(results truncated at {max 1 (if limit < 1 then defaultLimit else limit)}; narrow the query or raise limit)"
+                  for w in result.Warnings do yield $"(warning: {w})" ]
 
-        let textOutput =
-            if results.IsEmpty then "No matching artifacts found."
-            else String.concat "\n\n" results
+            let textOutput =
+                if results.IsEmpty then "No matching artifacts found."
+                else String.concat "\n\n" results
+            let textOutput = if notes.IsEmpty then textOutput else textOutput + "\n\n" + String.concat "\n" notes
 
-        let structuredHits =
-            allHits |> List.map (fun (f, excerpts) ->
-                {   Path        = f.RelPath
-                    Source      = match f.Source with Cache -> "cache" | Lock -> "lock" | Local -> "local"
-                    SourceName  = f.SourceName
-                    Tags        = f.Tags
-                    Description = f.Description
-                    Excerpts    = excerpts })
-            |> List.toArray
+            let structured =
+                { Hits =
+                    result.Hits
+                    |> List.map (fun h ->
+                        { Path        = h.Candidate.RelPath
+                          Source      = match h.Candidate.Source with Cache -> "cache" | Lock -> "lock" | Local -> "local"
+                          SourceName  = h.Candidate.SourceName
+                          Tags        = h.Candidate.Tags
+                          Description = h.Candidate.Description
+                          Excerpts    = h.Excerpts
+                          Score       = h.Score })
+                    |> List.toArray
+                  Truncated = result.Truncated
+                  Warnings  = result.Warnings |> List.toArray }
 
-        CallToolResult(
-            Content           = [| TextContentBlock(Text = textOutput) |],
-            StructuredContent = System.Nullable(JsonSerializer.SerializeToElement({ Hits = structuredHits }))
-        )
+            CallToolResult(
+                Content           = [| TextContentBlock(Text = textOutput) |],
+                StructuredContent = System.Nullable(JsonSerializer.SerializeToElement(structured, Serialization.options))
+            )
 
     [<McpServerTool(Name = "read_artifact")>]
     [<Description("Read the full content of a knowledge artifact by local path, lock-file path, cached collection path, 'sourceName:remotePath' reference, or path short hash.")>]

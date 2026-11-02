@@ -64,9 +64,6 @@ module SourceBundleAdd =
                             StaleAfter    = d.StaleAfter
                             Resource      = d.Resource
                     }
-                match cacheRelPath with
-                | Some relPath -> deps.BuildSearchIndex sourceName relPath
-                | None         -> ()
             deps.WriteSourceIndex sourceName { existingIdx with Entries = entries } |> ignore
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =

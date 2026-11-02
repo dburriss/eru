@@ -74,9 +74,6 @@ module AdapterDeps =
             WriteSourceIndex         = SourceIndexAdapter.writeIndex
             CacheSourceContent       = cacheSourceContent
             ReadCachedSourceContent  = readCachedSourceContent
-            BuildSearchIndex         = fun sourceName cacheRelPath ->
-                let absPath = Path.Combine(Paths.sourceCacheDir sourceName, cacheRelPath)
-                SearchIndexAdapter.getOrBuild absPath |> ignore
             ParseYamlBlock           = YamlAdapter.parse
             ListMarkdownFiles        = OkfAdapter.listMarkdownFiles
             ExtractLinks             = MarkdownLinkAdapter.extractLinks

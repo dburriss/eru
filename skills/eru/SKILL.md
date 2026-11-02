@@ -59,10 +59,12 @@ eru add knowledge:docs/adr.md --target docs/custom.md # write to docs/custom.md
 
 ### `eru search`
 
-Search across all files eru knows about: source index entries, collection entries, and locally pulled files.
+Search across all files eru knows about: source index entries, collection entries, and locally pulled files. With terms, files are ranked by content and the best come first (`--limit`, default 15; `--mode lex|sem|hybrid`, default `lex`); with no terms, known files are listed.
 
 ```bash
 eru search adr template
+eru search retries for AWS calls --limit 5
+eru search "recover from failed calls" --mode hybrid
 eru search --tag devops
 eru search pipeline --tag ci --tag devops
 ```

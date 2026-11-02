@@ -57,23 +57,34 @@ disk are marked `[missing]`.
 
 ### `search_knowledge`
 
-Full-text search across:
+Ranked search, best match first, across:
 
 1. **Source index entries** — all files advertised by configured sources, with tags and descriptions from the
-   index (populated by the background sync). Files with no locally cached content are still returned for metadata
-   matches (path, tags, description).
+   index (populated by the background sync). Files with no locally cached content are matched on path, tags and
+   description only and are listed after the ranked files.
 2. **Lock file entries** (`.eru/eru.lock`) — files pulled into the current repo but not covered by any source
    index.
-3. **Local knowledge directories** — `knowledge/` and `KNOWLEDGE/` in the current working directory.
+3. **Local knowledge directories** — a `knowledge/` directory (any letter case) in the current working directory.
 
 | Parameter | Description |
 |---|---|
-| `query` | Space-separated search terms (OR semantics). Leave empty to list all artifacts. |
+| `query` | Space-separated search terms. Files are ranked by relevance: rarer terms count more, matches in the path, headings and front matter count extra, and word forms match (`mock` finds `mocked`). Leave empty to list artifacts in path order. |
 | `tags` | Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering. |
+| `limit` | Optional. Maximum number of files returned (default 15). |
+| `mode` | Optional. `lex` (keywords, the default), `sem` (meaning) or `hybrid` (both). Overrides `search.mode`. `sem` and `hybrid` need the embedding model; if it is not installed the call runs `lex` and says so in `warnings`. |
 
-Results include the source type (`[collection]`, `[lock]`, `[local]`), path, tags, and a content excerpt from the
-first matching line. Tags are read from the source index (merged from manifest + frontmatter) — no live file
-reads during search.
+Each result has the source type (`[collection]`, `[lock]`, `[local]`), path, tags, description and up to three
+excerpt lines from the best matches, plus a relevance `score`. Scores are only comparable within one result.
+
+The structured result is `{ hits, truncated, warnings }`:
+
+- `hits` — the files, best first. Each hit has `path`, `source`, `sourceName`, `tags`, `description`, `excerpts` and `score` (0 for metadata-only matches).
+- `truncated` — `true` when more files matched than `limit` allowed. Raise `limit` or narrow the query.
+- `warnings` — why the result may differ from what was asked, for example a semantic mode that fell back to `lex`.
+
+Files matching `search.ignorePatterns` (by default `index.md` and `log.md`) are never searched, so a generated
+index does not duplicate the README it lists. See [search settings](config-file.md) and
+[search modes](../how-to/set-up-the-mcp-server.md#choose-a-search-mode).
 
 ### `read_artifact`
 

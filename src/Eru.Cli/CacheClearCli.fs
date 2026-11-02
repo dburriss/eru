@@ -43,7 +43,8 @@ let runClear (clearArgs: ParseResults<CacheClearArgs>) : int =
         |> Path.GetDirectoryName
     let targets =
         [ sourcesBase
-          Paths.searchIndexDir()
+          Paths.ferretCacheDir()
+          Paths.legacySearchIndexDir()
           Paths.collectionCachePath() ]
         |> List.filter Directory.Exists
 

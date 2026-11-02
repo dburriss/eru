@@ -12,8 +12,6 @@ type CandidateFile = {
     Description : string option
 }
 
-type SearchFn = string list -> CandidateFile list -> (CandidateFile * string list) list
-
 type SearchHit = {
     Path        : string
     Source      : string
@@ -21,8 +19,15 @@ type SearchHit = {
     Tags        : string list
     Description : string option
     Excerpts    : string list
+    /// Relevance within this result only (scales differ per mode); 0 for metadata-only hits.
+    Score       : float
 }
 
 type SearchResult = {
-    Hits : SearchHit[]
+    /// Best first.
+    Hits      : SearchHit[]
+    /// True when more files matched than the limit allowed.
+    Truncated : bool
+    /// Why a result may differ from what was asked for, e.g. semantic search was unavailable.
+    Warnings  : string[]
 }

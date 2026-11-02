@@ -77,6 +77,7 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=true
           -p:PublishTrimmed=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
           --output ./publish/${{ matrix.rid }}
 
       - name: Rename artifact (non-Windows)

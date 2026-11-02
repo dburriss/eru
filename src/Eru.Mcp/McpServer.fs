@@ -53,6 +53,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
             .AddSingleton<Deps>(deps)
             .AddSingleton<EffectiveConfig>(eff)
             .AddSingleton<KnowledgeSyncService>()
+            .AddSingleton<RankedSearch.Searcher>(fun _ -> new RankedSearch.Searcher(Paths.ferretCacheDir()))
             .AddHostedService<IndexService>()
             .AddHostedService<CollectionCacheService>()
             .AddMcpServer()

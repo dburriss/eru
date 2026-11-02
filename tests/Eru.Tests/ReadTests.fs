@@ -45,7 +45,6 @@ let private makeDeps
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun s rel -> Ok (Map.tryFind (s, rel) cache)
-        BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = fun _ -> Ok Yaml.Null
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []

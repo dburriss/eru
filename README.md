@@ -88,7 +88,7 @@ Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites a
 | `eru add --collection <name>` | Pull all files in a named collection |
 | `eru add --tag <tag>` | Pull all files matching a tag |
 | `eru add --dryrun <path>` | Preview what would be pulled |
-| `eru search <terms>` | Search sources and the lock file |
+| `eru search <terms>` | Ranked search of sources, the lock file and local knowledge (`--mode lex\|sem\|hybrid`) |
 | `eru sync` | Re-fetch all tracked files and update drifted ones |
 | `eru sync --dryrun` | Preview what sync would change |
 | `eru source add <url>` | Register a git repo as a knowledge source |

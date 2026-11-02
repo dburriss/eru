@@ -78,11 +78,14 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
             })
 
     // 3. Local knowledge directories
+    // Enumerate the real directory names: probing `knowledge` and `KNOWLEDGE` finds the same
+    // directory twice on a case-insensitive file system and every file would be listed twice.
     let knowledgeDirs =
-        [ "knowledge"; "KNOWLEDGE" ]
-        |> List.map (fun d -> Path.Combine(cwd, d))
-        |> List.filter Directory.Exists
-        |> List.distinctBy (fun p -> DirectoryInfo(p).FullName)
+        if Directory.Exists cwd then
+            Directory.EnumerateDirectories cwd
+            |> Seq.filter (fun d -> System.String.Equals(Path.GetFileName d, "knowledge", System.StringComparison.OrdinalIgnoreCase))
+            |> Seq.toList
+        else []
     for dirPath in knowledgeDirs do
         for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
             let relPath = Path.GetRelativePath(cwd, file)
@@ -99,3 +102,39 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
                 })
 
     candidates |> Seq.toList
+
+/// Source-index entries with no readable local file or cached copy. They carry only a path,
+/// tags and a description, so they can be matched on those but not on content.
+let buildMetadataOnly (deps: Deps) (eff: EffectiveConfig) : CandidateFile list =
+    let isPathAllowed path =
+        not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
+
+    let lockEntryMap =
+        match deps.ReadLockEntries eff.StateFile with
+        | Ok entries -> entries |> List.map (fun e -> (e.SourceName, e.RemotePath), e) |> Map.ofList
+        | Error _    -> Map.empty
+
+    [ for src in eff.Sources do
+        match SourceIndexAdapter.readIndex src.Name with
+        | Ok (Some idx) ->
+            for KeyValue(remotePath, entry) in idx.Entries do
+                if not (isGlob remotePath) && isPathAllowed remotePath then
+                    let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
+                    match resolveAbsPath src.Name entry lockEntry with
+                    | Some _ -> ()
+                    | None ->
+                        let colTags =
+                            eff.Collections
+                            |> List.tryFind (fun c -> c.Source = src.Name && c.RemotePath = remotePath)
+                            |> Option.map (fun c -> c.Tags)
+                            |> Option.defaultValue []
+                        yield {
+                            AbsPath     = ""
+                            RelPath     = $"{src.Name}/{remotePath}"
+                            RemotePath  = Some remotePath
+                            Source      = Cache
+                            SourceName  = Some src.Name
+                            Tags        = (entry.Tags @ colTags) |> List.distinct
+                            Description = entry.Description
+                        }
+        | _ -> () ]

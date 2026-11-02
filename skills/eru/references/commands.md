@@ -48,13 +48,16 @@ eru add [<remote-path>] [-s <source>] [-c <collection>] [-t <tag>] [-d <target>]
 ## `eru search`
 
 ```
-eru search [<terms>...] [-t <tag>]
+eru search [<terms>...] [-t <tag>] [--limit <n>] [--mode lex|sem|hybrid] [-o table|text|json]
 ```
 
 | Argument / Flag | Description |
 |---|---|
-| `<terms>` | Search terms (space-separated, OR semantics, case-insensitive substring match) |
+| `<terms>` | Search terms (space-separated). Files are ranked by content relevance (BM25), best first; word forms match (`mock` finds `mocked`). With no terms, known files are listed. |
 | `-t <tag>` | Filter results by tag; repeat for multiple tags (AND semantics) |
+| `--limit <n>` | Maximum files returned (default 15) |
+| `--mode <mode>` | `lex` (keywords, default), `sem` (meaning) or `hybrid` (both). Overrides `search.mode`. Semantic modes need the embedding model; if it is missing, `lex` runs and the model is downloaded for next time (`FERRET_OFFLINE=1` skips the download). |
+| `-o <format>` | `table` (default), `text` or `json` |
 
 ---
 

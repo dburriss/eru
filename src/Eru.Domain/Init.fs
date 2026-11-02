@@ -13,6 +13,10 @@ module Init =
   "okf": {
     "ignorePatterns": ["apm_modules/**", "inbox/**", "node_modules/**"]
   },
+  "search": {
+    "mode": null,
+    "ignorePatterns": ["index.md", "log.md"]
+  },
   "sync": {
     "commitOnPull": null,
     "stateFile": null
@@ -36,6 +40,7 @@ module Init =
         { GlobalConfig.empty with
             Site = Some { SiteSection.empty with IgnorePatterns = Some Config.defaultSiteIgnorePatterns }
             Okf  = Some { OkfSection.empty with IgnorePatterns = Some Config.defaultOkfIgnorePatterns }
+            Search = Some { SearchSection.empty with IgnorePatterns = Some Config.defaultSearchIgnorePatterns }
             Files =
                 Some { BlockPatterns = Some Config.defaultBlockPatterns
                        AllowPatterns = Some Config.defaultAllowPatterns

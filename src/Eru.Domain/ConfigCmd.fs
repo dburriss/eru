@@ -107,6 +107,8 @@ module ConfigCmd =
         "okf.ignorePatterns",             Some (defaultOf Config.defaultOkfIgnorePatterns)
         "okf.fixTypes",                   Some (defaultOf ([] : string list))
         "okf.defaultType",                Some (defaultOf Config.defaultOkfType)
+        "search.mode",                    Some (defaultOf (SearchMode.toString Config.defaultSearchMode))
+        "search.ignorePatterns",          Some (defaultOf Config.defaultSearchIgnorePatterns)
         "site.ignorePatterns",            Some (defaultOf Config.defaultSiteIgnorePatterns)
         "site.hideEmptyBundles",          Some (defaultOf Config.defaultSiteHideEmptyBundles)
         "inbox.default",                  None
@@ -169,7 +171,7 @@ module ConfigCmd =
 
     // Sections `set` may touch. Sources, collections and inbox items have dedicated
     // commands that keep their cross-reference rules.
-    let private settableSections = set [ "site"; "okf"; "mcp"; "sync"; "files"; "inbox" ]
+    let private settableSections = set [ "site"; "okf"; "mcp"; "search"; "sync"; "files"; "inbox" ]
 
     let private parseValue (value: string) : JsonNode =
         try JsonNode.Parse value |> Option.ofObj |> Option.defaultWith (fun () -> JsonValue.Create<string>(null) :> JsonNode)

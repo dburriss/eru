@@ -4,16 +4,24 @@
 
 ### Added
 
+- Ranked search powered by [Ferret](https://github.com/dburriss/ferret). `eru search` with terms and the MCP `search_knowledge` tool now rank files by content (BM25: rarer terms count more, matches in the path, headings and front matter count extra, word forms match, so `mock` finds `mocked`) and return the best first. One engine now serves `eru search`, the MCP tool and the `eru serve` `/api/search` endpoint, so their rules no longer differ
+- `search_knowledge` takes an optional `limit` (default 15) and `mode`, caps each file at three excerpt lines, and returns `truncated`, per-hit `score` and `warnings` in its structured result. `eru search` gains `--limit` and `--mode lex|sem|hybrid` and prints scores
+- Optional semantic and hybrid search (`sem`, `hybrid`) with a local embedding model (`bge-small-en-v1.5`, about 33 MB, no service). Choose with `search.mode`, `ERU_SEARCH_MODE`, `--mode` or the MCP `mode` parameter. The model is never downloaded during an MCP search: the server fetches it in the background, and until then `sem` and `hybrid` run `lex` and say so in `warnings`. `eru search --mode hybrid` runs `lex` first and then downloads the model for next time. `FERRET_OFFLINE=1`, `FERRET_MODEL_DIR` and `FERRET_MODEL_URL` control the download
+- `search.ignorePatterns` config (default `["index.md", "log.md"]`): matching files are never searched, so a generated `index.md` no longer duplicates its README. READMEs stay searchable, unlike `site.ignorePatterns`. `search.mode` (default `lex`) and `search.ignorePatterns` are managed with `eru config`
 - `eru source add --scan --exclude <glob>` (repeatable) skips OKF bundles whose directory matches the glob; excluding the root bundle registers its nested bundles instead
 - `okf.fixTypes` (an ordered list of `{pattern, type}` globs) and `okf.defaultType` config settings: `eru okf fix` types untyped files by glob, including READMEs, and `--default-type` now overrides a matching rule
 - Root `apm.yml` so eru can be installed as an [APM](https://github.com/microsoft/apm) package (`apm install dburriss/eru`): the `eru`, `semantic-search` and `organizing-documentation` skills plus the `ingestor` agent and the `eru` MCP server
 
 ### Changed
 
+- The built-in search backends (simple scan, per-file word index and the `ck` process) are removed in favour of Ferret. `ERU_SEARCH_BACKEND` is deprecated and only mapped: `ck` now means `hybrid`, any other value `lex`, with a warning on stderr. `eru sync` no longer builds a per-file word index; search indexes are built on first use and by the MCP server in the background, under `~/.cache/eru/ferret` (`eru cache clear` removes them and the old `~/.cache/eru/index`)
+- `eru search <terms>` now matches file content, not only path and description, and its `--output json` entries gain `path`, `hash`, `score` and `excerpts` (`sourceName` and `remotePath` are `null` for local files). The MCP `search_knowledge` structured result is now `{ hits, truncated, warnings }` in camelCase, as its output schema already advertised, instead of PascalCase `Hits`
+- Release binaries carry ONNX Runtime for semantic search (about 45 MB more per platform; it is unpacked on first run)
 - A `README.md` with a frontmatter `type` is now a concept: `eru okf validate`, `fix` and `verify` handle it like any other concept, it is listed in generated catalogs and discovered with its metadata. A README without a `type` is still skipped. `eru site` still hides READMEs by default through `site.ignorePatterns`
 
 ### Fixed
 
+- Files in a local `knowledge/` directory were listed twice by search on case-insensitive file systems (macOS, Windows)
 - Table output no longer crashes (`Could not find color or style 'Go'`) when a path, message or description contains square brackets, e.g. every `eru okf validate` broken-link warning; table cells are now rendered literally in all commands
 
 ## [0.13.1] - 2026-10-12

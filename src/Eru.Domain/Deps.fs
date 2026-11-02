@@ -48,7 +48,6 @@ type Deps = {
     WriteSourceIndex         : string -> SourceIndex -> Result<unit, string>
     CacheSourceContent       : string -> string -> string -> Result<string, string>
     ReadCachedSourceContent  : string -> string -> Result<string option, string>
-    BuildSearchIndex         : string -> string -> unit
     ParseYamlBlock           : Yaml.Parse
     ListMarkdownFiles        : string -> Result<string list, string>
     ExtractLinks             : string -> ExtractedLink list

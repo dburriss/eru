@@ -34,7 +34,6 @@ let makeDeps (files: Map<string, string>) (writes: Dictionary<string, string>) :
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ _ -> Ok None
-        BuildSearchIndex        = fun _ _ -> ()
         ParseYamlBlock          = YamlAdapter.parse
         ListMarkdownFiles       = fun _ -> Ok (files |> Map.toList |> List.map fst)
         ExtractLinks            = fun _ -> []

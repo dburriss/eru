@@ -721,6 +721,40 @@ let ``merge prefers local OkfIgnorePatterns over global default`` () =
     let result = Config.merge (Some g) (Some l) |> unwrapOk "okf ignore local override"
     Assert.Empty result.OkfIgnorePatterns
 
+// ── search.mode / search.ignorePatterns ──────────────────────────────────────
+
+[<Fact>]
+let ``merge defaults search mode to lex and ignores index and log files`` () =
+    let result = Config.merge None None |> unwrapOk "search defaults"
+    Assert.Equal(Lex, result.SearchMode)
+    Assert.Equal<string list>([ "index.md"; "log.md" ], result.SearchIgnorePatterns)
+
+[<Fact>]
+let ``merge prefers the local search section over the global one per key`` () =
+    let g = { makeGlobal [] [] with Search = Some { Mode = Some "hybrid"; IgnorePatterns = Some [ "drafts/**" ] } }
+    let l : LocalConfig = { LocalConfig.empty with Search = Some { SearchSection.empty with Mode = Some "sem" } }
+    let result = Config.merge (Some g) (Some l) |> unwrapOk "search merge"
+    Assert.Equal(Sem, result.SearchMode)
+    Assert.Equal<string list>([ "drafts/**" ], result.SearchIgnorePatterns)
+
+[<Fact>]
+let ``merge rejects an unknown search mode`` () =
+    let l : LocalConfig = { LocalConfig.empty with Search = Some { SearchSection.empty with Mode = Some "fuzzy" } }
+    match Config.merge None (Some l) with
+    | Ok _ -> Assert.Fail "expected an error"
+    | Error e -> Assert.Contains("search.mode must be one of lex, sem, hybrid", e)
+
+[<Fact>]
+let ``search section round-trips through JSON`` () =
+    let json = """{ "version": 3, "search": { "mode": "hybrid", "ignorePatterns": ["index.md"] } }"""
+    match Serialization.deserialize<LocalConfig> json with
+    | Error e -> Assert.Fail e
+    | Ok cfg ->
+        Assert.Equal(Some { Mode = Some "hybrid"; IgnorePatterns = Some [ "index.md" ] }, cfg.Search)
+        match Serialization.deserialize<LocalConfig> (Serialization.serialize cfg) with
+        | Ok again -> Assert.Equal(cfg.Search, again.Search)
+        | Error e -> Assert.Fail e
+
 // ── okf.fixTypes / okf.defaultType ───────────────────────────────────────────
 
 let private fixRule pattern typ : OkfFixTypeRule = { Pattern = pattern; Type = typ }

@@ -39,12 +39,16 @@ type AddArgs =
 type SearchArgs =
     | [<MainCommand>]              Terms  of term: string list
     | [<AltCommandLine("-t")>]     Tag    of tag: string
+    | [<Unique>]                   Limit  of count: int
+    | [<Unique>]                   Mode   of mode: string
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Terms _  -> "Search terms."
+            | Terms _  -> "Search terms. Files are ranked by relevance; with no terms, known files are listed."
             | Tag _    -> "Filter results by tag; repeat for multiple tags."
+            | Limit _  -> "Maximum number of files to return (default: 15)."
+            | Mode _   -> "Ranking mode: lex (keywords), sem (meaning) or hybrid (both). Default: search.mode, else lex. sem and hybrid need the embedding model; if it is missing, lex runs and the model is downloaded for next time (FERRET_OFFLINE=1 skips the download)."
             | Output _ -> "Output format: table (default), text, json."
 
 type SyncArgs =

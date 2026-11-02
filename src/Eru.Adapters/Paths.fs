@@ -56,16 +56,22 @@ module Paths =
     let sourceFilesDir (sourceName: string) =
         IO.Path.Combine(sourceCacheDir sourceName, "files")
 
-    let searchIndexDir () =
+    // Ferret's indexes (lexical and semantic) and the downloaded embedding model.
+    let ferretCacheDir () =
         if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
             let localAppData = Environment.GetFolderPath Environment.SpecialFolder.LocalApplicationData
-            IO.Path.Combine(localAppData, "eru", "index")
+            IO.Path.Combine(localAppData, "eru", "ferret")
         else
             let xdgCache = Environment.GetEnvironmentVariable "XDG_CACHE_HOME"
             let cacheHome =
                 if xdgCache <> null && xdgCache <> "" then xdgCache
                 else IO.Path.Combine(Environment.GetFolderPath Environment.SpecialFolder.UserProfile, ".cache")
-            IO.Path.Combine(cacheHome, "eru", "index")
+            IO.Path.Combine(cacheHome, "eru", "ferret")
+
+    // The per-file word index of the removed built-in search. Only `eru cache clear` still
+    // knows about it, to remove what an older version left behind.
+    let legacySearchIndexDir () =
+        IO.Path.Combine(IO.Path.GetDirectoryName(ferretCacheDir ()), "index")
 
     let mcpLogPath () =
         if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
