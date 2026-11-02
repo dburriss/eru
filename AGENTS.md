@@ -59,7 +59,7 @@ dotnet fsi scripts/publish.fsx --fsproj src/Eru.Cli/Eru.Cli.fsproj --solution er
 
 - `.github/workflows/build.yml` — restore, build and test (Release) on Ubuntu for every push and PR. It does not run on Windows or macOS, so OS-specific bugs (e.g. path separators) only surface in the publish workflows.
 - `publish-gh.yml` — on `v*` tags (or manual dispatch): builds and tests on Linux, Windows and macOS, publishes trimmed single-file self-contained binaries (`linux-x64`, `win-x64`, `osx-x64`) and attaches them to a GitHub Release. Release notes come from the matching `## [x.y.z]` section of `CHANGELOG.md`; tags containing `-` are marked prerelease.
-- `publish-nuget.yml` — on `v*` tags (or manual dispatch): builds, tests, packs `src/Eru.Cli` and pushes to nuget.org using the `NUGET_DEPLOY_KEY` secret.
+- `publish-nuget.yml` — on `v*` tags (or manual dispatch): builds, tests, packs `src/Eru.Cli` and pushes to nuget.org using NuGet Trusted Publishing (`NuGet/login@v1` exchanges the job's OIDC token for a short-lived key; the `NUGET_USER` secret holds the nuget.org username, and the policy on nuget.org is bound to the `publish-nuget.yml` file name).
 - Keep `CHANGELOG.md` `## [Unreleased]` up to date; the publish script and release notes depend on it.
 
 ## Architecture
