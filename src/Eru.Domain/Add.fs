@@ -111,9 +111,7 @@ module Add =
         (sources: SourceConfig list)
         (target: string option)
         (dryRun: bool)
-        (blockPatterns: string list)
-        (allowPatterns: string list)
-        (allowBinaries: bool)
+        (eff: EffectiveConfig)
         (sourceName: string)
         (remotePath: string) : Result<PullEntry list, string> =
         findSource sources sourceName
@@ -125,11 +123,12 @@ module Add =
             | None -> Error $"source '{sourceName}' has no URL"
             | Some url ->
                 let branch = source.Branch |> Option.defaultValue "HEAD"
+                let se = Config.effectiveFor eff source
                 deps.FetchRemoteContent url branch [actualPath]
                 |> Result.bind (fun files ->
                     let allowed, blocked =
                         files |> List.partition (fun (path, content) ->
-                            not (Patterns.isBlocked blockPatterns allowPatterns allowBinaries path content))
+                            not (Patterns.isBlocked se.BlockPatterns se.AllowPatterns se.AllowBinaries path content))
                     let blockedEntries = blocked |> List.map (fun (path, _) -> Blocked path)
                     allowed
                     |> List.fold (fun acc (resolvedPath, content) ->
@@ -151,14 +150,12 @@ module Add =
         (sources: SourceConfig list)
         (target: string option)
         (dryRun: bool)
-        (blockPatterns: string list)
-        (allowPatterns: string list)
-        (allowBinaries: bool)
+        (eff: EffectiveConfig)
         (pairs: (string * string) list) : Result<PullEntry list, string> =
         pairs
         |> List.fold (fun acc (sourceName, remotePath) ->
             acc |> Result.bind (fun entries ->
-                pullOne deps sources target dryRun blockPatterns allowPatterns allowBinaries sourceName remotePath
+                pullOne deps sources target dryRun eff sourceName remotePath
                 |> Result.map (fun newEntries -> entries @ newEntries)))
             (Ok [])
 
@@ -204,6 +201,7 @@ module Add =
                 Url      = Some parsed.RepoUrl
                 Branch   = Some parsed.Branch
                 Bundles  = bundles
+                Files = None; Search = None; Okf = None; Site = None
             }
             if isGlobal then
                 let g = globalCfg |> Option.defaultValue GlobalConfig.empty
@@ -250,7 +248,7 @@ module Add =
                             | Some src -> Error $"no files in collection '{colName}' from source '{src}'"
                             | None     -> Error $"collection '{colName}' has no files"
                         else
-                            pullMany deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries (files |> List.map (fun f -> f.Source, f.RemotePath))
+                            pullMany deps eff.Sources cmd.Target cmd.DryRun eff (files |> List.map (fun f -> f.Source, f.RemotePath))
 
             | None when cmd.Tags <> [] ->
                 match globalCfg with
@@ -262,7 +260,7 @@ module Add =
                         Error $"no files found matching tags: {tagList}"
                     else
                         let pairs = ids |> List.map (fun id -> id.Source, id.RemotePath)
-                        pullMany deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries pairs
+                        pullMany deps eff.Sources cmd.Target cmd.DryRun eff pairs
 
             | _ ->
                 let rawPath = cmd.RemotePath.Value
@@ -270,7 +268,7 @@ module Add =
                 | Some parsed ->
                     ensureSource deps cmd.IsGlobal eff.Sources globalCfg localCfg parsed
                     |> Result.bind (fun updatedSources ->
-                        pullOne deps updatedSources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries parsed.SourceName parsed.RemotePath)
+                        pullOne deps updatedSources cmd.Target cmd.DryRun eff parsed.SourceName parsed.RemotePath)
                 | None ->
                     if rawPath.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase) then
                         if UrlParser.isBareRepoUrl rawPath then
@@ -286,7 +284,7 @@ module Add =
                             else
                                 resolveShortHashAcrossSources deps eff.Sources remotePath
                                 |> Result.bind (fun (sn, resolvedPath) ->
-                                    pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn resolvedPath)
+                                    pullOne deps eff.Sources cmd.Target cmd.DryRun eff sn resolvedPath)
                         else
                         let srcName =
                             match embeddedSrc with
@@ -305,7 +303,7 @@ module Add =
                                 let expandedPath =
                                     if Patterns.isShortHash remotePath then remotePath
                                     else resolveRemotePath source remotePath
-                                pullOne deps eff.Sources cmd.Target cmd.DryRun eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries sn expandedPath))
+                                pullOne deps eff.Sources cmd.Target cmd.DryRun eff sn expandedPath))
 
         match pullResult with
         | Error e -> Error e

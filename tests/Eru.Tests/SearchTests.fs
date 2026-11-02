@@ -6,7 +6,7 @@ open Eru
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = Some url; Branch = None; Bundles = [] }
+    { Name = name; Url = Some url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 let private makeLocal sources : LocalConfig =
     { LocalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }

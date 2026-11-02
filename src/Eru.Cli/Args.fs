@@ -562,29 +562,35 @@ type ConfigListArgs =
             | Output _ -> "Output format: table (default), text, json."
 
 type ConfigViewArgs =
+    | [<Unique>]                       Source of name: string
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
+            | Source _ -> "Show only the settings a source can override, as resolved for that source."
             | Output _ -> "Output format: table (default), text, json."
 
 type ConfigGetArgs =
     | [<MainCommand; ExactlyOnce>]     Key of key: string
+    | [<Unique>]                       Source of name: string
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Key _    -> "Dotted setting key, e.g. sync.commitOnPull or files.blockPatterns."
+            | Source _ -> "Resolve the key for this source: its own override, else the global value."
             | Output _ -> "Output format: table (default), text (bare value), json."
 
 type ConfigSetArgs =
     | [<MainCommand>]                  Key_Value of key_and_value: string list
     | [<Unique; AltCommandLine("-g")>] Global
     | [<Unique>]                       Unset
+    | [<Unique>]                       Source of name: string
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
+            | Source _    -> "Set the key for one source instead of globally (files.*, search.ignorePatterns, okf.ignorePatterns, site.ignorePatterns). The source must already exist."
             | Key_Value _ -> "Dotted key and a JSON value (e.g. sync.commitOnPull true, files.blockPatterns '[\"*.exe\"]'). Bare words are taken as strings."
             | Global      -> "Write to the global config (~/.config/eru/config.json) instead of the local one."
             | Unset       -> "Remove the key instead of setting it."

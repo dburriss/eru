@@ -46,6 +46,17 @@ let applyIgnore (patterns: string list) (candidates: CandidateFile list) : Candi
     if patterns.IsEmpty then candidates
     else candidates |> List.filter (fun c -> not (Patterns.matchesAny patterns (pathKey c)))
 
+/// Like `applyIgnore`, but a source's own `search.ignorePatterns` replace the global ones for its
+/// files; candidates that belong to no configured source use the global patterns.
+let applyIgnoreFor (eff: EffectiveConfig) (candidates: CandidateFile list) : CandidateFile list =
+    let perSource =
+        eff.Sources |> List.map (fun s -> s.Name, (Config.effectiveFor eff s).SearchIgnorePatterns) |> Map.ofList
+    candidates
+    |> List.filter (fun c ->
+        let patterns =
+            c.SourceName |> Option.bind (fun n -> Map.tryFind n perSource) |> Option.defaultValue eff.SearchIgnorePatterns
+        patterns.IsEmpty || not (Patterns.matchesAny patterns (pathKey c)))
+
 let hasTags (required: string list) (itemTags: string list) : bool =
     required.IsEmpty ||
     required |> List.forall (fun t ->
@@ -193,7 +204,7 @@ type Searcher(cacheDir: string, progress: Action<string>) =
 
 /// The candidates Ferret searches: every readable file eru knows, minus ignored ones.
 let readableCandidates (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list =
-    CandidateBuilder.build deps eff cwd |> applyIgnore eff.SearchIgnorePatterns
+    CandidateBuilder.build deps eff cwd |> applyIgnoreFor eff
 
 /// Ranked search over everything eru knows about: files are ranked by content (path, headings
 /// and front matter count extra), tag-filtered and bounded by `limit`; entries with no local
@@ -220,7 +231,7 @@ let execute (searcher: Searcher) (deps: Deps) (eff: EffectiveConfig) (cwd: strin
 
         let metadataHits =
             CandidateBuilder.buildMetadataOnly deps eff
-            |> applyIgnore eff.SearchIgnorePatterns
+            |> applyIgnoreFor eff
             |> List.filter (fun c -> hasTags req.Tags c.Tags && matchesMetadata queryTerms c)
             |> List.sortWith (fun a b -> String.CompareOrdinal(a.RelPath, b.RelPath))
 

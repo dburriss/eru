@@ -36,13 +36,6 @@ type BundleKind = Manifest | Okf
 
 type Bundle = { Path: string; Kind: BundleKind }
 
-type SourceConfig = {
-    Name: string
-    Url: string option
-    Branch: string option
-    Bundles: Bundle list
-}
-
 type CollectionFileRef = {
     Source: string
     RemotePath: string
@@ -176,6 +169,25 @@ type FilesSection = {
     AllowBinaries: bool option
 }
 
+// The only site setting a source can override: which of its files the generated site hides.
+type SourceSiteSection = {
+    IgnorePatterns: string list option
+}
+
+// A source entry. Besides where it lives (`Url`, `Branch`, `Bundles`) it can carry its own
+// `files`, `search`, `okf` and `site` blocks, which replace the same key in the sections of
+// the config files for this source only. `search.mode` is not overridable (one index per mode).
+type SourceConfig = {
+    Name: string
+    Url: string option
+    Branch: string option
+    Bundles: Bundle list
+    Files: FilesSection option
+    Search: SearchSection option
+    Okf: OkfSection option
+    Site: SourceSiteSection option
+}
+
 // Items are keyed by inbox name; merged by name, local wins.
 type InboxSection = {
     Default: string option
@@ -239,8 +251,23 @@ type EffectiveConfig = {
     InboxWatchIntervalSeconds : int
 }
 
+// The settings that can differ per source, resolved for one source: its own override where
+// it has one, otherwise the effective (env > local > global > default) value. See Config.effectiveFor.
+type SourceEffective = {
+    BlockPatterns        : string list
+    AllowPatterns        : string list
+    AllowBinaries        : bool
+    SearchIgnorePatterns : string list
+    OkfIgnorePatterns    : string list
+    SiteIgnorePatterns   : string list
+}
+
 module SourceConfig =
-    let empty : SourceConfig = { Name = ""; Url = None; Branch = None; Bundles = [] }
+    let hasOverrides (s: SourceConfig) : bool =
+        s.Files.IsSome || s.Search.IsSome || s.Okf.IsSome || s.Site.IsSome
+
+    let empty : SourceConfig =
+        { Name = ""; Url = None; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 module OkfSection =
     let empty : OkfSection = { IgnorePatterns = None; FixTypes = None; DefaultType = None }
@@ -643,6 +670,32 @@ module Config =
                 else None))
         |> Option.defaultValue (Ok ())
 
+    // Per key, the local entry's value wins over the global entry's (the same rule as the
+    // sections of the two files). Used when a local entry borrows its url from the global one.
+    let private mergeOverrides (local: SourceConfig) (global': SourceConfig) : SourceConfig =
+        let orElse (l: 'a option) (g: 'a option) = l |> Option.orElse g
+        let files (l: FilesSection) (g: FilesSection) : FilesSection =
+            { BlockPatterns = orElse l.BlockPatterns g.BlockPatterns
+              AllowPatterns = orElse l.AllowPatterns g.AllowPatterns
+              AllowBinaries = orElse l.AllowBinaries g.AllowBinaries }
+        let search (l: SearchSection) (g: SearchSection) : SearchSection =
+            { Mode = orElse l.Mode g.Mode; IgnorePatterns = orElse l.IgnorePatterns g.IgnorePatterns }
+        let okf (l: OkfSection) (g: OkfSection) : OkfSection =
+            { IgnorePatterns = orElse l.IgnorePatterns g.IgnorePatterns
+              FixTypes = orElse l.FixTypes g.FixTypes
+              DefaultType = orElse l.DefaultType g.DefaultType }
+        let site (l: SourceSiteSection) (g: SourceSiteSection) : SourceSiteSection =
+            { IgnorePatterns = orElse l.IgnorePatterns g.IgnorePatterns }
+        let both f (l: 'b option) (g: 'b option) =
+            match l, g with
+            | Some l', Some g' -> Some (f l' g')
+            | _ -> orElse l g
+        { global' with
+            Files  = both files  local.Files  global'.Files
+            Search = both search local.Search global'.Search
+            Okf    = both okf    local.Okf    global'.Okf
+            Site   = both site   local.Site   global'.Site }
+
     let private resolveLocalSources (localSources: SourceConfig list) (globalSources: SourceConfig list) =
         localSources
         |> List.fold (fun acc ls ->
@@ -654,10 +707,48 @@ module Config =
                 | None ->
                     globalSources
                     |> List.tryFind (fun gs -> gs.Name = ls.Name)
-                    |> Option.map (fun gs -> Ok (resolved @ [gs]))
+                    |> Option.map (fun gs -> Ok (resolved @ [mergeOverrides ls gs]))
                     |> Option.defaultWith (fun () ->
                         Error $"Local source '{ls.Name}' has no URL and was not found in global config"))
             (Ok [])
+
+    // Env var names are upper-case and cannot hold '-' or '.', so the environment layer names a
+    // source loosely. Everywhere else source names are matched exactly.
+    let normalizeSourceName (name: string) : string =
+        name.ToLowerInvariant().Replace('-', '_').Replace('.', '_')
+
+    // A source overrides `files.*`, `search.ignorePatterns`, `okf.ignorePatterns` and
+    // `site.ignorePatterns`. `search.mode` picks how the whole index is built, and
+    // `okf.fixTypes` / `okf.defaultType` drive `eru okf fix` on local files, so neither is per source.
+    let private checkSourceOverrides (sources: SourceConfig list) : Result<unit, string> =
+        let reject (s: SourceConfig) (key: string) (why: string) = Error $"Source '{s.Name}': {key} cannot be set per source ({why})"
+        sources
+        |> List.tryPick (fun s ->
+            if s.Search |> Option.bind (fun x -> x.Mode) |> Option.isSome then
+                Some (reject s "search.mode" "set it in the search section")
+            elif s.Okf |> Option.bind (fun o -> o.FixTypes) |> Option.isSome then
+                Some (reject s "okf.fixTypes" "set it in the okf section")
+            elif s.Okf |> Option.bind (fun o -> o.DefaultType) |> Option.isSome then
+                Some (reject s "okf.defaultType" "set it in the okf section")
+            else None)
+        |> Option.defaultValue (Ok ())
+
+    // The environment layer carries per-source overrides as `source.items` entries named by the
+    // (normalised) env name. They only ever adjust a source defined in a file; an entry that
+    // matches none is ignored, and one that matches several is ambiguous.
+    let private applyEnvSourceOverrides (envCfg: LocalConfig option) (sources: SourceConfig list) : Result<SourceConfig list, string> =
+        let envItems = envCfg |> Option.map LocalConfig.sources |> Option.defaultValue []
+        envItems
+        |> List.fold (fun acc (e: SourceConfig) ->
+            acc |> Result.bind (fun (current: SourceConfig list) ->
+                let key = normalizeSourceName e.Name
+                match current |> List.filter (fun s -> normalizeSourceName s.Name = key) with
+                | [] -> Ok current
+                | [ target ] ->
+                    Ok (current |> List.map (fun s -> if s.Name = target.Name then mergeOverrides e s else s))
+                | many ->
+                    let names = many |> List.map (fun s -> $"'{s.Name}'") |> String.concat ", "
+                    Error $"environment (ERU__SOURCE__{e.Name.ToUpperInvariant()}__*) is ambiguous: it matches sources {names}")) (Ok sources)
 
     // `envCfg` is the environment layer (see EnvConfig): it overrides the same keys in the
     // local and global files, and holds settings only, never sources, collections or inboxes.
@@ -695,7 +786,9 @@ module Config =
                 let globalCols = globalCfg |> Option.map GlobalConfig.collections |> Option.defaultValue []
                 let localCols  = localCfg  |> Option.map LocalConfig.collections  |> Option.defaultValue []
                 checkCollectionSources (globalCols @ localCols) mergedSources
-            validateCollections |> Result.map (fun () -> mergedSources))
+            validateCollections
+            |> Result.bind (fun () -> applyEnvSourceOverrides envCfg mergedSources)
+            |> Result.bind (fun withEnv -> checkSourceOverrides withEnv |> Result.map (fun () -> withEnv)))
         |> Result.bind (fun mergedSources ->
             let eSite  = envCfg    |> Option.bind (fun e -> e.Site)
             let lSite  = localCfg  |> Option.bind (fun l -> l.Site)
@@ -762,6 +855,27 @@ module Config =
                 DefaultInbox = first3 eInbox lInbox gInbox (fun (s: InboxSection) -> s.Default)
                 InboxWatchIntervalSeconds = first3 eInbox lInbox gInbox (fun (s: InboxSection) -> s.WatchIntervalSeconds) |> Option.defaultValue 30
             }))
+
+    // The settings for one source: its own `files`/`search`/`okf`/`site` values, falling back
+    // to the effective (already merged env > local > global > default) value. The only place
+    // the per-source "replace" rule lives.
+    let effectiveFor (eff: EffectiveConfig) (src: SourceConfig) : SourceEffective =
+        let pick (sec: 'S option) (get: 'S -> 'a option) (fallback: 'a) : 'a =
+            sec |> Option.bind get |> Option.defaultValue fallback
+        { BlockPatterns        = pick src.Files  (fun f -> f.BlockPatterns) eff.BlockPatterns
+          AllowPatterns        = pick src.Files  (fun f -> f.AllowPatterns) eff.AllowPatterns
+          AllowBinaries        = pick src.Files  (fun f -> f.AllowBinaries) eff.AllowBinaries
+          SearchIgnorePatterns = pick src.Search (fun s -> s.IgnorePatterns) eff.SearchIgnorePatterns
+          OkfIgnorePatterns    = pick src.Okf    (fun o -> o.IgnorePatterns) eff.OkfIgnorePatterns
+          SiteIgnorePatterns   = pick src.Site   (fun s -> s.IgnorePatterns) eff.SiteIgnorePatterns }
+
+    // By name, for callers that only hold a source name: a name that is not configured gets
+    // the global values.
+    let effectiveForName (eff: EffectiveConfig) (name: string) : SourceEffective =
+        eff.Sources
+        |> List.tryFind (fun s -> s.Name = name)
+        |> Option.defaultValue { SourceConfig.empty with Name = name }
+        |> effectiveFor eff
 
     let merge (globalCfg: GlobalConfig option) (localCfg: LocalConfig option) : Result<EffectiveConfig, string> =
         mergeWithEnv None globalCfg localCfg
@@ -835,7 +949,8 @@ module Config =
             match v1.BasePath with
             | None    -> []
             | Some "" -> []
-            | Some p  -> [ { Path = p; Kind = Manifest } ] }
+            | Some p  -> [ { Path = p; Kind = Manifest } ]
+          Files = None; Search = None; Okf = None; Site = None }
 
     // Defends against System.Text.Json silently leaving a missing list field null
     // rather than throwing, regardless of exactly which failure mode a given

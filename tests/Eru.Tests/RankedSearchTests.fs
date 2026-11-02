@@ -154,6 +154,20 @@ let ``ignore patterns without a slash match the file name at any depth`` () =
     Assert.Equal<string list>([ "src/a/README.md" ], kept)
 
 [<Fact>]
+let ``a source's own ignore patterns replace the global ones for its files only`` () =
+    let own = { SourceConfig.empty with Name = "src"; Url = Some "https://x/src.git"; Search = Some { SearchSection.empty with IgnorePatterns = Some [ "CHANGELOG.md" ] } }
+    let plain = { SourceConfig.empty with Name = "plain"; Url = Some "https://x/plain.git" }
+    let eff = { EffectiveConfig.empty with Sources = [ own; plain ]; SearchIgnorePatterns = [ "index.md" ] }
+    let cs =
+        [ candidate "src/index.md" (Some "index.md")
+          candidate "src/CHANGELOG.md" (Some "CHANGELOG.md")
+          { candidate "plain/index.md" (Some "index.md") with SourceName = Some "plain" }
+          { candidate "plain/CHANGELOG.md" (Some "CHANGELOG.md") with SourceName = Some "plain" }
+          candidate "knowledge/index.md" None |> fun c -> { c with SourceName = None } ]
+    let kept = RankedSearch.applyIgnoreFor eff cs |> List.map (fun c -> c.RelPath)
+    Assert.Equal<string list>([ "src/index.md"; "plain/CHANGELOG.md" ], kept)
+
+[<Fact>]
 let ``ignore patterns with a slash match the full path`` () =
     let cs = [ candidate "src/drafts/a.md" (Some "drafts/a.md"); candidate "src/docs/a.md" (Some "docs/a.md") ]
     let kept = RankedSearch.applyIgnore [ "drafts/**" ] cs |> List.map (fun c -> c.RelPath)

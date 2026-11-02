@@ -73,7 +73,8 @@ module Read =
                 let branch = src.Branch |> Option.defaultValue "HEAD"
                 match deps.FetchRemoteContent url branch [id.RemotePath] with
                 | Ok ((_, content) :: _) ->
-                    if Patterns.isBlocked eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries id.RemotePath content then
+                    let se = Config.effectiveFor eff src
+                    if Patterns.isBlocked se.BlockPatterns se.AllowPatterns se.AllowBinaries id.RemotePath content then
                         Error $"'{id.RemotePath}' is blocked by the current block patterns"
                     else Ok content
                 | Ok []   -> Error $"no content returned for {EntryId.toString id}"

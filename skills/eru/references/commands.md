@@ -79,9 +79,9 @@ Performs one git clone per source (not per file), refreshes all manifest caches,
 
 ```
 eru config list    [-o table|text|json]
-eru config view    [-o table|text|json]
-eru config get     <key> [-o table|text|json]
-eru config set     <key> <json-value> [--global] [--unset]
+eru config view    [--source <name>] [-o table|text|json]
+eru config get     <key> [--source <name>] [-o table|text|json]
+eru config set     <key> <json-value> [--source <name>] [--global] [--unset]
 eru config migrate [--local | --global] [--dryrun]
 ```
 

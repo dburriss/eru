@@ -4,7 +4,7 @@ open Xunit
 open Eru
 
 let private makeSource name bundles : SourceConfig =
-    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = bundles }
+    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = bundles; Files = None; Search = None; Okf = None; Site = None }
 
 let private emptyLocal sources : LocalConfig =
     { LocalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }

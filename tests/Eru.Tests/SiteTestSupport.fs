@@ -43,7 +43,7 @@ let siteError (siteJson: string) : string =
     | Error e -> e
 
 let private makeSource name : SourceConfig =
-    { Name = name; Url = Some $"https://github.com/example/{name}.git"; Branch = Some "main"; Bundles = [] }
+    { Name = name; Url = Some $"https://github.com/example/{name}.git"; Branch = Some "main"; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 let makeEntry (cacheRelPath: string option) (title: string) : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = None; CacheRelPath = cacheRelPath

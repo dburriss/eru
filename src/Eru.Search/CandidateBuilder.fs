@@ -17,12 +17,22 @@ let private resolveAbsPath (sourceName: string) (entry: IndexEntry) (localEntry:
             if File.Exists abs then Some abs else None
         | None -> None
 
+/// A path check that applies the source's own block/allow patterns, or the global ones for a
+/// file that belongs to no configured source.
+let private pathAllowedFor (eff: EffectiveConfig) : string option -> string -> bool =
+    let perSource = eff.Sources |> List.map (fun s -> s.Name, Config.effectiveFor eff s) |> Map.ofList
+    fun sourceName path ->
+        let blocked, allowed =
+            match sourceName |> Option.bind (fun n -> Map.tryFind n perSource) with
+            | Some se -> se.BlockPatterns, se.AllowPatterns
+            | None -> eff.BlockPatterns, eff.AllowPatterns
+        not (Patterns.isPathBlocked blocked allowed path)
+
 /// Build the full candidate list from the source index cache, lock file entries not
 /// in any index, and local knowledge/ directories. Returns only candidates with
 /// accessible file content (no metadata-only entries).
 let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list =
-    let isPathAllowed path =
-        not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
+    let isPathAllowed = pathAllowedFor eff
 
     let candidates = System.Collections.Generic.List<CandidateFile>()
 
@@ -36,7 +46,7 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
         match SourceIndexAdapter.readIndex src.Name with
         | Ok (Some idx) ->
             for KeyValue(remotePath, entry) in idx.Entries do
-                if not (isGlob remotePath) && isPathAllowed remotePath then
+                if not (isGlob remotePath) && isPathAllowed (Some src.Name) remotePath then
                     let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
                     let colTags =
                         eff.Collections
@@ -66,7 +76,7 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
     let indexedPaths = candidates |> Seq.map (fun c -> c.RelPath) |> Set.ofSeq
     for KeyValue((sn, rp), lockEntry) in lockEntryMap do
         let relPath = lockEntry.LocalPath
-        if not (Set.contains relPath indexedPaths) && isPathAllowed rp && File.Exists lockEntry.LocalPath then
+        if not (Set.contains relPath indexedPaths) && isPathAllowed (Some sn) rp && File.Exists lockEntry.LocalPath then
             candidates.Add({
                 AbsPath     = lockEntry.LocalPath
                 RelPath     = lockEntry.LocalPath
@@ -89,7 +99,7 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
     for dirPath in knowledgeDirs do
         for file in Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) do
             let relPath = Path.GetRelativePath(cwd, file)
-            if isPathAllowed relPath then
+            if isPathAllowed None relPath then
                 let fm = Frontmatter.parse YamlAdapter.parse (File.ReadAllText file)
                 candidates.Add({
                     AbsPath     = file
@@ -106,8 +116,7 @@ let build (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list
 /// Source-index entries with no readable local file or cached copy. They carry only a path,
 /// tags and a description, so they can be matched on those but not on content.
 let buildMetadataOnly (deps: Deps) (eff: EffectiveConfig) : CandidateFile list =
-    let isPathAllowed path =
-        not (Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns path)
+    let isPathAllowed = pathAllowedFor eff
 
     let lockEntryMap =
         match deps.ReadLockEntries eff.StateFile with
@@ -118,7 +127,7 @@ let buildMetadataOnly (deps: Deps) (eff: EffectiveConfig) : CandidateFile list =
         match SourceIndexAdapter.readIndex src.Name with
         | Ok (Some idx) ->
             for KeyValue(remotePath, entry) in idx.Entries do
-                if not (isGlob remotePath) && isPathAllowed remotePath then
+                if not (isGlob remotePath) && isPathAllowed (Some src.Name) remotePath then
                     let lockEntry = lockEntryMap |> Map.tryFind (src.Name, remotePath)
                     match resolveAbsPath src.Name entry lockEntry with
                     | Some _ -> ()

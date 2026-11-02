@@ -9,9 +9,9 @@ open Eru.Cli.OutputFormat
 
 type Cmd =
     | List    of OutputFormat
-    | View    of OutputFormat
-    | Get     of key: string * OutputFormat
-    | Set     of scope: ConfigScope * key: string * value: string option * OutputFormat
+    | View    of source: string option * OutputFormat
+    | Get     of key: string * source: string option * OutputFormat
+    | Set     of scope: ConfigScope * key: string * value: string option * source: string option * OutputFormat
     | Migrate of scope: ConfigScope * dryRun: bool * OutputFormat
 
 let (|ConfigCommand|_|) (r: ParseResults<EruArgs>) : Cmd option =
@@ -19,15 +19,15 @@ let (|ConfigCommand|_|) (r: ParseResults<EruArgs>) : Cmd option =
         | EruArgs.Config args ->
             args.TryGetSubCommand() |> Option.bind (function
                 | ConfigArgs.List a -> Some (List (parseFormat (a.TryGetResult ConfigListArgs.Output)))
-                | ConfigArgs.View a -> Some (View (parseFormat (a.TryGetResult ConfigViewArgs.Output)))
-                | ConfigArgs.Get a  -> Some (Get (a.GetResult ConfigGetArgs.Key, parseFormat (a.TryGetResult ConfigGetArgs.Output)))
+                | ConfigArgs.View a -> Some (View (a.TryGetResult ConfigViewArgs.Source, parseFormat (a.TryGetResult ConfigViewArgs.Output)))
+                | ConfigArgs.Get a  -> Some (Get (a.GetResult ConfigGetArgs.Key, a.TryGetResult ConfigGetArgs.Source, parseFormat (a.TryGetResult ConfigGetArgs.Output)))
                 | ConfigArgs.Set a ->
                     let scope = if a.Contains ConfigSetArgs.Global then GlobalScope else LocalScope
                     let kv    = a.TryGetResult ConfigSetArgs.Key_Value |> Option.defaultValue []
                     let key   = kv |> List.tryHead |> Option.defaultValue ""
                     // Some "" (no value given without --unset) is rejected in `runSet`.
                     let value = if a.Contains ConfigSetArgs.Unset then None else Some (kv |> List.skip (min 1 kv.Length) |> String.concat " ")
-                    Some (Set (scope, key, value, parseFormat (a.TryGetResult ConfigSetArgs.Output)))
+                    Some (Set (scope, key, value, a.TryGetResult ConfigSetArgs.Source, parseFormat (a.TryGetResult ConfigSetArgs.Output)))
                 | ConfigArgs.Migrate a ->
                     let scope = if a.Contains ConfigMigrateArgs.Global then GlobalScope else LocalScope
                     Some (Migrate (scope, a.Contains ConfigMigrateArgs.Dryrun, parseFormat (a.TryGetResult ConfigMigrateArgs.Output)))
@@ -62,8 +62,8 @@ let private runList (io: ConfigIO) (fmt: OutputFormat) : int =
         eprintfn "Hint: run 'eru config migrate' (or 'eru config migrate --global') to upgrade outdated files."
     0
 
-let private runView (io: ConfigIO) (fmt: OutputFormat) : int =
-    match ConfigCmd.view io with
+let private runView (io: ConfigIO) (source: string option) (fmt: OutputFormat) : int =
+    match (match source with Some name -> ConfigCmd.viewSource io name | None -> ConfigCmd.view io) with
     | Error e -> renderError e; 1
     | Ok v ->
         match fmt with
@@ -78,8 +78,8 @@ let private runView (io: ConfigIO) (fmt: OutputFormat) : int =
             AnsiConsole.Write t
         0
 
-let private runGet (io: ConfigIO) (key: string) (fmt: OutputFormat) : int =
-    match ConfigCmd.get io key with
+let private runGet (io: ConfigIO) (key: string) (source: string option) (fmt: OutputFormat) : int =
+    match (match source with Some name -> ConfigCmd.getForSource io name key | None -> ConfigCmd.get io key) with
     | Error e -> renderError e; 1
     | Ok s ->
         match fmt with
@@ -91,15 +91,20 @@ let private runGet (io: ConfigIO) (key: string) (fmt: OutputFormat) : int =
             AnsiConsole.Write t
         0
 
-let private runSet (io: ConfigIO) scope key (value: string option) (fmt: OutputFormat) : int =
+let private runSet (io: ConfigIO) scope key (value: string option) (source: string option) (fmt: OutputFormat) : int =
     match value with
     | Some "" -> renderError "set needs a value (or use --unset to remove the key)"; 1
     | _ ->
-        match ConfigCmd.set io scope key value with
+        let result =
+            match source with
+            | Some name -> ConfigCmd.setForSource io scope name key value
+            | None -> ConfigCmd.set io scope key value
+        match result with
         | Error e -> renderError e; 1
         | Ok path ->
             let verb = if value.IsSome then "Set" else "Unset"
-            renderMessage $"{verb} {key} in {scopeName scope} config ({path})" fmt
+            let target = source |> Option.map (fun n -> $"{key} for source '{n}'") |> Option.defaultValue key
+            renderMessage $"{verb} {target} in {scopeName scope} config ({path})" fmt
             0
 
 let private runMigrate (io: ConfigIO) scope dryRun (fmt: OutputFormat) : int =
@@ -121,7 +126,7 @@ let private runMigrate (io: ConfigIO) scope dryRun (fmt: OutputFormat) : int =
 let run (io: ConfigIO) (cmd: Cmd) : int =
     match cmd with
     | List fmt                          -> runList io fmt
-    | View fmt                          -> runView io fmt
-    | Get (key, fmt)                    -> runGet io key fmt
-    | Set (scope, key, value, fmt)      -> runSet io scope key value fmt
+    | View (source, fmt)                -> runView io source fmt
+    | Get (key, source, fmt)            -> runGet io key source fmt
+    | Set (scope, key, value, source, fmt) -> runSet io scope key value source fmt
     | Migrate (scope, dryRun, fmt)      -> runMigrate io scope dryRun fmt

@@ -7,7 +7,7 @@ open Eru.LinkGraph
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = Some url; Branch = None; Bundles = [] }
+    { Name = name; Url = Some url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 let private makeGlobal sources : GlobalConfig =
     { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }

@@ -86,7 +86,7 @@ let ``names that are not settings warn and are ignored`` () =
                 "ERU__SEARCH__MODE", "sem" ]
     Assert.Equal(4, l.Warnings.Length)
     Assert.Contains(l.Warnings, fun w -> w.Contains "ERU__SEARCH__MODEE")
-    Assert.Contains(l.Warnings, fun w -> w.Contains "ERU__SOURCE__ITEMS__0__NAME" && w.Contains "config file only")
+    Assert.Contains(l.Warnings, fun w -> w.Contains "ERU__SOURCE__ITEMS__0__NAME" && w.Contains "can override only")
     // the one real setting still applies
     let cfg = envConfig [ "ERU__SEARCH__MODEE", "lex"; "ERU__SEARCH__MODE", "sem" ] |> Option.get
     Assert.Equal(Some "sem", cfg.Search |> Option.bind (fun s -> s.Mode))
@@ -190,7 +190,7 @@ let ``site settings from the env merge over the files`` () =
 
 [<Fact>]
 let ``env overrides leave sources and inboxes to the files`` () =
-    let src : SourceConfig = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }
+    let src : SourceConfig = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
     let g = Some { GlobalConfig.empty with Source = Some { Items = Some [ src ] } }
     let eff = effective [ "ERU__SEARCH__MODE", "lex" ] g None
     Assert.Equal<string list>([ "kb" ], eff.Sources |> List.map (fun s -> s.Name))
@@ -212,3 +212,66 @@ let ``an invalid site value fails validateEnv naming the environment`` () =
 let ``validateEnv accepts an empty or valid layer`` () =
     Assert.True (Config.validateEnv None |> Result.isOk)
     Assert.True (Config.validateEnv (envConfig [ "ERU__SEARCH__MODE", "sem" ]) |> Result.isOk)
+
+
+// ── per-source overrides ────────────────────────────────────────────────────
+
+let private kbSource name : SourceConfig =
+    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+
+let private globalWithSources (names: string list) : GlobalConfig option =
+    Some (GlobalConfig.withSources (names |> List.map kbSource) GlobalConfig.empty)
+
+[<Fact>]
+let ``a source's settings can be set from the environment`` () =
+    let eff =
+        effective [ "ERU__SOURCE__KB__FILES__ALLOWBINARIES", "true"
+                    "ERU__SOURCE__KB__SEARCH__IGNOREPATTERNS__0", "CHANGELOG.md"
+                    "ERU__SOURCE__KB__SEARCH__IGNOREPATTERNS__1", "drafts/**" ] (globalWithSources [ "kb"; "other" ]) None
+    let kb = Config.effectiveFor eff (eff.Sources |> List.find (fun s -> s.Name = "kb"))
+    let other = Config.effectiveFor eff (eff.Sources |> List.find (fun s -> s.Name = "other"))
+    Assert.True kb.AllowBinaries
+    Assert.Equal<string list>([ "CHANGELOG.md"; "drafts/**" ], kb.SearchIgnorePatterns)
+    Assert.False other.AllowBinaries
+    Assert.Equal<string list>(Config.defaultSearchIgnorePatterns, other.SearchIgnorePatterns)
+
+[<Fact>]
+let ``env overrides for a source beat the config files`` () =
+    let g = Some (GlobalConfig.withSources [ { kbSource "kb" with Files = Some { FilesSection.empty with AllowBinaries = Some false } } ] GlobalConfig.empty)
+    let eff = effective [ "ERU__SOURCE__KB__FILES__ALLOWBINARIES", "true" ] g None
+    Assert.True (Config.effectiveFor eff eff.Sources.Head).AllowBinaries
+
+[<Fact>]
+let ``the source name in an env var matches case-insensitively with - and . as underscores`` () =
+    let eff = effective [ "ERU__SOURCE__MY_DOCS__FILES__ALLOWBINARIES", "true" ] (globalWithSources [ "my-docs" ]) None
+    Assert.True (Config.effectiveFor eff eff.Sources.Head).AllowBinaries
+    let eff2 = effective [ "ERU__SOURCE__V1_2__FILES__ALLOWBINARIES", "true" ] (globalWithSources [ "v1.2" ]) None
+    Assert.True (Config.effectiveFor eff2 eff2.Sources.Head).AllowBinaries
+
+[<Fact>]
+let ``an env var for an unknown source is ignored and never creates a source`` () =
+    let eff = effective [ "ERU__SOURCE__GHOST__FILES__ALLOWBINARIES", "true" ] (globalWithSources [ "kb" ]) None
+    Assert.Equal<string list>([ "kb" ], eff.Sources |> List.map (fun s -> s.Name))
+    Assert.False (Config.effectiveFor eff eff.Sources.Head).AllowBinaries
+
+[<Fact>]
+let ``an env var that matches two sources is ambiguous`` () =
+    let env = envConfig [ "ERU__SOURCE__DOCS__FILES__ALLOWBINARIES", "true" ]
+    Config.mergeWithEnv env (globalWithSources [ "Docs"; "docs" ]) None |> assertError "ambiguous"
+
+[<Fact>]
+let ``only the per-source settings are read from the environment`` () =
+    let l = layer [ "ERU__SOURCE__KB__URL", "https://x"; "ERU__SOURCE__KB__SEARCH__MODE", "sem"; "ERU__SOURCE__KB__OKF__DEFAULTTYPE", "guide" ]
+    Assert.True l.Json.IsNone
+    Assert.Equal(3, l.Warnings.Length)
+
+[<Fact>]
+let ``per-source env values are typed like the settings they name`` () =
+    let cfg = envConfig [ "ERU__SOURCE__KB__FILES__BLOCKPATTERNS__0", "123"; "ERU__SOURCE__KB__FILES__ALLOWBINARIES", "true" ] |> Option.get
+    let kb = (LocalConfig.sources cfg).Head
+    Assert.Equal(Some [ "123" ], kb.Files |> Option.bind (fun f -> f.BlockPatterns))
+    Assert.Equal(Some true, kb.Files |> Option.bind (fun f -> f.AllowBinaries))
+
+[<Fact>]
+let ``a bad per-source env value names the variable`` () =
+    EnvConfig.read [ "ERU__SOURCE__KB__FILES__ALLOWBINARIES", "maybe" ] |> assertError "ERU__SOURCE__KB__FILES__ALLOWBINARIES must be true or false"

@@ -43,11 +43,12 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
 
                 let manifestDescription = cachedManifest |> Option.bind (fun m -> m.Description)
 
+                let siteIgnore = (Config.effectiveFor cfg src).SiteIgnorePatterns
                 let docs =
                     index.Entries
                     |> Map.toList
                     |> List.filter (fun (remotePath, _) -> not (isGlob remotePath))
-                    |> List.filter (fun (remotePath, _) -> not (Patterns.matchesAny cfg.SiteIgnorePatterns remotePath))
+                    |> List.filter (fun (remotePath, _) -> not (Patterns.matchesAny siteIgnore remotePath))
                     |> List.map (fun (remotePath, entry) ->
                         let status = determineStatus entry
                         let ext    = fileExtension remotePath

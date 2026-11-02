@@ -3,7 +3,7 @@ module Eru.Tests.ReadTests
 open Xunit
 open Eru
 
-let private source name url : SourceConfig = { Name = name; Url = url; Branch = None; Bundles = [] }
+let private source name url : SourceConfig = { Name = name; Url = url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 let private index (entries: (string * IndexEntry) list) : SourceIndex =
     { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = Map.ofList entries }
@@ -113,6 +113,22 @@ let ``errors when live fetched content is blocked`` () =
     let remote paths = Ok [ (List.head paths, "x") ]
     let deps = makeDeps [docs] [] Map.empty Map.empty Map.empty remote
     assertErrorContains "blocked" (Read.execute deps "docs:tool.exe")
+
+[<Fact>]
+let ``a source can allow files that the global patterns block`` () =
+    let remote paths = Ok [ (List.head paths, "x") ]
+    let tools = { docs with Files = Some { FilesSection.empty with BlockPatterns = Some [] } }
+    let deps = makeDeps [tools] [] Map.empty Map.empty Map.empty remote
+    Assert.Equal("x", contentOf (Read.execute deps "docs:tool.exe"))
+
+[<Fact>]
+let ``a source's block patterns do not apply to other sources`` () =
+    let remote paths = Ok [ (List.head paths, "x") ]
+    let strict = { docs with Files = Some { FilesSection.empty with BlockPatterns = Some [ "*.md" ] } }
+    let other = { source "other" (Some "https://x/other.git") with Files = None }
+    let deps = makeDeps [strict; other] [] Map.empty Map.empty Map.empty remote
+    assertErrorContains "blocked" (Read.execute deps "docs:a.md")
+    Assert.Equal("x", contentOf (Read.execute deps "other:a.md"))
 
 [<Fact>]
 let ``errors when source is unknown`` () =

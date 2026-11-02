@@ -41,7 +41,26 @@ written, and what happens on a bad value are described in
 | `inbox.watchIntervalSeconds` | `ERU__INBOX__WATCHINTERVALSECONDS` | whole number |
 
 `source`, `collection` and `inbox.items` are not settings and can only be set in the config file; an `ERU__`
-variable for one of them is ignored with a warning.
+variable for one of them is ignored with a warning. The exception is the per-source settings below.
+
+## Per-source settings
+
+A source's own overrides use `ERU__SOURCE__<NAME>__<SECTION>__<KEY>`. They adjust a source that is already in a
+config file; they cannot create one or set its `url`, `branch` or `bundles`.
+
+| Per-source key | Environment variable | Value |
+|---|---|---|
+| `files.blockPatterns` | `ERU__SOURCE__<NAME>__FILES__BLOCKPATTERNS__0`, `__1`, … | list of globs |
+| `files.allowPatterns` | `ERU__SOURCE__<NAME>__FILES__ALLOWPATTERNS__0`, `__1`, … | list of globs |
+| `files.allowBinaries` | `ERU__SOURCE__<NAME>__FILES__ALLOWBINARIES` | `true` or `false` |
+| `search.ignorePatterns` | `ERU__SOURCE__<NAME>__SEARCH__IGNOREPATTERNS__0`, `__1`, … | list of globs |
+| `okf.ignorePatterns` | `ERU__SOURCE__<NAME>__OKF__IGNOREPATTERNS__0`, `__1`, … | list of globs |
+| `site.ignorePatterns` | `ERU__SOURCE__<NAME>__SITE__IGNOREPATTERNS__0`, `__1`, … | list of globs |
+
+`<NAME>` is matched case-insensitively against the configured source names, with `-` and `.` read as `_`, so
+`ERU__SOURCE__MY_DOCS__FILES__ALLOWBINARIES=true` targets the source `my-docs`. A name that matches no source is
+ignored, and one that matches two sources (`Docs` and `docs`) is an error. See
+[config file: per-source settings](config-file.md#per-source-settings).
 
 ## Alias
 

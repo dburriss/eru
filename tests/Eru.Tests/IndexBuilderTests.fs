@@ -61,7 +61,7 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
 
 let private cfg (sourceName: string) : EffectiveConfig =
     { EffectiveConfig.empty with
-        Sources = [ { Name = sourceName; Url = None; Branch = None; Bundles = [] } ]
+        Sources = [ { Name = sourceName; Url = None; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None } ]
         BlockPatterns = []
         SiteIgnorePatterns = []
         OkfIgnorePatterns = [] }

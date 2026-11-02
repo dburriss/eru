@@ -724,26 +724,28 @@ eru config list [-o table|text|json]
 Show the effective (merged) config. Every setting is listed with its value and its origin: `local`, `global` or `default`. Sources and inboxes are listed with the file they come from.
 
 ```
-eru config view [-o table|text|json]
+eru config view [--source <name>] [-o table|text|json]
 ```
+
+With `--source <name>`, only the settings a source can override are listed, resolved for that source. The origin is `source local`, `source global` or `source env` when the source sets the value itself, otherwise the normal origin.
 
 ### `eru config get`
 
 Show the effective value and origin of one setting.
 
 ```
-eru config get <key> [-o table|text|json]
+eru config get <key> [--source <name>] [-o table|text|json]
 ```
 
-`<key>` is a dotted path such as `sync.commitOnPull` or `files.blockPatterns`. `-o text` prints the bare JSON value.
+`<key>` is a dotted path such as `sync.commitOnPull` or `files.blockPatterns`. `-o text` prints the bare JSON value. With `--source <name>` the key must be one a source can override (see below) and the value is the one that applies to that source: its own override, else the usual value. Source names are matched exactly.
 
 ### `eru config set`
 
 Set or remove a setting. Writes to the local config by default.
 
 ```
-eru config set <key> <value> [--global] [-o table|text|json]
-eru config set <key> --unset [--global]
+eru config set <key> <value> [--source <name>] [--global] [-o table|text|json]
+eru config set <key> --unset [--source <name>] [--global]
 ```
 
 | Argument / Flag | Description |
@@ -752,6 +754,9 @@ eru config set <key> --unset [--global]
 | `<value>` | A JSON value (`true`, `5`, `'["*.zip"]'`); a bare word is stored as a string. A list replaces the whole list |
 | `-g`, `--global` | Write to the global config |
 | `--unset` | Remove the key instead of setting it |
+| `--source <name>` | Set the key for one source instead of globally. The key must be `files.blockPatterns`, `files.allowPatterns`, `files.allowBinaries`, `search.ignorePatterns`, `okf.ignorePatterns` or `site.ignorePatterns`, and the source must already exist |
+
+With `--source`, the value is written into that source's entry. For a source defined only in the global config, a local set adds a local entry with no `url` that borrows the global one; `--global` needs the source to be in the global config. `--unset` removes the override (and a local entry that held nothing else), so the source falls back to the usual value.
 
 The result must still load and merge with the other file, otherwise nothing is written. A file older than version 3 is refused; run `eru config migrate` first. Sources, collections and inbox items are managed with `eru source`, `eru collection` and `eru inbox`.
 
@@ -778,6 +783,8 @@ eru config list
 eru config view
 eru config set sync.commitOnPull true
 eru config set --global files.blockPatterns '["*.exe","*.zip"]'
+eru config set files.allowBinaries true --source team-knowledge
+eru config get search.ignorePatterns --source team-knowledge
 eru config migrate --dryrun
 ```
 

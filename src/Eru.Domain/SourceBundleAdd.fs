@@ -138,6 +138,10 @@ module SourceBundleAdd =
                 | Okf, Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
                     let envCfg = match deps.ReadEnvConfig () with Ok e -> e | Error _ -> None
-                    discoverAndMergeBundle deps (Config.resolveOkfIgnorePatternsWith envCfg globalCfg localCfg) cmd.SourceName url branch updatedSrc.Bundles newBundle
+                    let ignorePatterns =
+                        updatedSrc.Okf
+                        |> Option.bind (fun o -> o.IgnorePatterns)
+                        |> Option.defaultWith (fun () -> Config.resolveOkfIgnorePatternsWith envCfg globalCfg localCfg)
+                    discoverAndMergeBundle deps ignorePatterns cmd.SourceName url branch updatedSrc.Bundles newBundle
                 | _ -> ()
                 Ok $"Added bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'.{warning}"

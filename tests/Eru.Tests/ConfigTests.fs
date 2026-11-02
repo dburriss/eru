@@ -18,7 +18,7 @@ let private makeInbox path : InboxConfig =
     { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty; Branch = None }
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = url; Branch = None; Bundles = [] }
+    { Name = name; Url = url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 // ── merge: basic cases ──────────────────────────────────────────────────────
 
@@ -785,3 +785,98 @@ let ``okf fixTypes round-trips through JSON including a null type`` () =
         match Serialization.deserialize<LocalConfig> (Serialization.serialize cfg) with
         | Ok again -> Assert.Equal(cfg.Okf, again.Okf)
         | Error e -> Assert.Fail e
+
+
+// ── per-source overrides ────────────────────────────────────────────────────
+
+let private withFiles (f: FilesSection) (s: SourceConfig) = { s with Files = Some f }
+let private withSearchIgnore (p: string list) (s: SourceConfig) =
+    { s with Search = Some { SearchSection.empty with IgnorePatterns = Some p } }
+
+let private sourceNamed (eff: EffectiveConfig) name = eff.Sources |> List.find (fun s -> s.Name = name)
+
+[<Fact>]
+let ``effectiveFor falls back to the effective values when a source overrides nothing`` () =
+    let g = { makeGlobal [ makeSource "kb" (Some "https://x/kb.git") ] [] with Files = Some { FilesSection.empty with AllowBinaries = Some true } }
+    let eff = Config.merge (Some g) None |> unwrapOk "merge"
+    let se = Config.effectiveFor eff (sourceNamed eff "kb")
+    Assert.True se.AllowBinaries
+    Assert.Equal<string list>(Config.defaultBlockPatterns, se.BlockPatterns)
+    Assert.Equal<string list>(Config.defaultSearchIgnorePatterns, se.SearchIgnorePatterns)
+
+[<Fact>]
+let ``a source override replaces the global value for that source only`` () =
+    let kb = makeSource "kb" (Some "https://x/kb.git") |> withFiles { FilesSection.empty with AllowBinaries = Some true; BlockPatterns = Some [] }
+    let other = makeSource "other" (Some "https://x/other.git")
+    let eff = Config.merge (Some (makeGlobal [ kb; other ] [])) None |> unwrapOk "merge"
+    let a = Config.effectiveFor eff (sourceNamed eff "kb")
+    let b = Config.effectiveFor eff (sourceNamed eff "other")
+    Assert.True a.AllowBinaries
+    Assert.Empty a.BlockPatterns
+    Assert.False b.AllowBinaries
+    Assert.Equal<string list>(Config.defaultBlockPatterns, b.BlockPatterns)
+
+[<Fact>]
+let ``a source override beats a local section value`` () =
+    let kb = makeSource "kb" (Some "https://x/kb.git") |> withSearchIgnore [ "CHANGELOG.md" ]
+    let l : LocalConfig = { LocalConfig.empty with Search = Some { SearchSection.empty with IgnorePatterns = Some [ "x.md" ] } }
+    let eff = Config.merge (Some (makeGlobal [ kb ] [])) (Some l) |> unwrapOk "merge"
+    Assert.Equal<string list>([ "CHANGELOG.md" ], (Config.effectiveFor eff (sourceNamed eff "kb")).SearchIgnorePatterns)
+    Assert.Equal<string list>([ "x.md" ], eff.SearchIgnorePatterns)
+
+[<Fact>]
+let ``okf and site ignore patterns can be overridden per source`` () =
+    let kb =
+        { makeSource "kb" (Some "https://x/kb.git") with
+            Okf = Some { OkfSection.empty with IgnorePatterns = Some [ "drafts/**" ] }
+            Site = Some { IgnorePatterns = Some [ "internal/**" ] } }
+    let eff = Config.merge (Some (makeGlobal [ kb ] [])) None |> unwrapOk "merge"
+    let se = Config.effectiveFor eff (sourceNamed eff "kb")
+    Assert.Equal<string list>([ "drafts/**" ], se.OkfIgnorePatterns)
+    Assert.Equal<string list>([ "internal/**" ], se.SiteIgnorePatterns)
+
+[<Fact>]
+let ``a local entry without a url borrows the global url and merges overrides per key`` () =
+    let gKb =
+        makeSource "kb" (Some "https://x/kb.git")
+        |> withFiles { FilesSection.empty with AllowBinaries = Some true; AllowPatterns = Some [ "*.exe" ] }
+    let lKb = makeSource "kb" None |> withFiles { FilesSection.empty with AllowBinaries = Some false }
+    let l = LocalConfig.withSources [ lKb ] LocalConfig.empty
+    let eff = Config.merge (Some (makeGlobal [ gKb ] [])) (Some l) |> unwrapOk "merge"
+    let kb = sourceNamed eff "kb"
+    Assert.Equal(Some "https://x/kb.git", kb.Url)
+    let se = Config.effectiveFor eff kb
+    Assert.False se.AllowBinaries                          // local wins
+    Assert.Equal<string list>([ "*.exe" ], se.AllowPatterns) // global fills the gap
+
+[<Fact>]
+let ``a local entry with its own url ignores the global entry's overrides`` () =
+    let gKb = makeSource "kb" (Some "https://x/kb.git") |> withFiles { FilesSection.empty with AllowBinaries = Some true }
+    let lKb = makeSource "kb" (Some "https://y/kb.git")
+    let l = LocalConfig.withSources [ lKb ] LocalConfig.empty
+    let eff = Config.merge (Some (makeGlobal [ gKb ] [])) (Some l) |> unwrapOk "merge"
+    Assert.False (Config.effectiveFor eff (sourceNamed eff "kb")).AllowBinaries
+
+[<Fact>]
+let ``effectiveForName gives the global values for an unconfigured source`` () =
+    let eff = Config.merge None None |> unwrapOk "merge"
+    Assert.Equal<string list>(Config.defaultBlockPatterns, (Config.effectiveForName eff "nope").BlockPatterns)
+
+[<Fact>]
+let ``merge rejects per-source settings that cannot differ per source`` () =
+    let withMode = { makeSource "kb" (Some "https://x/kb.git") with Search = Some { SearchSection.empty with Mode = Some "sem" } }
+    Config.merge (Some (makeGlobal [ withMode ] [])) None |> assertError "search.mode cannot be set per source"
+    let withFix = { makeSource "kb" (Some "https://x/kb.git") with Okf = Some { OkfSection.empty with DefaultType = Some "guide" } }
+    Config.merge (Some (makeGlobal [ withFix ] [])) None |> assertError "okf.defaultType cannot be set per source"
+
+[<Fact>]
+let ``per-source overrides survive a JSON round trip`` () =
+    let kb =
+        { makeSource "kb" (Some "https://x/kb.git") with
+            Files = Some { FilesSection.empty with AllowBinaries = Some true }
+            Site = Some { IgnorePatterns = Some [ "a/**" ] } }
+    let json = Eru.Adapters.Serialization.serialize (makeGlobal [ kb ] [])
+    let back = Eru.Adapters.Serialization.deserialize<GlobalConfig> json |> unwrapOk "deserialize"
+    Assert.Equal(kb.Files, (GlobalConfig.sources back).Head.Files)
+    Assert.Equal(kb.Site, (GlobalConfig.sources back).Head.Site)
+    Assert.Equal(None, (GlobalConfig.sources back).Head.Okf)

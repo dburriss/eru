@@ -7,7 +7,7 @@ open Eru
 
 let private makeSource name url branch (basePath: string option) : SourceConfig =
     let bundles = basePath |> Option.map (fun p -> [ { Path = p; Kind = Manifest } ]) |> Option.defaultValue []
-    { Name = name; Url = url; Branch = branch; Bundles = bundles }
+    { Name = name; Url = url; Branch = branch; Bundles = bundles; Files = None; Search = None; Okf = None; Site = None }
 
 let private emptyCmd : Add.Command = {
     RemotePath     = None

@@ -61,15 +61,49 @@ Describes one knowledge source (a remote repo, or a reference to one defined glo
 | `Url` | `url` | Conditional | Git URL of the source repo. Required in the global config. In the local config, may be omitted if a source of the same `name` exists in the global config (see [source resolution](#source-resolution)). |
 | `Branch` | `branch` | No | Branch/ref to fetch from. Falls back to the source's default branch if omitted. |
 | `Bundles` | `bundles` | No | Directories the source publishes from, each `{ "path": "...", "kind": "manifest" \| "okf" }` (`path: ""` is the repo root). Manage them with `eru source bundle add/remove`. |
+| `Files` | `files` | No | Per-source override of [`files`](#settings-sections): `blockPatterns`, `allowPatterns`, `allowBinaries`. See [per-source settings](#per-source-settings). |
+| `Search` | `search` | No | Per-source override of `search.ignorePatterns`. |
+| `Okf` | `okf` | No | Per-source override of `okf.ignorePatterns`. |
+| `Site` | `site` | No | Per-source override of `site.ignorePatterns`. |
 
 ```json
 { "name": "team-knowledge", "url": "https://github.com/my-org/knowledge.git", "branch": "main", "bundles": [ { "path": "KNOWLEDGE", "kind": "manifest" } ] }
 ```
 
+### Per-source settings
+
+A source entry can carry its own `files`, `search`, `okf` and `site` blocks. A key set there **replaces** the
+same key in the settings sections for that source only; a key it leaves out falls back to the normal value
+(environment, local, global, built-in default). Lists replace, they do not extend.
+
+```json
+{
+  "name": "team-knowledge",
+  "url": "https://github.com/my-org/knowledge.git",
+  "files":  { "allowBinaries": true },
+  "search": { "ignorePatterns": ["CHANGELOG.md", "drafts/**"] }
+}
+```
+
+| Key | Effect for this source |
+|---|---|
+| `files.blockPatterns`, `files.allowPatterns`, `files.allowBinaries` | Which files `eru sync`, `eru add`, `eru read` and search accept |
+| `search.ignorePatterns` | Files hidden from search |
+| `okf.ignorePatterns` | Files skipped when discovering OKF bundles (`eru sync`, `eru source bundle add`) |
+| `site.ignorePatterns` | Files left out of the generated site |
+
+`search.mode` is not per source (one index serves every source), and neither are `okf.fixTypes` and
+`okf.defaultType` (they drive `eru okf fix` on local files); setting one in a source entry fails config loading
+with `Source '{name}': … cannot be set per source`. Source names are matched exactly (`Docs` and `docs` are
+different sources). Manage the keys with `eru config get|set --source <name>` and, for one process, with
+[`ERU__SOURCE__<NAME>__…` variables](#environment-variables).
+
 ### Source resolution
 
 A local `source.items` entry may omit `url` to reuse a source already defined in the global config under the same
-`name` — the global entry's `url`/`branch`/`bundles` are used as-is. If a local entry has no `url` and no
+`name` — the global entry's `url`/`branch`/`bundles` are used as-is, and its per-source settings are merged key by
+key with the local entry's own (local wins). A local entry that has its own `url` replaces the global entry
+entirely, per-source settings included. If a local entry has no `url` and no
 matching global source exists, config loading fails with `Local source '{name}' has no URL and was not found in
 global config`.
 
@@ -267,7 +301,14 @@ by `__`. Names are case-insensitive. The full list of variables is in
   `ERU__OKF__FIXTYPES__0__TYPE=concept`, `ERU__SITE__LAYOUT__TOP__0=tags`. Keys you choose yourself, such as page
   ids under `site.pages`, are lower-cased.
 - **Settings only.** `source`, `collection` and `inbox.items` are configured in the files only; an `ERU__` variable
-  for one of them is ignored with a warning, as is any other name that is not a setting.
+  for one of them is ignored with a warning, as is any other name that is not a setting. The one exception is a
+  source's own [per-source settings](#per-source-settings), below.
+- **Per-source settings** are `ERU__SOURCE__<NAME>__<SECTION>__<KEY>`, for example
+  `ERU__SOURCE__DOCS__FILES__ALLOWBINARIES=true` or `ERU__SOURCE__DOCS__SEARCH__IGNOREPATTERNS__0=CHANGELOG.md`.
+  They override a source that is already in a config file, and cannot create one or set its `url`, `branch` or
+  `bundles`. Env var names are upper-case and cannot contain `-` or `.`, so `<NAME>` is matched case-insensitively
+  against the source names with `-` and `.` read as `_` (`MY_DOCS` matches `my-docs`). A name that matches no source is ignored;
+  one that matches two (`Docs` and `docs`) is an error. A per-source environment value beats the source's value in a file.
 - **Alias.** `ERU_SEARCH_MODE` is read as `ERU__SEARCH__MODE`; the `ERU__` form wins if both are set.
 
 The environment is the highest-precedence layer (below an explicit command-line flag such as `--mode`) and applies
@@ -284,9 +325,10 @@ the run:
 
 0. **Environment** — an `ERU__` variable overrides the same key from either file (see [Environment variables](#environment-variables)); steps 4 and 5 below take it into account.
 1. **Validate** — check `version` on each present file, then check for duplicate source names within each file's `source.items`, then check every global source has a `url`.
-2. **Resolve sources** — for each local source, use it directly if it has a `url`; otherwise look it up by name in the global sources (error if not found). Append any global sources not already named locally.
+2. **Resolve sources** — for each local source, use it directly if it has a `url`; otherwise look it up by name in the global sources (error if not found) and merge its [per-source settings](#per-source-settings) key by key, local first. Append any global sources not already named locally, then apply `ERU__SOURCE__<NAME>__…` overrides.
 3. **Validate collections** — every `CollectionFileRef.Source` (global and local `collection.items` combined) must match a resolved source name.
 4. **Resolve settings** — for each key in the [settings sections](#settings-sections): the environment value if set, else the local value if set, else the global value if set, else the built-in default. Scalars and pattern lists resolve per key; a list set locally replaces (does not extend) the global list.
+   A source's own value for a [per-source setting](#per-source-settings) beats all of the above for that source.
 5. **Inboxes** — `inbox.items` merge by name: a local inbox wins outright over a global one of the same name; global inboxes not named locally are appended. `inbox.default` and `inbox.watchIntervalSeconds` resolve like any other key.
 6. **Collections** — concatenate global `collection.items`' files, then local ones, into `EffectiveConfig.Collections` (no name-based override).
 

@@ -6,6 +6,8 @@
 
 - Every config setting can be overridden with an environment variable that mirrors its path in the config file: `ERU__` plus the key path joined with `__` (`search.mode` is `ERU__SEARCH__MODE`, `mcp.refreshIntervalMinutes` is `ERU__MCP__REFRESHINTERVALMINUTES`), with list items indexed (`ERU__FILES__BLOCKPATTERNS__0`). The environment overrides the local and global config in the CLI, `eru browse` and `eru mcp`, so an MCP client can pass settings in its `env` block. An invalid value stops the command at startup and names the variable; `eru config get` and `eru config view` show such a value with origin `env`, and it is never written to a config file. See [environment variables](docs/reference/config-file.md#environment-variables)
 
+- Per-source settings: a `source.items` entry can carry its own `files` (`blockPatterns`, `allowPatterns`, `allowBinaries`), `search.ignorePatterns`, `okf.ignorePatterns` and `site.ignorePatterns`, which replace the global value for that source only in sync, add, read, search and the generated site. Read and write them with `eru config get|set|view --source <name>`, or override a configured source for one process with `ERU__SOURCE__<NAME>__<SECTION>__<KEY>` variables. A local entry without a `url` merges its settings key by key over the global entry's. See [per-source settings](docs/reference/config-file.md#per-source-settings)
+
 ### Changed
 
 - `ERU_SEARCH_MODE` is now an alias for `ERU__SEARCH__MODE`, so an invalid value is reported at startup by every command instead of only by `eru search`

@@ -229,7 +229,7 @@ module Sync =
                             let walked = System.Collections.Generic.List<Bundle>()
                             for bundle in okfBundles |> List.sortBy (fun b -> b.Path.Length) do
                               if not (walked |> Seq.exists (fun w -> Bundle.covers w bundle.Path)) then
-                                match BundleDiscovery.walkBundle deps eff.OkfIgnorePatterns src.Name url branch bundle with
+                                match BundleDiscovery.walkBundle deps (Config.effectiveFor eff src).OkfIgnorePatterns src.Name url branch bundle with
                                 | Error e ->
                                     discoveryFailed <- true
                                     errors.Add($"source '{src.Name}': bundle discovery for '{bundle.Path}' failed: {e}")
@@ -503,7 +503,8 @@ module Sync =
 
         let classified =
             entries |> List.map (fun entry ->
-                if Patterns.isPathBlocked eff.BlockPatterns eff.AllowPatterns entry.RemotePath then
+                let se = Config.effectiveForName eff entry.SourceName
+                if Patterns.isPathBlocked se.BlockPatterns se.AllowPatterns entry.RemotePath then
                     EBlocked entry
                 else
                 match eff.Sources |> List.tryFind (fun s -> s.Name = entry.SourceName) with
@@ -516,7 +517,7 @@ module Sync =
                         match Map.tryFind entry.RemotePath contentMap with
                         | None -> EMissing entry
                         | Some content ->
-                            if Patterns.isBlocked eff.BlockPatterns eff.AllowPatterns eff.AllowBinaries entry.RemotePath content then
+                            if Patterns.isBlocked se.BlockPatterns se.AllowPatterns se.AllowBinaries entry.RemotePath content then
                                 EBlocked entry
                             else
                                 let hash = deps.HashContent content

@@ -232,14 +232,14 @@ let ``explicit --basepath overrides auto-detection and skips remote listing`` ()
 
 [<Fact>]
 let ``errors on duplicate source name in local config`` () =
-    let existing = (LocalConfig.withSources ([{ Name = "kb"; Url = Some "https://x.com"; Branch = None; Bundles = [] }]) emptyLocal)
+    let existing = (LocalConfig.withSources ([{ Name = "kb"; Url = Some "https://x.com"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyLocal)
     let deps = makeDeps (Some existing) None [] (ref None) (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb" }
     assertError (SourceAdd.execute deps cmd)
 
 [<Fact>]
 let ``errors on duplicate source name in global config`` () =
-    let existing = (GlobalConfig.withSources ([{ Name = "kb"; Url = Some "https://x.com"; Branch = None; Bundles = [] }]) emptyGlobal)
+    let existing = (GlobalConfig.withSources ([{ Name = "kb"; Url = Some "https://x.com"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyGlobal)
     let deps = makeDeps None (Some existing) [] (ref None) (ref None)
     let cmd = { simpleCmd "https://github.com/acme/kb.git" with Name = Some "kb"; IsGlobal = true }
     assertError (SourceAdd.execute deps cmd)
@@ -265,7 +265,7 @@ let ``list returns error on local config read error`` () =
 
 [<Fact>]
 let ``list shows local source with local scope`` () =
-    let local = (LocalConfig.withSources ([{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }]) emptyLocal)
+    let local = (LocalConfig.withSources ([{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyLocal)
     let deps  = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -276,8 +276,8 @@ let ``list shows local source with local scope`` () =
 
 [<Fact>]
 let ``list shows local alias source with alias scope`` () =
-    let localCfg  = (LocalConfig.withSources ([{ Name = "kb"; Url = None; Branch = None; Bundles = [] }]) emptyLocal)
-    let globalCfg = (GlobalConfig.withSources ([{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }]) emptyGlobal)
+    let localCfg  = (LocalConfig.withSources ([{ Name = "kb"; Url = None; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyLocal)
+    let globalCfg = (GlobalConfig.withSources ([{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyGlobal)
     let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -287,7 +287,7 @@ let ``list shows local alias source with alias scope`` () =
 
 [<Fact>]
 let ``list shows global-only source with global scope`` () =
-    let globalCfg = (GlobalConfig.withSources ([{ Name = "shared"; Url = Some "https://example.com/shared.git"; Branch = None; Bundles = [] }]) emptyGlobal)
+    let globalCfg = (GlobalConfig.withSources ([{ Name = "shared"; Url = Some "https://example.com/shared.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyGlobal)
     let deps      = makeDeps (Some emptyLocal) (Some globalCfg) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -298,8 +298,8 @@ let ``list shows global-only source with global scope`` () =
 
 [<Fact>]
 let ``list shows local sources before global-only sources`` () =
-    let localCfg  = (LocalConfig.withSources ([{ Name = "local-src";  Url = Some "https://example.com/local.git";  Branch = None; Bundles = [] }]) emptyLocal)
-    let globalCfg = (GlobalConfig.withSources ([{ Name = "global-src"; Url = Some "https://example.com/global.git"; Branch = None; Bundles = [] }]) emptyGlobal)
+    let localCfg  = (LocalConfig.withSources ([{ Name = "local-src";  Url = Some "https://example.com/local.git";  Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyLocal)
+    let globalCfg = (GlobalConfig.withSources ([{ Name = "global-src"; Url = Some "https://example.com/global.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyGlobal)
     let deps      = makeDeps (Some localCfg) (Some globalCfg) [] (ref None) (ref None)
     match SourceList.execute deps with
     | Error e -> Assert.Fail(e)
@@ -310,7 +310,7 @@ let ``list shows local sources before global-only sources`` () =
 
 [<Fact>]
 let ``list includes branch and basepath when set`` () =
-    let src    = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = Some "main"; Bundles = [ { Path = "KNOWLEDGE"; Kind = Manifest } ] }
+    let src    = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = Some "main"; Bundles = [ { Path = "KNOWLEDGE"; Kind = Manifest } ]; Files = None; Search = None; Okf = None; Site = None }
     let local  = (LocalConfig.withSources ([src]) emptyLocal)
     let deps   = makeDeps (Some local) (Some emptyGlobal) [] (ref None) (ref None)
     match SourceList.execute deps with
@@ -322,7 +322,7 @@ let ``list includes branch and basepath when set`` () =
 
 [<Fact>]
 let ``list shows tags from cached manifest`` () =
-    let local    = (LocalConfig.withSources ([{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = [] }]) emptyLocal)
+    let local    = (LocalConfig.withSources ([{ Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }]) emptyLocal)
     let f1       = { Path = "a.md"; Tags = ["dotnet"; "adr"];          Description = None }
     let f2       = { Path = "b.md"; Tags = ["dotnet"; "architecture"]; Description = None }
     let manifest = { Version = 1; Description = None; Files = [f1; f2] }
@@ -341,7 +341,7 @@ let ``list shows tags from cached manifest`` () =
 let private removeCmd name isGlobal dryRun : SourceRemove.Command =
     { Name = name; IsGlobal = isGlobal; DryRun = dryRun }
 
-let private srcEntry name : SourceConfig = { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = [] }
+let private srcEntry name : SourceConfig = { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
 
 [<Fact>]
 let ``remove removes source from local config`` () =

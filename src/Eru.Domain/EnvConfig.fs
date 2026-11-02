@@ -11,7 +11,10 @@ open System.Text.Json.Nodes
 // (`ERU__OKF__FIXTYPES__0__PATTERN`). The variables are folded into a JSON object shaped like
 // a config file, so the caller can deserialize it with the same code that reads a file.
 //
-// Only the settings sections are supported: sources, collections and inbox items stay file-only.
+// A source's own overrides are `ERU__SOURCE__<NAME>__<SECTION>__<KEY>` (e.g.
+// `ERU__SOURCE__DOCS__FILES__ALLOWBINARIES`). They can only adjust a source that is already in a
+// config file: sources themselves, collections and inbox items stay file-only. The name is
+// matched loosely against the configured sources (see Config.normalizeSourceName).
 module EnvConfig =
 
     let prefix = "ERU__"
@@ -37,6 +40,22 @@ module EnvConfig =
             "files",  keys [ "blockPatterns"; "allowPatterns"; "allowBinaries" ]
             "inbox",  keys [ "default"; "watchIntervalSeconds" ]
         ]
+
+    // The sections and keys a source can override, in the same shape as `vocabulary`.
+    let private sourceVocabulary : Map<string, Map<string, string>> =
+        let keys (names: string list) = names |> List.map (fun n -> n.ToLowerInvariant(), n) |> Map.ofList
+        Map.ofList [
+            "files",  keys [ "blockPatterns"; "allowPatterns"; "allowBinaries" ]
+            "search", keys [ "ignorePatterns" ]
+            "okf",    keys [ "ignorePatterns" ]
+            "site",   keys [ "ignorePatterns" ]
+        ]
+
+    // The setting a path names: `source.<name>.files.allowbinaries` is the `files.allowbinaries` setting.
+    let private settingPath (path: string list) =
+        match path with
+        | "source" :: _ :: rest -> rest
+        | _ -> path
 
     // Settings whose value is a list, written as indexed variables.
     let private listPaths =
@@ -65,7 +84,7 @@ module EnvConfig =
         prefix + (path |> List.map (fun s -> s.ToUpperInvariant()) |> String.concat "__")
 
     let private checkValue (path: string list) (value: string) : Result<unit, string> =
-        let key = String.concat "." path
+        let key = String.concat "." (settingPath path)
         let text = value.Trim()
         if text = "null" then Ok ()
         elif intPaths.Contains key && not (fst (Int32.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture))) then
@@ -94,7 +113,7 @@ module EnvConfig =
     let private coerce (path: string list) (value: string) : JsonNode =
         let text = value.Trim()
         if text = "null" then null
-        elif stringPaths.Contains (shape path) then JsonValue.Create<string>(value) :> JsonNode
+        elif stringPaths.Contains (shape (settingPath path)) then JsonValue.Create<string>(value) :> JsonNode
         elif String.Equals(text, "true", StringComparison.OrdinalIgnoreCase) then JsonValue.Create<bool>(true) :> JsonNode
         elif String.Equals(text, "false", StringComparison.OrdinalIgnoreCase) then JsonValue.Create<bool>(false) :> JsonNode
         else
@@ -107,6 +126,7 @@ module EnvConfig =
     let private canonical (depth: int) (parent: string list) (seg: string) : string =
         match depth, parent with
         | 1, [ section ] -> vocabulary |> Map.tryFind section |> Option.bind (Map.tryFind seg) |> Option.defaultValue seg
+        | 3, [ "source"; _; section ] -> sourceVocabulary |> Map.tryFind section |> Option.bind (Map.tryFind seg) |> Option.defaultValue seg
         | _ -> seg
 
     let rec private toJson (path: string list) (node: Node) : Result<JsonNode, string> =
@@ -168,8 +188,12 @@ module EnvConfig =
             |> List.filter (fun (path, _) ->
                 match path with
                 | section :: key :: _ when vocabulary.ContainsKey section && vocabulary[section].ContainsKey key -> true
+                | "source" :: _ :: section :: key :: _ when sourceVocabulary.ContainsKey section && sourceVocabulary[section].ContainsKey key -> true
+                | "source" :: _ :: _ :: _ :: _ ->
+                    warnings.Add $"{varName path}: ignored (a source can override only files.*, search.ignorePatterns, okf.ignorePatterns and site.ignorePatterns)"
+                    false
                 | section :: _ when section = "source" || section = "collection" ->
-                    warnings.Add $"{varName path}: ignored (sources and collections are configured in the config file only)"
+                    warnings.Add $"{varName path}: ignored (sources and collections are configured in the config file only; a source's own settings are ERU__SOURCE__<NAME>__<SECTION>__<KEY>)"
                     false
                 | "inbox" :: "items" :: _ ->
                     warnings.Add $"{varName path}: ignored (inbox items are configured in the config file only)"
@@ -201,4 +225,16 @@ module EnvConfig =
                     let o = j :?> JsonObject
                     // Section names are lower-case in the file, like their env names.
                     o["version"] <- JsonValue.Create<int>(Config.supportedVersion)
+                    // `source` came out keyed by name; the file shape is `source.items[]` with a `name`.
+                    match o["source"] with
+                    | :? JsonObject as bySource ->
+                        let items = JsonArray()
+                        for KeyValue(name, body) in bySource |> Seq.toList do
+                            let item = body.DeepClone() :?> JsonObject
+                            item["name"] <- JsonValue.Create<string>(name)
+                            items.Add(item)
+                        let wrapper = JsonObject()
+                        wrapper["items"] <- items
+                        o["source"] <- wrapper
+                    | _ -> ()
                     { Json = Some o; Warnings = List.ofSeq warnings }))

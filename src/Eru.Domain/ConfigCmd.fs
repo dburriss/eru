@@ -31,7 +31,10 @@ module ConfigCmd =
         Problem        : string option
     }
 
-    type Origin = FromEnv | FromLocal | FromGlobal | FromDefault
+    type Origin =
+        | FromEnv | FromLocal | FromGlobal | FromDefault
+        // The value is the source's own override, in the env layer or in a config file.
+        | FromSourceEnv | FromSourceLocal | FromSourceGlobal
 
     type SettingRow = { Key: string; Value: string; Origin: string }
 
@@ -45,7 +48,9 @@ module ConfigCmd =
 
     let private scopeName = function LocalScope -> "local" | GlobalScope -> "global"
 
-    let private originName = function FromEnv -> "env" | FromLocal -> "local" | FromGlobal -> "global" | FromDefault -> "default"
+    let private originName = function
+        | FromEnv -> "env" | FromLocal -> "local" | FromGlobal -> "global" | FromDefault -> "default"
+        | FromSourceEnv -> "source env" | FromSourceLocal -> "source local" | FromSourceGlobal -> "source global"
 
     // A file with no "version" property is treated as the oldest shape.
     let private onDiskVersion (raw: string) : Result<int, string> =
@@ -195,16 +200,9 @@ module ConfigCmd =
 
     let private indented = JsonSerializerOptions(WriteIndented = true)
 
-    let set (io: ConfigIO) (scope: ConfigScope) (key: string) (value: string option) : Result<string, string> =
-        let path = splitKey key
-        match path with
-        | [] -> Error "key must not be empty"
-        | section :: rest when not (settableSections.Contains section) || rest.IsEmpty ->
-            let allowed = settableSections |> Set.toList |> String.concat ", "
-            Error $"'{key}' cannot be set: use a dotted key inside one of {allowed} (sources, collections and inbox items have their own commands)"
-        | "inbox" :: "items" :: _ ->
-            Error "inbox items cannot be set here: use 'eru inbox'"
-        | _ ->
+    // Reads the scope's file (creating an empty v3 shape when absent), lets `mutate` change the
+    // JSON, then validates that the result still merges with the other file before writing it.
+    let private editConfig (io: ConfigIO) (scope: ConfigScope) (key: string) (mutate: JsonObject -> Result<unit, string>) : Result<string, string> =
         let file = io.Path scope
         io.ReadRaw file
         |> Result.bind (fun raw ->
@@ -218,21 +216,7 @@ module ConfigCmd =
             else parseNode raw |> Result.map (fun n -> n |> Option.defaultWith (fun () -> JsonObject() :> JsonNode)))
         |> Result.bind (fun root ->
             match root with
-            | :? JsonObject as obj ->
-                let parents, leaf = List.take (path.Length - 1) path, List.last path
-                // Walk, creating (or replacing null with) objects along the way.
-                let parent =
-                    parents |> List.fold (fun (cur: JsonObject) seg ->
-                        match (if cur.ContainsKey seg then cur[seg] else null) with
-                        | :? JsonObject as o -> o
-                        | _ ->
-                            let o = JsonObject()
-                            cur[seg] <- o
-                            o) obj
-                match value with
-                | Some v -> parent[leaf] <- parseValue v
-                | None   -> parent.Remove leaf |> ignore
-                Ok (obj.ToJsonString indented)
+            | :? JsonObject as obj -> mutate obj |> Result.map (fun () -> obj.ToJsonString indented)
             | _ -> Error $"{scopeName scope} config is not a JSON object")
         |> Result.bind (fun text ->
             // Validate before writing: it must deserialize and still merge with the other file.
@@ -251,6 +235,155 @@ module ConfigCmd =
             |> Result.mapError (fun e -> $"invalid value for '{key}': {e}")
             |> Result.bind (fun _ -> io.WriteRaw file (text + "\n"))
             |> Result.map (fun () -> file))
+
+    // Walks `parents` from `obj`, creating (or replacing null with) objects along the way.
+    let private descend (obj: JsonObject) (parents: string list) : JsonObject =
+        parents |> List.fold (fun (cur: JsonObject) seg ->
+            match (if cur.ContainsKey seg then cur[seg] else null) with
+            | :? JsonObject as o -> o
+            | _ ->
+                let o = JsonObject()
+                cur[seg] <- o
+                o) obj
+
+    let set (io: ConfigIO) (scope: ConfigScope) (key: string) (value: string option) : Result<string, string> =
+        let path = splitKey key
+        match path with
+        | [] -> Error "key must not be empty"
+        | section :: rest when not (settableSections.Contains section) || rest.IsEmpty ->
+            let allowed = settableSections |> Set.toList |> String.concat ", "
+            Error $"'{key}' cannot be set: use a dotted key inside one of {allowed} (sources, collections and inbox items have their own commands)"
+        | "inbox" :: "items" :: _ ->
+            Error "inbox items cannot be set here: use 'eru inbox'"
+        | _ ->
+        editConfig io scope key (fun obj ->
+            let parent = descend obj (List.take (path.Length - 1) path)
+            let leaf = List.last path
+            match value with
+            | Some v -> parent[leaf] <- parseValue v
+            | None   -> parent.Remove leaf |> ignore
+            Ok ())
+
+    // ── per-source settings ─────────────────────────────────────────────────────
+    // A source entry (`source.items[]`) can override these keys for that source alone.
+
+    let sourceSettings : string list = [
+        "files.blockPatterns"; "files.allowPatterns"; "files.allowBinaries"
+        "search.ignorePatterns"; "okf.ignorePatterns"; "site.ignorePatterns"
+    ]
+
+    let private checkSourceKey (key: string) : Result<string list, string> =
+        if List.contains key sourceSettings then Ok (splitKey key)
+        else
+            let allowed = sourceSettings |> String.concat ", "
+            Error $"'{key}' cannot be set per source: use one of {allowed}"
+
+    let private itemsOf (root: JsonNode option) : JsonObject list =
+        match root |> Option.bind (fun r -> walk r [ "source"; "items" ]) with
+        | Some (:? JsonArray as a) -> a |> Seq.choose (function :? JsonObject as o -> Some o | _ -> None) |> Seq.toList
+        | _ -> []
+
+    let private nameOf (o: JsonObject) : string option =
+        match o["name"] with
+        | null -> None
+        | n -> Some (n.GetValue<string>())
+
+    let private entryNamed (root: JsonNode option) (matches: string -> bool) : JsonObject option =
+        itemsOf root |> List.tryFind (fun o -> nameOf o |> Option.exists matches)
+
+    let private hasUrl (o: JsonObject) = not (isNull o["url"])
+
+    // The layers that can hold this source's override, highest precedence first. A local entry
+    // with its own url replaces the global entry outright; one without borrows from it
+    // (see Config.mergeOverrides).
+    let private sourceLayers (e: JsonNode option) (l: JsonNode option) (g: JsonNode option) (name: string) : (JsonObject * Origin) list =
+        let envEntry   = entryNamed e (fun n -> Config.normalizeSourceName n = Config.normalizeSourceName name)
+        let localEntry = entryNamed l (fun n -> n = name)
+        let globalEntry = entryNamed g (fun n -> n = name)
+        [ yield! envEntry |> Option.map (fun o -> o, FromSourceEnv) |> Option.toList
+          match localEntry with
+          | Some o when hasUrl o -> yield o, FromSourceLocal
+          | Some o ->
+              yield o, FromSourceLocal
+              yield! globalEntry |> Option.map (fun x -> x, FromSourceGlobal) |> Option.toList
+          | None -> yield! globalEntry |> Option.map (fun x -> x, FromSourceGlobal) |> Option.toList ]
+
+    let private requireSource (e: JsonNode option) (l: JsonNode option) (g: JsonNode option) (name: string) : Result<unit, string> =
+        if entryNamed l (fun n -> n = name) |> Option.isSome || entryNamed g (fun n -> n = name) |> Option.isSome then Ok ()
+        else Error $"unknown source '{name}'"
+
+    let getForSource (io: ConfigIO) (source: string) (key: string) : Result<SettingRow, string> =
+        checkSourceKey key
+        |> Result.bind (fun path ->
+            nodes io
+            |> Result.bind (fun (e, l, g) ->
+                requireSource e l g source
+                |> Result.bind (fun () ->
+                    let own =
+                        sourceLayers e l g source
+                        |> List.tryPick (fun (entry, origin) -> walk entry path |> Option.map (fun v -> v, origin))
+                    match own with
+                    | Some (v, origin) -> Ok { Key = key; Value = render v; Origin = originName origin }
+                    | None -> get io key)))
+
+    let viewSource (io: ConfigIO) (source: string) : Result<View, string> =
+        sourceSettings
+        |> List.fold (fun acc key ->
+            acc |> Result.bind (fun rows -> getForSource io source key |> Result.map (fun r -> rows @ [ r ]))) (Ok [])
+        |> Result.map (fun rows -> { Settings = rows; Entities = [] })
+
+    // Sets (or, with None, removes) one per-source key in the entry for `source` in the scope's file.
+    // A local set on a source that only the global file defines adds a local entry with no url,
+    // which borrows the global entry's url (and the rest of its settings).
+    let setForSource (io: ConfigIO) (scope: ConfigScope) (source: string) (key: string) (value: string option) : Result<string, string> =
+        let mutate (path: string list) (obj: JsonObject) : Result<unit, string> =
+            let sourceObj = descend obj [ "source" ]
+            let items =
+                match sourceObj["items"] with
+                | :? JsonArray as a -> a
+                | _ ->
+                    let a = JsonArray()
+                    sourceObj["items"] <- a
+                    a
+            let existing =
+                items |> Seq.tryPick (function
+                    | :? JsonObject as o when nameOf o = Some source -> Some o
+                    | _ -> None)
+            match existing, value with
+            | None, None -> Ok ()   // nothing to remove
+            | _ ->
+                let entry =
+                    match existing with
+                    | Some o -> o
+                    | None ->
+                        let o = JsonObject()
+                        o["name"] <- JsonValue.Create<string>(source)
+                        items.Add o
+                        o
+                let parent = descend entry (List.take (path.Length - 1) path)
+                let leaf = List.last path
+                match value with
+                | Some v -> parent[leaf] <- parseValue v
+                | None ->
+                    parent.Remove leaf |> ignore
+                    // Tidy up: drop a section left empty, and an entry that only existed to hold overrides.
+                    match entry[List.head path] with
+                    | :? JsonObject as sec when sec.Count = 0 -> entry.Remove (List.head path) |> ignore
+                    | _ -> ()
+                    if not (hasUrl entry) && entry.Count = 1 && nameOf entry = Some source then
+                        items.Remove entry |> ignore
+                Ok ()
+
+        checkSourceKey key
+        |> Result.bind (fun path ->
+            nodes io
+            |> Result.bind (fun (e, l, g) ->
+                requireSource e l g source
+                |> Result.bind (fun () ->
+                    let inGlobal = entryNamed g (fun n -> n = source) |> Option.isSome
+                    if scope = GlobalScope && not inGlobal then
+                        Error $"source '{source}' is not in the global config: drop --global to set it in the local config"
+                    else editConfig io scope $"{source}: {key}" (mutate path))))
 
     // ── migrate ─────────────────────────────────────────────────────────────────
 

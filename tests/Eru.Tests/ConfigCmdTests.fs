@@ -249,3 +249,118 @@ let ``set validates the file alone, so a bad environment value does not block it
     let io, files = makeIOWithEnv (Some bad) [ localPath, """{"version":3}""" ]
     ConfigCmd.set io LocalScope "search.mode" (Some "\"sem\"") |> ok "set" |> ignore
     Assert.Contains("sem", files.[localPath])
+
+
+// ── per-source settings (--source) ──────────────────────────────────────────
+
+let private sourcesGlobal =
+    """{"version":3,"files":{"allowBinaries":false},"source":{"items":[
+        {"name":"kb","url":"https://x/kb.git","bundles":[],"files":{"allowBinaries":true},"search":{"ignorePatterns":["CHANGELOG.md"]}},
+        {"name":"plain","url":"https://x/plain.git","bundles":[]}]}}"""
+
+[<Fact>]
+let ``get --source returns the source's own value and where it came from`` () =
+    let io, _ = makeIO [ globalPath, sourcesGlobal ]
+    let own = ConfigCmd.getForSource io "kb" "files.allowBinaries" |> ok "own"
+    Assert.Equal("true", own.Value)
+    Assert.Equal("source global", own.Origin)
+
+[<Fact>]
+let ``get --source falls back to the setting's normal resolution`` () =
+    let io, _ = makeIO [ globalPath, sourcesGlobal ]
+    let r = ConfigCmd.getForSource io "plain" "files.allowBinaries" |> ok "fallback"
+    Assert.Equal("false", r.Value)
+    Assert.Equal("global", r.Origin)
+    let d = ConfigCmd.getForSource io "plain" "okf.ignorePatterns" |> ok "default"
+    Assert.Equal("default", d.Origin)
+
+[<Fact>]
+let ``get --source reports an env override with origin source env`` () =
+    let env = """{"version":3,"source":{"items":[{"name":"kb","files":{"allowBinaries":false}}]}}"""
+    let io, _ = makeIOWithEnv (Some env) [ globalPath, sourcesGlobal ]
+    let r = ConfigCmd.getForSource io "kb" "files.allowBinaries" |> ok "env"
+    Assert.Equal("false", r.Value)
+    Assert.Equal("source env", r.Origin)
+
+[<Fact>]
+let ``get --source rejects unknown sources and keys that are not per source`` () =
+    let io, _ = makeIO [ globalPath, sourcesGlobal ]
+    match ConfigCmd.getForSource io "ghost" "files.allowBinaries" with
+    | Error e -> Assert.Contains("unknown source 'ghost'", e)
+    | Ok _ -> failwith "expected an error"
+    match ConfigCmd.getForSource io "kb" "search.mode" with
+    | Error e -> Assert.Contains("cannot be set per source", e)
+    | Ok _ -> failwith "expected an error"
+
+[<Fact>]
+let ``source names are matched exactly`` () =
+    let io, _ = makeIO [ globalPath, sourcesGlobal ]
+    Assert.True (ConfigCmd.getForSource io "KB" "files.allowBinaries" |> Result.isError)
+
+[<Fact>]
+let ``view --source lists every per-source setting`` () =
+    let io, _ = makeIO [ globalPath, sourcesGlobal ]
+    let v = ConfigCmd.viewSource io "kb" |> ok "view"
+    Assert.Equal<string list>(ConfigCmd.sourceSettings, v.Settings |> List.map (fun s -> s.Key))
+    Assert.Equal("source global", (v.Settings |> List.find (fun s -> s.Key = "search.ignorePatterns")).Origin)
+
+[<Fact>]
+let ``set --source writes into the entry of a local source`` () =
+    let local = """{"version":3,"source":{"items":[{"name":"mine","url":"https://x/mine.git","bundles":[]}]}}"""
+    let io, files = makeIO [ localPath, local ]
+    ConfigCmd.setForSource io LocalScope "mine" "files.allowBinaries" (Some "true") |> ok "set" |> ignore
+    let r = ConfigCmd.getForSource io "mine" "files.allowBinaries" |> ok "get"
+    Assert.Equal("true", r.Value)
+    Assert.Equal("source local", r.Origin)
+    Assert.Contains("https://x/mine.git", files.[localPath])
+
+[<Fact>]
+let ``set --source on a global source adds a local entry without a url`` () =
+    let io, files = makeIO [ globalPath, sourcesGlobal; localPath, """{"version":3}""" ]
+    ConfigCmd.setForSource io LocalScope "plain" "search.ignorePatterns" (Some """["a.md"]""") |> ok "set" |> ignore
+    Assert.DoesNotContain("https://x/plain.git", files.[localPath])
+    let r = ConfigCmd.getForSource io "plain" "search.ignorePatterns" |> ok "get"
+    Assert.Equal("""["a.md"]""", r.Value)
+    Assert.Equal("source local", r.Origin)
+    // the global entry is untouched
+    Assert.Equal(sourcesGlobal, files.[globalPath])
+
+[<Fact>]
+let ``set --source --global needs the source to be in the global config`` () =
+    let local = """{"version":3,"source":{"items":[{"name":"mine","url":"https://x/mine.git","bundles":[]}]}}"""
+    let io, _ = makeIO [ globalPath, sourcesGlobal; localPath, local ]
+    match ConfigCmd.setForSource io GlobalScope "mine" "files.allowBinaries" (Some "true") with
+    | Error e -> Assert.Contains("not in the global config", e)
+    | Ok _ -> failwith "expected an error"
+
+[<Fact>]
+let ``set --source rejects an unknown source, an unsupported key and a badly typed value`` () =
+    let io, files = makeIO [ globalPath, sourcesGlobal; localPath, """{"version":3}""" ]
+    Assert.True (ConfigCmd.setForSource io LocalScope "ghost" "files.allowBinaries" (Some "true") |> Result.isError)
+    Assert.True (ConfigCmd.setForSource io LocalScope "kb" "okf.defaultType" (Some "\"x\"") |> Result.isError)
+    Assert.True (ConfigCmd.setForSource io LocalScope "kb" "files.allowBinaries" (Some "\"yes\"") |> Result.isError)
+    Assert.Equal("""{"version":3}""", files.[localPath])
+
+[<Fact>]
+let ``unset --source removes the override and tidies a stub entry`` () =
+    let io, files = makeIO [ globalPath, sourcesGlobal; localPath, """{"version":3}""" ]
+    ConfigCmd.setForSource io LocalScope "plain" "files.allowBinaries" (Some "true") |> ok "set" |> ignore
+    ConfigCmd.setForSource io LocalScope "plain" "files.allowBinaries" None |> ok "unset" |> ignore
+    Assert.DoesNotContain("plain", files.[localPath])
+    let r = ConfigCmd.getForSource io "plain" "files.allowBinaries" |> ok "get"
+    Assert.Equal("global", r.Origin)
+
+[<Fact>]
+let ``unset --source keeps the entry's url and its other overrides`` () =
+    let io, files = makeIO [ globalPath, sourcesGlobal ]
+    ConfigCmd.setForSource io GlobalScope "kb" "files.allowBinaries" None |> ok "unset" |> ignore
+    Assert.Contains("https://x/kb.git", files.[globalPath])
+    Assert.Contains("CHANGELOG.md", files.[globalPath])
+    let r = ConfigCmd.getForSource io "kb" "files.allowBinaries" |> ok "get"
+    Assert.Equal("global", r.Origin)   // back to the files.allowBinaries section value
+
+[<Fact>]
+let ``unset --source on a source with nothing to remove writes nothing`` () =
+    let io, files = makeIO [ globalPath, sourcesGlobal; localPath, """{"version":3}""" ]
+    ConfigCmd.setForSource io LocalScope "plain" "files.allowBinaries" None |> ok "unset" |> ignore
+    Assert.DoesNotContain("plain", files.[localPath])
