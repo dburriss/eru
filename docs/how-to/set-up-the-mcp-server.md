@@ -71,7 +71,7 @@ The same `dnx` command and args work for Claude Code's `.mcp.json` (with `"type"
 ## Pass settings through the client
 
 Every config setting can be overridden with an `ERU__` environment variable (see
-[environment variables](../reference/config-file.md#environment-variables)), so a client can configure the server
+[environment variables](../reference/environment-variables.md)), so a client can configure the server
 without touching a config file. Put them in the server's `env` block:
 
 ```json

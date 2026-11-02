@@ -247,7 +247,8 @@ Notes:
 Every key in the [settings sections](#settings-sections) can also be set with an environment variable, so a
 setting can be changed per process (an MCP client's `env` block, a shell session, CI) without editing a file.
 The variable name mirrors the key's path in the config file: prefix `ERU__`, then each path segment separated
-by `__`. Names are case-insensitive.
+by `__`. Names are case-insensitive. The full list of variables is in
+[environment variables](environment-variables.md).
 
 | Config key | Environment variable |
 |---|---|
