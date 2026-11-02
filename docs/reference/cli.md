@@ -839,6 +839,8 @@ eru browse
 
 No arguments.
 
+In the Files pane, `/` filters as you type (path, description and tags; `#tag` filters by tag). Press Enter on a text filter to run the ranked content search used by `eru search`: the best matches are listed first as `source:path`, and the pane title shows the count and any fallback warning. Esc clears the filter.
+
 ---
 
 ## `eru cache`

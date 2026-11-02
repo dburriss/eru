@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../Eru.Domain/Eru.Domain.fsproj" />
     <ProjectReference Include="../Eru.Adapters/Eru.Adapters.fsproj" />
+    <ProjectReference Include="../Eru.Search/Eru.Search.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Terminal.Gui" Version="2.*" />

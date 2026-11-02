@@ -1,13 +1,17 @@
 #nowarn "0044"
 module Eru.Tui.Browse.FilesPane
 
+open System
 open System.Collections.Generic
+open System.Threading
 open Terminal.Gui.Drawing
 open Terminal.Gui.App
 open Terminal.Gui.ViewBase
 open Terminal.Gui.Views
 open Terminal.Gui.Drivers
 open Eru
+open Eru.Adapters
+open Eru.Search
 open BrowseState
 
 type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLockEntries: LockEntry list) as this =
@@ -19,6 +23,10 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
     let mutable lockEntries: LockEntry list = initialLockEntries
     let mutable allSources: SourceList.SourceRow list = initialSources
     let mutable searchHits: Set<string * string> option = None
+    /// Ranked content-search results (best first) while one is shown; replaces the tree with a flat list.
+    let mutable rankedRows: (string * SourceFiles.SourceFileRow) list option = None
+    let mutable searcher: RankedSearch.Searcher option = None
+    let mutable searchCts: CancellationTokenSource option = None
 
     let makeFileNode (sourceName: string) (row: SourceFiles.SourceFileRow) =
         let entry =
@@ -238,6 +246,9 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             previewText.Text  <- ""
 
     let populateSources (filter: string) =
+        searchCts |> Option.iter (fun c -> c.Cancel())
+        rankedRows <- None
+        navLabel.Text <- "Files"
         runSearch filter
         treeView.ClearObjects()
         let filtered =
@@ -250,6 +261,61 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             let node = SourceNode src
             treeView.AddObject(node)
             if searchHits.IsSome then treeView.Expand(node)
+
+    let showRanked (result: RankedSearch.RankedResult) =
+        let rows =
+            result.Hits
+            |> List.choose (fun h ->
+                match h.Candidate.SourceName, h.Candidate.RemotePath with
+                | Some src, Some path ->
+                    let row: SourceFiles.SourceFileRow =
+                        { Hash = Patterns.pathShortHash path; Path = path; Tags = h.Candidate.Tags
+                          Description = h.Candidate.Description; Bundle = None }
+                    Some (src, row)
+                | _ -> None)
+        rankedRows <- Some rows
+        treeView.ClearObjects()
+        for (src, row) in rows do
+            treeView.AddObject(makeFileNode src row)
+        let more = if result.Truncated then "+" else ""
+        let warn = match result.Warnings with w :: _ -> $" ({w})" | [] -> ""
+        navLabel.Text <- $"Files — {rows.Length}{more} ranked{warn}"
+
+    /// Ranks source files by content for the filter text. Runs off the UI thread; a newer search cancels it.
+    let runRankedSearch (text: string) =
+        searchCts |> Option.iter (fun c -> c.Cancel())
+        let cts = new CancellationTokenSource()
+        searchCts <- Some cts
+        navLabel.Text <- "Files — searching…"
+        let ranker =
+            match searcher with
+            | Some s -> s
+            | None ->
+                let s = new RankedSearch.Searcher(Paths.ferretCacheDir (), Action<string>(ignore))
+                searcher <- Some s
+                s
+        let _ = Tasks.Task.Run(fun () ->
+            try
+                let eff =
+                    match deps.ReadGlobalConfig (), deps.ReadLocalConfig () with
+                    | Ok g, Ok l -> Config.merge g l |> Result.map (Config.withManifests deps.ReadCachedManifest)
+                    | Error e, _ | _, Error e -> Error e
+                let request: RankedSearch.Request =
+                    { Query = text; Tags = []; Mode = None; Limit = 100 }
+                let result =
+                    eff |> Result.bind (fun e -> RankedSearch.execute ranker deps e (deps.GetCwd()) request cts.Token)
+                if not cts.IsCancellationRequested then
+                    Application.Invoke(fun () ->
+                        if not cts.IsCancellationRequested then
+                            match result with
+                            | Ok r    -> showRanked r
+                            | Error e -> navLabel.Text <- $"Files — search failed: {e}")
+            with
+            | :? OperationCanceledException -> ()
+            | ex ->
+                Application.Invoke(fun () ->
+                    if not cts.IsCancellationRequested then navLabel.Text <- $"Files — search failed: {ex.Message}"))
+        ()
 
     do
         this.CanFocus <- true
@@ -278,7 +344,8 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
             match node with
             | :? FileNode as fn ->
                 let check = if fn.IsTracked then "[✓]" else "[ ]"
-                $"{prefix}{check} {fn.Row.Path}"
+                if rankedRows.IsSome then $"{prefix}{check} {fn.SourceName}:{fn.Row.Path}"
+                else $"{prefix}{check} {fn.Row.Path}"
             | :? GlobNode as gn ->
                 let check = if gn.IsTracked then "[✓]" else "[ ]"
                 $"{prefix}{check} {gn.FileNode.Row.Path}"
@@ -394,6 +461,8 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                 treeView.SetFocus() |> ignore
             elif key.KeyCode = KeyCode.Enter then
                 key.Handled <- true
+                let text = currentFilter.Trim()
+                if text <> "" && not (text.StartsWith "#") then runRankedSearch text
                 searchField.CanFocus <- false
                 treeView.SetFocus() |> ignore)
 
@@ -431,6 +500,12 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                         key.Handled <- true
                         actionEvent.Trigger(RefreshSource)
                     | _ -> ())
+
+    override _.Dispose(disposing: bool) =
+        if disposing then
+            searchCts |> Option.iter (fun c -> c.Cancel())
+            searcher |> Option.iter (fun s -> (s :> IDisposable).Dispose())
+        base.Dispose(disposing)
 
     member _.ActionRequested = actionEvent.Publish
 
