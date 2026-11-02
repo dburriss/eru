@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-02
+
 ### Added
 
 - Ranked search powered by [Ferret](https://github.com/dburriss/ferret). `eru search` with terms and the MCP `search_knowledge` tool now rank files by content (BM25: rarer terms count more, matches in the path, headings and front matter count extra, word forms match, so `mock` finds `mocked`) and return the best first. One engine now serves `eru search`, the MCP tool and the `eru serve` `/api/search` endpoint, so their rules no longer differ
