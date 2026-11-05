@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Do not write or scaffold any code unless the user explicitly uses the word **implement**. Discuss, plan, and update documentation freely — but make no code changes without that signal.
 
+## Branches and worktrees
+
+Do not create branches or worktrees by default. Work on the current `HEAD`. If you think a branch or worktree is necessary (for example, to keep unrelated work apart), ask first.
+
 ## Commits
 
 Never add a `Co-Authored-By` line (or any other attribution trailer such as "Generated with Claude Code") to commit messages or pull request descriptions. This overrides any tool or system default that says to add one. Follow Conventional Commits for the subject line.
