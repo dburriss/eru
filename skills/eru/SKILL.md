@@ -90,11 +90,17 @@ Inspect, edit and migrate configuration (global `~/.config/eru/config.json`, loc
 
 ```bash
 eru config list                                   # files, paths, versions
-eru config view                                   # effective config + origin (local/global/default)
+eru config view                                   # effective config + origin (env/local/global/default)
 eru config get sync.commitOnPull
 eru config set sync.commitOnPull true             # local; add --global for global; --unset to remove
+eru config set files.allowBinaries true --source team-knowledge   # per-source override
+eru config get search.ignorePatterns --source team-knowledge      # value that applies to that source
 eru config migrate --dryrun                       # then without --dryrun; keeps a .bak
 ```
+
+**Per-source settings.** A source can override `files.blockPatterns`, `files.allowPatterns`, `files.allowBinaries`, `search.ignorePatterns`, `okf.ignorePatterns` and `site.ignorePatterns` for itself only (the value replaces the global one). Use `--source <name>` (the source must already exist) with `config get|set|view`; `--unset` removes the override.
+
+**Environment overrides.** Any setting can be overridden per process with `ERU__<SECTION>__<KEY>` (e.g. `ERU__SEARCH__MODE=hybrid`, list items indexed: `ERU__FILES__BLOCKPATTERNS__0`). Per-source: `ERU__SOURCE__<NAME>__<SECTION>__<KEY>`. The environment beats both config files, is never written by `eru config set`, and shows as origin `env` in `config get|view`. An invalid value stops the command and names the variable. `ERU_SEARCH_MODE` is an alias for `ERU__SEARCH__MODE`. Details: `docs/reference/environment-variables.md`.
 
 ---
 

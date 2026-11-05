@@ -59,6 +59,24 @@ Add under the top-level `mcpServers` key:
 }
 ```
 
+### Settings from the client (`env` block)
+
+Any config setting can be passed to the server as an `ERU__` environment variable, so no config file edit is needed. The name is `ERU__` plus the key path joined with `__`; list items are indexed from 0.
+
+```json
+{
+  "command": "eru",
+  "args": ["mcp"],
+  "env": {
+    "ERU__SEARCH__MODE": "hybrid",
+    "ERU__MCP__REFRESHINTERVALMINUTES": "15",
+    "ERU__SOURCE__DOCS__SEARCH__IGNOREPATTERNS__0": "CHANGELOG.md"
+  }
+}
+```
+
+The environment beats the local and global config. An invalid value stops the server at startup and names the variable. `ERU__SOURCE__<NAME>__<SECTION>__<KEY>` overrides one existing source's settings. See `docs/reference/environment-variables.md` in the eru repo for the full rules.
+
 ## Available tools
 
 | Tool | Description |
