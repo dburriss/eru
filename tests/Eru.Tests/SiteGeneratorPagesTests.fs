@@ -271,6 +271,8 @@ let ``browse documents carry the filter contract and facets become filters`` () 
         Assert.Contains("data-doc-count", index)
         let js = readOut out "js/app.js"
         Assert.Contains("[data-doc]", js)
+        Assert.Contains("facet-empty", js)
+        Assert.Contains("facet-empty", readOut out "assets/css/style.css")
         Assert.DoesNotContain("source-filters", js)
         Assert.DoesNotContain(".file-card", js))
 

@@ -157,6 +157,7 @@ main { padding: 1.5rem; }
 .sidebar-section h3 { color: var(--color-text); opacity: 0.7; }
 body.theme-dark .sidebar-section h3 { opacity: 0.6; }
 .count { font-size: 0.8rem; opacity: 0.6; }
+.sidebar-section li.facet-empty { opacity: 0.45; }
 
 /* content header */
 .content-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -573,6 +574,7 @@ let private appJs = """
   //   [data-doc-group]           a section hidden when none of its documents is visible
   //   [data-doc-count]           receives the visible document count
   // Matching: OR within a facet, AND across facets, plus a text search.
+  // Facet counts follow the same matching, ignoring the facet's own selection.
   var facetState = {};      // facet name -> { value: true }
   var query = '';
   var jsonIndex = null;
@@ -586,16 +588,40 @@ let private appJs = """
     } catch (e) { return []; }
   }
 
+  function activeValues(f) {
+    return Object.keys(facetState[f]).filter(function (k) { return facetState[f][k]; });
+  }
+
+  // Facet counts: a value's count is the number of documents matching the text and every
+  // *other* facet's selection, so a facet's own selection never shrinks its own counts.
+  function updateFacetCounts(counts) {
+    document.querySelectorAll('[data-facet-mode="filter"] [data-facet]').forEach(function (ul) {
+      var facet = ul.getAttribute('data-facet');
+      ul.querySelectorAll('li').forEach(function (li) {
+        var cb = li.querySelector('input[type="checkbox"]');
+        var countEl = li.querySelector('.facet-count');
+        if (!cb || !countEl) return;
+        var n = (counts[facet] && counts[facet][cb.value]) || 0;
+        countEl.textContent = '(' + n + ')';
+        li.classList.toggle('facet-empty', n === 0 && !cb.checked);
+      });
+    });
+  }
+
   function render() {
     var q = query.toLowerCase().trim();
     var facets = Object.keys(facetState);
+    var active = {};
+    facets.forEach(function (f) { active[f] = activeValues(f); });
+    var counts = {};
     var visible = 0;
     document.querySelectorAll('[data-doc]').forEach(function (el) {
-      var facetsOk = facets.every(function (f) {
-        var active = Object.keys(facetState[f]).filter(function (k) { return facetState[f][k]; });
-        if (active.length === 0) return true;
-        return valuesOf(el, f).some(function (v) { return active.indexOf(v) >= 0; });
+      var passes = {};
+      facets.forEach(function (f) {
+        passes[f] = active[f].length === 0 ||
+          valuesOf(el, f).some(function (v) { return active[f].indexOf(v) >= 0; });
       });
+      var facetsOk = facets.every(function (f) { return passes[f]; });
       var textOk;
       if (!q) {
         textOk = true;
@@ -608,7 +634,16 @@ let private appJs = """
       var show = facetsOk && textOk;
       el.style.display = show ? '' : 'none';
       if (show) visible++;
+      if (textOk) {
+        facets.forEach(function (f) {
+          var othersOk = facets.every(function (o) { return o === f || passes[o]; });
+          if (!othersOk) return;
+          counts[f] = counts[f] || {};
+          valuesOf(el, f).forEach(function (v) { counts[f][v] = (counts[f][v] || 0) + 1; });
+        });
+      }
     });
+    updateFacetCounts(counts);
     document.querySelectorAll('[data-doc-group]').forEach(function (g) {
       var any = Array.prototype.some.call(g.querySelectorAll('[data-doc]'), function (el) { return el.style.display !== 'none'; });
       g.style.display = any ? '' : 'none';
@@ -680,6 +715,11 @@ let private appJs = """
       var a = li.querySelector('a');
       if (!a) return;
       var countEl = li.querySelector('.count');
+      if (!countEl) {
+        countEl = document.createElement('span');
+        countEl.className = 'count';
+      }
+      countEl.classList.add('facet-count');
       var value = a.getAttribute('data-value') || a.textContent.trim();
       var id = 'chk-' + facet + '-' + value.replace(/[^a-zA-Z0-9]/g, '_');
       var cb = document.createElement('input');
@@ -692,7 +732,7 @@ let private appJs = """
       while (li.firstChild) li.removeChild(li.firstChild);
       li.appendChild(cb);
       li.appendChild(label);
-      if (countEl) li.appendChild(countEl);
+      li.appendChild(countEl);
       cb.addEventListener('change', function () {
         facetState[facet][value] = cb.checked;
         applyFilters();
@@ -732,6 +772,7 @@ let private appJs = """
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-facet-mode="filter"] [data-facet]').forEach(upgradeFacet);
     document.querySelectorAll('table.doc-table').forEach(enableTableSort);
+    if (Object.keys(facetState).length > 0) render();
 
     var searchContainer = document.getElementById('search-container');
     if (searchContainer) searchContainer.style.display = '';

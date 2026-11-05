@@ -178,7 +178,10 @@ the built-in `tags` page, which shares its name with a widget, write `{ "page": 
 
 Widgets that need data the page lacks render nothing (`toc` on a list page, `related` on a document with no links,
 `stale` on a fresh document). The `facets` widget is plain links everywhere; on Browse (and an override of it) the
-script upgrades them to checkbox filters, and the extension list appears only there.
+script upgrades them to checkbox filters, and the extension list appears only there. The counts on those filters
+update as you filter: a value's count is the number of documents that match the search text and every *other*
+facet's selection, so a facet's own selection never shrinks its own counts. Values that drop to zero are dimmed
+unless checked.
 
 ## Views
 
@@ -198,7 +201,7 @@ Every view marks each document with `data-doc` and one `data-<facet>` attribute 
 `tags`, `type`, `bundle`, `status`), each a JSON array of values so a value containing a space or pipe stays one
 value. A facet list in the sidebar carries `data-facet="<name>"`; `app.js` builds its filter state from whichever
 lists exist, so it knows nothing about cards, lists or tables. Matching is OR within a facet, AND across facets,
-plus a text search. `data-doc-group` sections hide when none of their documents is visible, and `data-doc-count`
+plus a text search, and the sidebar counts follow the same rule. `data-doc-group` sections hide when none of their documents is visible, and `data-doc-count`
 receives the visible count.
 
 ## Document pages
@@ -257,7 +260,7 @@ The browser connects to `/api/events` automatically and reloads the page on each
 | Navigate by tag | ✓ | — |
 | Read rendered `.md` pages | ✓ | — |
 | In-place search | — | ✓ |
-| Checkbox facet filtering | — | ✓ |
+| Checkbox facet filtering with live counts | — | ✓ |
 | Custom pages, content pages, all three views | ✓ | — |
 | Click-to-sort table headers | — | ✓ |
 | Manual dark/light toggle | — | ✓ |
