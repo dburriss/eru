@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-05
+
 ### Changed
 
 - The facet counts in the Browse sidebar now follow the filters: each count is the number of documents that match the search text and the selection in the other facets, so choosing a source narrows the tag, type and bundle counts while its own siblings keep theirs. Values with no matches are dimmed, and the File Extensions facet now shows counts too. This was meant for 0.15.0 but missed that release. See [facets](docs/reference/site-generation.md#layout-slots-and-widgets)
