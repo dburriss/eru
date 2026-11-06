@@ -81,14 +81,15 @@ let private css = """
     --color-graph-external: #9ca3af;
   }
 }
-body.theme-light {
+/* Theme classes sit on <html> with zero extra specificity, so a plain :root override in custom.css wins. */
+:root:where(.theme-light) {
   --color-text: #201d1d; --color-bg: #fdfcfc; --color-surface: #f4f1f1;
   --color-border: #d6d1d1; --color-muted: #6f6969; --color-primary: #c2410c;
   --color-accent-soft: #fde7da; --color-ok: #15803d; --color-warn: #a16207;
   --color-badge-bg: #f1ece9; --color-badge-text: #7c2d12;
   --color-graph-incoming: #065f46; --color-graph-outgoing: #92400e; --color-graph-external: #6b7280;
 }
-body.theme-dark {
+:root:where(.theme-dark) {
   --color-text: #ededed; --color-bg: #0a0a0a; --color-surface: #161616;
   --color-border: #2c2c2c; --color-muted: #8a8a8a; --color-primary: #ff8a3d;
   --color-accent-soft: #3a1d0b; --color-ok: #4ade80; --color-warn: #facc15;
@@ -630,11 +631,12 @@ kbd {
 
 let private themeJs = """
 (function () {
-  // Always stamp one class so body.theme-dark / body.theme-light CSS rules
+  // Always stamp one class (on <html> and <body>) so the theme-dark / theme-light CSS rules
   // fully control all component overrides — @media only handles the no-JS fallback.
   var stored = localStorage.getItem('eru-theme');
   var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   var dark = stored === 'dark' || (stored === null && prefersDark);
+  document.documentElement.classList.add(dark ? 'theme-dark' : 'theme-light');
   document.body.classList.add(dark ? 'theme-dark' : 'theme-light');
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -651,8 +653,10 @@ let private themeJs = """
     updateLabel();
     btn.addEventListener('click', function () {
       var next = isDark() ? 'light' : 'dark';
-      document.body.classList.remove('theme-light', 'theme-dark');
-      document.body.classList.add('theme-' + next);
+      [document.documentElement, document.body].forEach(function (el) {
+        el.classList.remove('theme-light', 'theme-dark');
+        el.classList.add('theme-' + next);
+      });
       localStorage.setItem('eru-theme', next);
       updateLabel();
     });

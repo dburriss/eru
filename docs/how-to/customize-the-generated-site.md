@@ -73,19 +73,18 @@ via `--custom-css`, and let `style.css` stay untouched as the base.
 }
 ```
 
-Dark mode overrides go inside `@media (prefers-color-scheme: dark)` and/or `body.theme-dark`:
+A `:root` override applies in both light and dark mode. To give each mode its own colours, use `body.theme-light` and
+`body.theme-dark`, which follow the theme toggle (a `prefers-color-scheme` media query ignores it):
 
 ```css
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-text: #c9d1d9;
-    --color-bg: #0d1117;
-    --color-surface: #161b22;
-    --color-border: #30363d;
-    --color-primary: #58a6ff;
-    --color-badge-bg: #1e2a3a;
-    --color-badge-text: #79b8ff;
-  }
+body.theme-dark {
+  --color-text: #c9d1d9;
+  --color-bg: #0d1117;
+  --color-surface: #161b22;
+  --color-border: #30363d;
+  --color-primary: #58a6ff;
+  --color-badge-bg: #1e2a3a;
+  --color-badge-text: #79b8ff;
 }
 ```
 

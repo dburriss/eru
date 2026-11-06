@@ -12,6 +12,10 @@
 - A `query` widget: type `tag:`, `source:` or `status:` to filter with a completion list and live counts, exclude with `-tag:x`, click a source or tag in the table to add it, and share the filtered view through `?q=` in the address. Press `/` to focus it and `j`, `k` and enter to move through rows.
 - The sync state of each file shows as a glyph before its name (`●` pulled, `◐` cached, `○` index-only), and rows carry a `data-sync` attribute.
 
+### Fixed
+
+- A `--color-*` override under `:root` in `custom.css` now takes effect. The theme colours were set on `body`, which shadowed any `:root` rule; they now sit on `<html>` with no extra specificity, and the theme class is stamped on both `<html>` and `<body>`. Per-theme overrides under `body.theme-light` and `body.theme-dark` keep working.
+
 ## [0.15.1] - 2026-11-05
 
 ### Changed

@@ -23,8 +23,8 @@ the links are for extra detail only.
 `--custom-css <path>` copies a theme file you maintain elsewhere into the output on every run.
 
 CSS variables: `--color-primary`, `--color-text`, `--color-bg`, `--color-surface`, `--color-border`,
-`--color-badge-bg`, `--color-badge-text`, `--font-family`, `--font-mono`, `--radius`. Dark mode: override inside
-`@media (prefers-color-scheme: dark)` or `body.theme-dark`. Status badges: `.badge-pulled`, `.badge-cached`,
+`--color-badge-bg`, `--color-badge-text`, `--font-family`, `--font-mono`, `--radius`. A `:root` override applies in both modes;
+set per-mode colours under `body.theme-light` and `body.theme-dark`. Status badges: `.badge-pulled`, `.badge-cached`,
 `.badge-index-only`. Components: `.file-card`, `.tag`, `.site-nav`.
 
 ## Site-wide keys

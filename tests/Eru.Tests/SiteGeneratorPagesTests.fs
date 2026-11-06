@@ -269,6 +269,19 @@ let ``site default view and card columns apply to browse`` () =
         Assert.DoesNotContain("data-col=\"type\"", index))
 
 [<Fact>]
+let ``theme colours sit on the root so a root override in custom css wins`` () =
+    run "{}" (fun out ->
+        let css = readOut out "assets/css/style.css"
+        Assert.Contains(":root:where(.theme-dark)", css)
+        Assert.Contains(":root:where(.theme-light)", css)
+        // a body rule would shadow any :root override of the same variables
+        Assert.DoesNotContain("body.theme-dark {", css)
+        Assert.DoesNotContain("body.theme-light {", css)
+        let js = readOut out "js/theme.js"
+        Assert.Contains("document.documentElement.classList.add", js)
+        Assert.Contains("document.body.classList.add", js))
+
+[<Fact>]
 let ``browse documents carry the filter contract and facets become filters`` () =
     run """{ "layout": { "left": ["facets"] } }""" (fun out ->
         let index = readOut out "index.html"
