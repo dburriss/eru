@@ -493,7 +493,7 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
   color: var(--color-muted); font-size: 0.85rem;
 }
 .region-footer .widget { margin-bottom: 0; }
-.region-footer .side-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.region-footer .side-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem 1.25rem; }
 .region-footer a { color: var(--color-muted); }
 .region-footer a:hover { color: var(--color-primary); }
 .widget-title { margin-bottom: 0.25rem; }
