@@ -189,6 +189,13 @@ let ``site settings from the env merge over the files`` () =
     Assert.Equal(Some (Items [ PageRef ("tags", None); PageRef ("types", None) ]), eff.Site.Layout.Nav)
 
 [<Fact>]
+let ``the site theme comes from the env over the files`` () =
+    let l = localWith (fun l -> { l with Site = Some { SiteSection.empty with Theme = Some "terminal" } })
+    let eff = effective [ "ERU__SITE__THEME", "ledger" ] None l
+    Assert.Equal(Some "ledger", eff.Site.Theme)
+    Assert.Equal(Some "terminal", (effective [] None l).Site.Theme)
+
+[<Fact>]
 let ``env overrides leave sources and inboxes to the files`` () =
     let src : SourceConfig = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
     let g = Some { GlobalConfig.empty with Source = Some { Items = Some [ src ] } }

@@ -238,6 +238,20 @@ let private titleCell (vc: ViewContext) (d: SiteDocument) : string =
         | None -> ""
     $"""<div class="cell-name">{syncGlyph d}{titleLink vc d}</div>{desc}"""
 
+/// One bordered row per document: name and description on the left, source, tags and sync
+/// state on the right. Dense, no header; the ledger theme's default.
+let private rowsView (vc: ViewContext) (_spec: ViewSpec) (docs: SiteDocument list) : string =
+    let row (d: SiteDocument) =
+        let side =
+            [ "source"; "tags"; "syncStatus" ]
+            |> List.map (fun f -> fieldHtml vc f d)
+            |> List.filter (fun h -> h <> "")
+            |> String.concat " "
+        $"""<li class="doc-row" {docAttrs d}><div class="doc-row-main">{titleCell vc d}</div><div class="doc-row-side">{side}</div></li>"""
+    $"""<ul class="doc-rows">
+{docs |> List.map row |> String.concat "\n"}
+</ul>"""
+
 let private tableView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument list) : string =
     let head =
         spec.TableColumns
@@ -261,7 +275,7 @@ let private tableView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument lis
 /// View name -> renderer. Later views (graph, timeline) register here without any config
 /// reshaping.
 let renderers : Map<string, ViewContext -> ViewSpec -> SiteDocument list -> string> =
-    Map.ofList [ "cards", cardsView; "list", listView; "table", tableView ]
+    Map.ofList [ "cards", cardsView; "list", listView; "table", tableView; "rows", rowsView ]
 
 let renderDocs (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument list) : string =
     let render = renderers |> Map.tryFind spec.View |> Option.defaultValue cardsView

@@ -30,7 +30,7 @@ let run (deps: Deps) (args: ParseResults<SiteGenerateArgs>) : int =
         let opts = { SiteGenerator.GenerateOptions.defaults with
                         OutputDir   = outputDir
                         OpenBrowser = openBrowser
-                        Theme       = { SiteGenerator.GenerateOptions.defaults.Theme with CustomCssPath = customCss } }
+                        Style       = { SiteGenerator.GenerateOptions.defaults.Style with CustomCssPath = customCss } }
         let status = AnsiConsole.Status()
         status.Spinner <- Spinner.Known.Dots
         match status.Start<Result<unit, string>>("Generating site...", fun _ ->

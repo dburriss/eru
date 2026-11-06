@@ -126,6 +126,7 @@ type DocumentSettings = {
 }
 
 type SiteSettings = {
+    Theme        : string option
     Home         : string option
     DefaultView  : string option
     CardsColumns : int option
@@ -136,8 +137,9 @@ type SiteSettings = {
 
 module SiteVocabulary =
     let builtInPages = [ "browse"; "sources"; "tags"; "types"; "bundles" ]
-    let views = [ "cards"; "list"; "table" ]
+    let views = [ "cards"; "list"; "table"; "rows" ]
     let defaultView = "cards"
+    let defaultTheme = "terminal"
     let defaultCardsColumns = 3
     let tableColumns =
         [ "title"; "source"; "path"; "bundle"; "type"; "tags"; "status"; "verified"; "staleAfter"
@@ -187,6 +189,7 @@ module SiteVocabulary =
 type SiteSection = {
     IgnorePatterns   : string list option
     HideEmptyBundles : bool option
+    Theme            : string option
     Home             : string option
     DefaultView      : string option
     Cards            : JsonElement option
@@ -197,12 +200,12 @@ type SiteSection = {
 
 module SiteSection =
     let empty : SiteSection =
-        { IgnorePatterns = None; HideEmptyBundles = None; Home = None; DefaultView = None
+        { IgnorePatterns = None; HideEmptyBundles = None; Theme = None; Home = None; DefaultView = None
           Cards = None; Layout = None; Pages = None; Document = None }
 
 module SiteSettings =
     let empty : SiteSettings =
-        { Home = None; DefaultView = None; CardsColumns = None; Layout = Layout.empty; Pages = []
+        { Theme = None; Home = None; DefaultView = None; CardsColumns = None; Layout = Layout.empty; Pages = []
           Document = { Layout = Layout.empty; Open = None; Rules = [] } }
 
     let slotLabel =
@@ -440,7 +443,8 @@ module SiteSettings =
     /// (page ids, widget placement) are checked by `validate` after the two files are merged.
     let parse (section: SiteSection) : Result<SiteSettings, string> =
         try
-            Ok { Home         = section.Home
+            Ok { Theme        = section.Theme
+                 Home         = section.Home
                  DefaultView  = section.DefaultView
                  CardsColumns = section.Cards |> Option.bind (parseCards "site.cards")
                  Layout       = section.Layout |> Option.map (parseLayout "site.layout") |> Option.defaultValue Layout.empty
@@ -462,7 +466,8 @@ module SiteSettings =
                     | None -> id, e)
             let added = local.Pages |> List.filter (fun (id, _) -> not (global'.Pages |> List.exists (fun (g, _) -> g = id)))
             replaced @ added
-        { Home         = local.Home |> Option.orElse global'.Home
+        { Theme        = local.Theme |> Option.orElse global'.Theme
+          Home         = local.Home |> Option.orElse global'.Home
           DefaultView  = local.DefaultView |> Option.orElse global'.DefaultView
           CardsColumns = local.CardsColumns |> Option.orElse global'.CardsColumns
           Layout       = Layout.overlay global'.Layout local.Layout
@@ -612,6 +617,8 @@ module SiteSettings =
     let validate (s: SiteSettings) : Result<unit, string> =
         try
             let known = knownPageIds s |> Set.ofList
+            s.Theme |> Option.iter (fun t ->
+                if not (validId t) then fail $"site.theme: theme names may only contain letters, digits, '-', '_' and '.', not '{t}'")
             for id, _ in s.Pages do
                 // built-in ids that are also widget names (`tags`) stay valid: they override the built-in page
                 if SiteVocabulary.isWidget id && not (isBuiltIn id) then

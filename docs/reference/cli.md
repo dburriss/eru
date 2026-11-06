@@ -971,6 +971,18 @@ The browser connects to `/api/events` automatically and reloads the page on each
 
 ---
 
+## `eru theme`
+
+### `eru theme list`
+
+```
+eru theme list [-o table|text|json]
+```
+
+Lists every theme `site.theme` can select: the built-in ones, then folders found in `.eru/themes/` and in the
+`themes/` directory next to the global config. The active theme is marked `*`. A theme that fails to load is listed
+as `invalid` with the reason. See [themes](site-generation.md#themes).
+
 ## `eru okf`
 
 Check a directory tree for conformance with the Open Knowledge Format (OKF) spec.

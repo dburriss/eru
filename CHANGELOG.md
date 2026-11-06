@@ -11,6 +11,9 @@
 
 ### Added
 
+- Site themes: `site.theme` (`terminal` by default, or `ledger`) switches the look of the generated site. A theme is a folder with a `theme.json` (default `site` settings) and a `theme.css`; custom themes go in `.eru/themes/<name>/` or `~/.config/eru/themes/<name>/`. Your config and `custom.css` still win. `ERU__SITE__THEME` and `eru config set site.theme` work too. See [themes](docs/reference/site-generation.md#themes).
+- `eru theme list` shows the built-in and installed themes and which one is active.
+- A `rows` view: one bordered row per document with its description, source, tags and sync state. It is the `ledger` theme's default.
 - New layout slots `top`, `toolbar` and `footer`: full-width bands above and below the columns. Every page footer links to the eru docs by default; set `footer` to replace it or `"footer": false` to remove it. Widgets are valid in more slots (`breadcrumbs`, `title`, `stale` in `top`; `meta`, `verified`, `generated`, `description`, `tags`, `cli`, `links` in `top` and `footer`).
 - The query line can be moved: `query` is valid in `toolbar`, `left` and `right` (once per page), and any page can opt in.
 - A `query` widget: type `tag:`, `source:` or `status:` to filter with a completion list and live counts, exclude with `-tag:x`, click a source or tag in the table to add it, and share the filtered view through `?q=` in the address. Press `/` to focus it and `j`, `k` and enter to move through rows.

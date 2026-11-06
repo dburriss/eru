@@ -31,8 +31,9 @@ written, and what happens on a bad value are described in
 | `okf.defaultType` | `ERU__OKF__DEFAULTTYPE` | string |
 | `site.ignorePatterns` | `ERU__SITE__IGNOREPATTERNS__0`, `__1`, … | list of globs |
 | `site.hideEmptyBundles` | `ERU__SITE__HIDEEMPTYBUNDLES` | `true` or `false` |
+| `site.theme` | `ERU__SITE__THEME` | theme name |
 | `site.home` | `ERU__SITE__HOME` | page id |
-| `site.defaultView` | `ERU__SITE__DEFAULTVIEW` | `cards`, `list` or `table` |
+| `site.defaultView` | `ERU__SITE__DEFAULTVIEW` | `cards`, `list`, `table` or `rows` |
 | `site.cards.columns` | `ERU__SITE__CARDS__COLUMNS` | whole number |
 | `site.layout.nav`, `top`, `toolbar`, `left`, `right`, `footer` | `ERU__SITE__LAYOUT__NAV__0`, … | list of items |
 | `site.pages.<id>` | `ERU__SITE__PAGES__<ID>__…` | structured; the page id is lower-cased |

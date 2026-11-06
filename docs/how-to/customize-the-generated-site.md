@@ -11,6 +11,17 @@ guide covers changing how it looks and what each page shows. For new pages see
 [build custom site pages](build-custom-site-pages.md); for the page a document opens to see
 [configure document pages](configure-document-pages.md).
 
+## Pick a theme
+
+`site.theme` switches the whole look; `eru theme list` shows the choices.
+
+```bash
+eru config set site.theme ledger
+```
+
+Your `custom.css` and `site` settings still apply on top of a theme. To make your own, see
+[write or install a site theme](write-a-site-theme.md).
+
 ## Generate the site
 
 ```bash

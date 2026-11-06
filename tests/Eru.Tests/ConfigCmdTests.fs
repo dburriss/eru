@@ -91,6 +91,18 @@ let ``get reports the built-in defaults of the search settings`` () =
     Assert.Equal("""["index.md","log.md"]""", ignore.Value)
 
 [<Fact>]
+let ``site theme defaults to terminal and can be set`` () =
+    let io, files = makeIO [ localPath, """{"version":3}""" ]
+    let def = ConfigCmd.get io "site.theme" |> ok "default"
+    Assert.Equal("\"terminal\"", def.Value)
+    Assert.Equal("default", def.Origin)
+    ConfigCmd.set io LocalScope "site.theme" (Some "ledger") |> ok "set theme" |> ignore
+    Assert.Contains("ledger", files.[localPath])
+    let got = ConfigCmd.get io "site.theme" |> ok "get"
+    Assert.Equal("\"ledger\"", got.Value)
+    Assert.Equal("local", got.Origin)
+
+[<Fact>]
 let ``set writes a search setting`` () =
     let io, files = makeIO [ localPath, """{"version":3}""" ]
     ConfigCmd.set io LocalScope "search.mode" (Some "\"hybrid\"") |> ok "set mode" |> ignore

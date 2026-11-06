@@ -32,7 +32,7 @@ module EnvConfig =
     let private vocabulary : Map<string, Map<string, string>> =
         let keys (names: string list) = names |> List.map (fun n -> n.ToLowerInvariant(), n) |> Map.ofList
         Map.ofList [
-            "site",   keys [ "ignorePatterns"; "hideEmptyBundles"; "home"; "defaultView"; "cards"; "layout"; "pages"; "document" ]
+            "site",   keys [ "ignorePatterns"; "hideEmptyBundles"; "theme"; "home"; "defaultView"; "cards"; "layout"; "pages"; "document" ]
             "okf",    keys [ "ignorePatterns"; "fixTypes"; "defaultType" ]
             "search", keys [ "mode"; "ignorePatterns" ]
             "mcp",    keys [ "refreshIntervalMinutes" ]
@@ -65,7 +65,7 @@ module EnvConfig =
     // Settings that are always strings, so a value such as `123` or `true` is not coerced.
     let private stringPaths =
         set [ "sync.branch"; "sync.statefile"; "search.mode"; "okf.defaulttype"; "inbox.default"
-              "site.home"; "site.defaultview"
+              "site.home"; "site.defaultview"; "site.theme"
               "site.ignorepatterns.*"; "okf.ignorepatterns.*"; "search.ignorepatterns.*"
               "files.blockpatterns.*"; "files.allowpatterns.*"
               "okf.fixtypes.*.pattern"; "okf.fixtypes.*.type" ]

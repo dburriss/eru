@@ -221,8 +221,9 @@ independently, so setting `site.hideEmptyBundles` locally does not hide a `site.
 | `files` | `allowBinaries` | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
 | `site` | `ignorePatterns` | `["index.md", "log.md", "README.md"]` | Gitignore-style globs; matching files are excluded entirely from `eru site generate` output (no listing, no search entry, no page) — see [site generation](site-generation.md). |
 | `site` | `hideEmptyBundles` | `false` | When `true`, `eru site generate` omits bundles that list no files (including ones whose files are all matched by `site.ignorePatterns`) from the Bundles tab and the Browse sidebar. Empty bundles are shown, with a count of 0, by default — see [site generation](site-generation.md#bundles). |
+| `site` | `theme` | `"terminal"` | Look of the generated site: `terminal`, `ledger` or the name of an installed theme folder. A theme supplies CSS and default `site` settings that your own config overrides — see [themes](site-generation.md#themes). |
 | `site` | `home` | `"browse"` | Id of the page written to `index.html` — a built-in id or a custom page id. See [site generation](site-generation.md#pages). |
-| `site` | `defaultView` | `"cards"` | View for document lists: `cards`, `list` or `table`. A page's own `view` overrides it — see [views](site-generation.md#views). |
+| `site` | `defaultView` | `"cards"` | View for document lists: `cards`, `list`, `table` or `rows`. A page's own `view` overrides it — see [views](site-generation.md#views). |
 | `site` | `cards.columns` | `3` | Maximum columns (1-6) of the `cards` view; narrow screens and crowded layouts drop to fewer. Set `1` for the old single-column list. |
 | `site` | `layout` | refreshed defaults | Site-wide `nav`, `top`, `toolbar`, `left`, `right` and `footer` slots: an array of items, or `false` to disable the slot. Merges per slot. See [layout and widgets](site-generation.md#layout-slots-and-widgets). |
 | `site` | `pages` | built-in pages | Map of page id to a page definition, or `false` to drop a built-in page. Merges by id. See [pages](site-generation.md#pages). |

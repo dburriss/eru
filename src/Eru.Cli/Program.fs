@@ -41,6 +41,7 @@ open Eru.Cli.CacheClearCli
 open Eru.Cli.BrowseCli
 open Eru.Cli.SiteGenerateCli
 open Eru.Cli.SiteServeCli
+open Eru.Cli.ThemeListCli
 open Eru.Cli.OkfValidateCli
 open Eru.Cli.OkfFixCli
 open Eru.Cli.OkfInitCli
@@ -114,6 +115,7 @@ let main argv =
         | BrowseCmd cmd               -> BrowseCli.run deps cmd
         | SiteGenerateCmd args        -> SiteGenerateCli.run deps args
         | SiteServeCmd args           -> SiteServeCli.run deps args
+        | ThemeListCmd cmd            -> ThemeListCli.run deps cmd
         | OkfValidateCmd cmd          -> OkfValidateCli.run deps cmd
         | OkfFixCmd cmd               -> OkfFixCli.run deps cmd
         | OkfInitCmd cmd              -> OkfInitCli.run deps cmd

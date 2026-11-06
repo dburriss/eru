@@ -80,6 +80,7 @@
     <Compile Include="BrowseCli.fs" />
     <Compile Include="SiteGenerateCli.fs" />
     <Compile Include="SiteServeCli.fs" />
+    <Compile Include="ThemeListCli.fs" />
     <Compile Include="OkfValidateCli.fs" />
     <Compile Include="OkfFixCli.fs" />
     <Compile Include="OkfInitCli.fs" />

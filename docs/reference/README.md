@@ -16,4 +16,5 @@ Dry, exhaustive descriptions of eru's commands, data formats, and behaviour. For
 - [Environment variables](environment-variables.md) — every `ERU__` variable that overrides a config setting, and the other variables eru reads.
 - [Lock file and local path resolution](lock-file-and-config.md) — `.eru/eru.lock` format and local-path resolution rules.
 - [Site generation](site-generation.md) — generated file layout, file statuses, progressive enhancement.
+- [Theme list](theme-list.md) — the built-in site themes with screenshots.
 - [MCP server](mcp-server.md) — resources and tools exposed by `eru mcp`.

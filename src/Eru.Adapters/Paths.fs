@@ -19,6 +19,14 @@ module Paths =
     let localConfigPath (cwd: string) =
         IO.Path.Combine(cwd, ".eru", "config.json")
 
+    /// Themes installed for one project: `<cwd>/.eru/themes/<name>/`.
+    let localThemesDir (cwd: string) =
+        IO.Path.Combine(cwd, ".eru", "themes")
+
+    /// Themes installed for the user: `<config dir>/eru/themes/<name>/`, next to the global config.
+    let userThemesDir () =
+        IO.Path.Combine(IO.Path.GetDirectoryName(globalConfigPath ()), "themes")
+
     let localManifestPath (cwd: string) =
         IO.Path.Combine(cwd, ".eru", "manifest.json")
 

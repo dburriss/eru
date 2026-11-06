@@ -669,6 +669,21 @@ type SiteArgs =
             | Generate _ -> "Generate a static HTML site from the local cache index."
             | Serve _    -> "Serve the site locally with live reload and search API."
 
+type ThemeListArgs =
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Output _ -> "Output format: table (default), text, json."
+
+[<CliPrefix(CliPrefix.None)>]
+type ThemeArgs =
+    | [<SubCommand>] List of ParseResults<ThemeListArgs>
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | List _ -> "List the built-in and installed site themes and where each comes from."
+
 type OkfValidateArgs =
     | [<MainCommand; ExactlyOnce>] Path of path: string
     | [<Unique>] Strict_Links
@@ -763,6 +778,7 @@ type EruArgs =
     | [<SubCommand>] Mcp        of ParseResults<McpArgs>
     | [<SubCommand>] Browse     of ParseResults<BrowseArgs>
     | [<SubCommand>] Site       of ParseResults<SiteArgs>
+    | [<SubCommand>] Theme      of ParseResults<ThemeArgs>
     | [<SubCommand>] Okf        of ParseResults<OkfArgs>
     | [<SubCommand>] Graph      of ParseResults<GraphArgs>
     | Version
@@ -786,6 +802,7 @@ type EruArgs =
             | Mcp _        -> "Start an MCP stdio server for AI agent use."
             | Browse _     -> "Interactively browse sources and tracked files."
             | Site _       -> "Generate a static HTML site for browsing the knowledge cache."
+            | Theme _      -> "List the site themes (set one with site.theme in the config)."
             | Okf _        -> "Validate, scaffold and repair a knowledge bundle for OKF conformance."
             | Graph _      -> "Show the link graph between cached documents and external URLs."
             | Version      -> "Print the eru version and commit."

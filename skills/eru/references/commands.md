@@ -495,6 +495,14 @@ Generates a self-contained static HTML site for browsing and searching the local
 
 Layout, pages and document pages are configured under `site` in the config, not by flags; see `site-customization.md`. Config errors abort the run and name the key path; nothing is written.
 
+## `eru theme list`
+
+```
+eru theme list [-o table|text|json]
+```
+
+Lists the built-in and installed site themes (`.eru/themes/`, `~/.config/eru/themes/`); the active one is marked `*`. Select one with `eru config set site.theme <name>`.
+
 ## `eru site serve`
 
 ```

@@ -19,7 +19,7 @@ type SiteFeatures = {
     Graph       : bool
 }
 
-type ThemeOverrides = {
+type StyleOverrides = {
     PrimaryColor  : string option
     FontFamily    : string option
     CustomCssPath : string option
@@ -29,7 +29,7 @@ type GenerateOptions = {
     OutputDir   : string
     OpenBrowser : bool
     Features    : SiteFeatures
-    Theme       : ThemeOverrides
+    Style       : StyleOverrides
 }
 
 module GenerateOptions =
@@ -37,7 +37,7 @@ module GenerateOptions =
         OutputDir   = "./cache-site/"
         OpenBrowser = false
         Features    = { FilePages = true; Search = true; ThemeToggle = true; Graph = true }
-        Theme       = { PrimaryColor = None; FontFamily = None; CustomCssPath = None }
+        Style       = { PrimaryColor = None; FontFamily = None; CustomCssPath = None }
     }
 
 // ── embedded assets ───────────────────────────────────────────────────────────
@@ -640,6 +640,15 @@ kbd {
 .doc-table tr.q-sel td { background: var(--color-surface); }
 .doc-table tr.q-sel td:first-child { box-shadow: inset 3px 0 0 var(--color-primary); }
 .file-card.q-sel, .doc-list-item.q-sel { box-shadow: inset 3px 0 0 var(--color-primary); }
+.doc-rows { list-style: none; border-top: 1px solid var(--color-border); }
+.doc-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2rem 1rem; align-items: start;
+  padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--color-border);
+}
+.doc-row:hover, .doc-row.q-sel { background: var(--color-surface); }
+.doc-row.q-sel { box-shadow: inset 3px 0 0 var(--color-primary); }
+.doc-row-main { min-width: 0; }
+.doc-row-side { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem 0.6rem; }
 @media (max-width: 640px) {
   .doc-table [data-col="source"] { display: none; }
   .q-bar kbd { display: none; }
@@ -1563,7 +1572,12 @@ let private dirOf (path: string) =
 
 let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Result<unit, string> =
     let out = opts.OutputDir
-    let settings = cfg.Site
+
+    match Themes.resolve deps (cfg.Site.Theme |> Option.defaultValue SiteVocabulary.defaultTheme) with
+    | Error e -> Error e
+    | Ok theme ->
+
+    let settings = Themes.apply theme cfg.Site
 
     match SiteSettings.validate settings with
     | Error e -> Error e
@@ -1806,16 +1820,17 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     let customCssExtra =
         let overrides =
             [
-                opts.Theme.PrimaryColor |> Option.map (fun c -> $"  --color-primary: {c};")
-                opts.Theme.FontFamily   |> Option.map (fun f -> $"  --font-family: {f};")
+                opts.Style.PrimaryColor |> Option.map (fun c -> $"  --color-primary: {c};")
+                opts.Style.FontFamily   |> Option.map (fun f -> $"  --font-family: {f};")
             ]
             |> List.choose id
         if overrides.IsEmpty then ""
         else ":root {\n" + (overrides |> String.concat "\n") + "\n}\n"
-    writeFileR (Path.Combine(out, "assets/css/style.css")) (css + customCssExtra)
+    // base stylesheet, then the theme's CSS, then the generated colour/font overrides
+    writeFileR (Path.Combine(out, "assets/css/style.css")) (css + theme.Css + customCssExtra)
 
     let customCssPath = Path.Combine(out, "assets/css/custom.css")
-    match opts.Theme.CustomCssPath with
+    match opts.Style.CustomCssPath with
     | Some src when File.Exists src ->
         // explicit source file — always sync it into the output
         writeFileR customCssPath (try File.ReadAllText src with _ -> "")

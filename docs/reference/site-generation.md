@@ -205,11 +205,12 @@ unless checked.
 |---|---|---|
 | `cards` (default) | One card per document | `cards.columns` (1-6, default 3) — a maximum, so narrow screens and crowded layouts show fewer |
 | `list` | One compact line per document | `list.show`: inline meta fields, default `source`, `type`, `status` |
+| `rows` | One bordered row per document: name and description on the left, source, tags and sync state on the right. The `ledger` theme's default | none |
 | `table` | A `<table>` | `table.columns`: ordered subset of `title`, `source`, `path`, `bundle`, `type`, `tags`, `status`, `verified`, `staleAfter`, `generated`, `syncStatus`, `ext` (default `title`, `source`, `type`, `tags`, `status`) |
 
 `site.defaultView` and `site.cards.columns` set the site-wide defaults; a page's own settings override them. An
 option block for a different view than the page uses (for example `cards` on a `table` page) is an error. All three
-views work without JS; click-to-sort table headers are a JS enhancement.
+views work without JS; click-to-sort table headers are a JS enhancement. `rows` has no header, so it does not sort.
 
 ### The query line
 
@@ -237,6 +238,43 @@ lists exist, so it knows nothing about cards, lists or tables. Matching is OR wi
 plus a text search, and the sidebar counts follow the same rule. `data-doc-group` sections hide when none of their documents is visible, and `data-doc-count`
 receives the visible count.
 
+## Themes
+
+`site.theme` picks the look of the whole site. A theme is a folder with a `theme.json` (default `site` settings)
+and a `theme.css`; both are optional, but a folder with neither is not a theme.
+
+| Theme | Look |
+|---|---|
+| `terminal` (default) | Monospace, square corners, hairline grid, query-line Browse. This is the base stylesheet itself |
+| `ledger` | Dense and quiet: sans-serif, rounded corners, an indigo accent, a facet sidebar and one row per file (`defaultView: rows`, `layout.left: ["facets"]`) |
+
+A name is looked up in this order: built-in, `.eru/themes/<name>/` in the project, then `themes/<name>/` next to the
+global config (`~/.config/eru/themes/<name>/`). The first match wins, so an installed theme cannot shadow a built-in.
+List what is available with [`eru theme list`](cli.md#eru-theme-list), or see the [theme list](theme-list.md) for screenshots.
+
+Layers, lowest to highest:
+
+1. CSS: the base `style.css`, the theme's `theme.css`, the generated colour and font overrides, then `custom.css`.
+2. Config: built-in layout defaults, the theme's `site` settings, the global config, the local config, then
+   `ERU__SITE__*` variables.
+
+`theme.json`:
+
+```json
+{
+  "description": "Shown by eru theme list.",
+  "site": {
+    "defaultView": "rows",
+    "layout": { "left": ["facets"] }
+  }
+}
+```
+
+`site` takes the same keys as the config file's `site` section (`layout`, `defaultView`, `cards`, `pages`,
+`document`, `home`); it is checked the same way, and a theme's own `theme` key is ignored. Errors name the
+theme: an unknown name (with the names available), a `theme.json` that is not valid JSON, or a setting the
+`site` section would reject. See [write or install a theme](../how-to/write-a-site-theme.md).
+
 ## Document pages
 
 A document page is the page opened from a list. The site is static and a document has one URL, so its layout
@@ -250,7 +288,7 @@ must keep the `content` widget, in `site.document.layout` and in every rule. `si
 
 ## Configuration errors
 
-Config and content problems fail the run with a message naming the key path: an unknown page id or widget, a
+Config and content problems fail the run with a message naming the key path: an unknown theme, an unknown page id or widget, a
 widget in a slot it is not valid in, a custom page id equal to a widget name, a bad view, column or sort field,
 `cards.columns` outside 1-6, an option block for the wrong view, an empty rule `match`, a document `main` without
 `content`, a missing content file, a path escaping the repo root, and an uncached `content.doc`. Nothing is

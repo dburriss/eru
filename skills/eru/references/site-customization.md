@@ -27,12 +27,21 @@ CSS variables: `--color-primary`, `--color-text`, `--color-bg`, `--color-surface
 set per-mode colours under `body.theme-light` and `body.theme-dark`. Status badges: `.badge-pulled`, `.badge-cached`,
 `.badge-index-only`. Components: `.file-card`, `.tag`, `.site-nav`.
 
+## Themes
+
+`site.theme` (`terminal` default, `ledger`, or an installed name) selects a bundle of CSS plus default `site`
+settings. Custom themes are folders with `theme.json` (`{ "description", "site": { ... } }`) and `theme.css` in
+`.eru/themes/<name>/` or `~/.config/eru/themes/<name>/`; built-ins win on a name clash. Your config and
+`custom.css` override the theme. `eru theme list` shows what is available. Set it with
+`eru config set site.theme ledger`.
+
 ## Site-wide keys
 
 | Key | Meaning |
 |---|---|
 | `site.home` | Page id written to `index.html` (default `browse`; required if `browse` is dropped). Browse then moves to `browse/index.html` |
-| `site.defaultView` | `cards` (default), `list`, `table` |
+| `site.theme` | `terminal` (default), `ledger`, or an installed theme |
+| `site.defaultView` | `cards` (default), `list`, `table`, `rows` |
 | `site.cards.columns` | Max columns 1-6 (default 3) |
 | `site.layout` | `nav`, `top`, `toolbar`, `left`, `right`, `footer` slots for every page |
 | `site.pages` | Map of page id to definition, or `false` to drop a built-in |
