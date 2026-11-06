@@ -15,6 +15,7 @@
 ### Fixed
 
 - A `--color-*` override under `:root` in `custom.css` now takes effect. The theme colours were set on `body`, which shadowed any `:root` rule; they now sit on `<html>` with no extra specificity, and the theme class is stamped on both `<html>` and `<body>`. Per-theme overrides under `body.theme-light` and `body.theme-dark` keep working.
+- A `pages.browse` override with a `table` block no longer needs `"view": "table"`. Browse renders as a table by default, but validation judged it as cards and rejected the block.
 
 ## [0.15.1] - 2026-11-05
 

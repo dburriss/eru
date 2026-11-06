@@ -195,6 +195,18 @@ let ``an option block for another view is rejected`` () =
     assertRejected "only valid with view \"table\"" """{ "pages": { "p": { "filter": {}, "table": { "columns": ["title"] } } } }"""
 
 [<Fact>]
+let ``browse is judged as a table when no view is set`` () =
+    let s = siteSettings """{ "pages": { "browse": { "filter": {}, "table": { "columns": ["title", "type"] } } } }"""
+    Assert.Equal(1, s.Pages.Length)
+    // the view the page really renders with still decides: a site default or page view of cards rejects table
+    assertRejected "only valid with view \"table\"" """{ "defaultView": "cards", "pages": { "browse": { "filter": {}, "table": { "columns": ["title"] } } } }"""
+    assertRejected "only valid with view \"table\"" """{ "pages": { "browse": { "filter": {}, "view": "cards", "table": { "columns": ["title"] } } } }"""
+    // blocks for another view are rejected on browse too, since it is a table
+    assertRejected "only valid with view \"cards\"" """{ "pages": { "browse": { "filter": {}, "cards": { "columns": 2 } } } }"""
+    // other pages keep the global default of cards
+    assertRejected "only valid with view \"table\"" """{ "pages": { "p": { "filter": {}, "table": { "columns": ["title"] } } } }"""
+
+[<Fact>]
 let ``an option block is judged against the site default view`` () =
     let s = siteSettings """{ "defaultView": "table", "pages": { "p": { "filter": {}, "table": { "columns": ["title"] } } } }"""
     Assert.Equal(1, s.Pages.Length)

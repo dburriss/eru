@@ -511,7 +511,9 @@ module SiteSettings =
         let path = $"site.pages.{id}"
         if def.Content.IsNone && def.Filter.IsNone then
             fail $"{path} needs at least one of \"content\" or \"filter\""
-        let effectiveView = def.View |> Option.orElse s.DefaultView |> Option.defaultValue SiteVocabulary.defaultView
+        // Browse renders as a table unless the page or the site picks a view, so it is judged as one.
+        let fallbackView = if id = "browse" then "table" else SiteVocabulary.defaultView
+        let effectiveView = def.View |> Option.orElse s.DefaultView |> Option.defaultValue fallbackView
         def.View |> Option.iter (oneOf $"{path}.view" "view" SiteVocabulary.views)
         if def.CardsColumns.IsSome && effectiveView <> "cards" then
             fail $"{path}.cards is only valid with view \"cards\" (this page uses \"{effectiveView}\")"
