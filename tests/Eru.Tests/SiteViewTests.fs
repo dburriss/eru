@@ -6,7 +6,7 @@ open Eru.Site
 open Eru.Site.Views
 open Eru.Tests.SiteTestSupport
 
-let private vc : ViewContext = { Prefix = "../"; TagsLive = true; Open = OpenPage; SourceUrl = fun _ -> None }
+let private vc : ViewContext = { Prefix = "../"; TagsLive = true; Open = OpenPage; SourceUrl = (fun _ -> None); Filterable = false }
 
 let private docs =
     [ { baseDoc with Title = "Alpha"; Type = Some "runbook"; Tags = [ "ops"; "has space" ]; Bundle = Some "kb/ops"; Status = Some "stable" }
@@ -46,6 +46,8 @@ let ``every view emits the filter contract on each document`` (view: string) =
     Assert.Contains("data-type=\"[&quot;runbook&quot;]\"", html)
     Assert.Contains("data-bundle=\"[&quot;kb/ops&quot;]\"", html)
     Assert.Contains("data-status=\"[&quot;stable&quot;]\"", html)
+    Assert.Contains("data-sync=\"[&quot;pulled&quot;]\"", html)
+    Assert.Contains("data-sync=\"[&quot;index-only&quot;]\"", html)
     Assert.Contains("data-ext=\"[&quot;.md&quot;]\"", html)
     // a tag containing a space stays one value
     Assert.Contains("data-tags=\"[&quot;ops&quot;,&quot;has space&quot;]\"", html)
@@ -83,3 +85,22 @@ let ``sourceFileUrl handles ssh, gitlab and local urls`` () =
     Assert.Equal(Some "https://github.com/o/r/blob/main/docs/a%20b.md", sourceFileUrl "git@github.com:o/r.git" (Some "main") "docs/a b.md")
     Assert.Equal(Some "https://gitlab.com/o/r/-/blob/HEAD/a.md", sourceFileUrl "https://gitlab.com/o/r" None "a.md")
     Assert.Equal(None, sourceFileUrl "/local/path" None "a.md")
+
+[<Fact>]
+let ``table title cell leads with the sync glyph`` () =
+    let html = renderDocs vc { spec "table" with TableColumns = [ "title" ] } docs
+    Assert.Contains("class=\"gl gl-pulled\"", html)
+    Assert.Contains("class=\"gl gl-index-only\"", html)
+
+[<Fact>]
+let ``filterable pages render source and tags as add-filter buttons`` () =
+    let html = renderDocs { vc with Filterable = true } { spec "table" with TableColumns = [ "title"; "source"; "tags" ] } docs
+    Assert.Contains("data-add=\"source:src\"", html)
+    Assert.Contains("data-add=\"tag:ops\"", html)
+    Assert.Contains("data-add=\"tag:has space\"", html)
+
+[<Fact>]
+let ``other pages keep tag links`` () =
+    let html = renderDocs vc { spec "table" with TableColumns = [ "tags" ] } docs
+    Assert.DoesNotContain("data-add=", html)
+    Assert.Contains("class=\"tag\"", html)

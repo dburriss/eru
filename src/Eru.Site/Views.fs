@@ -97,6 +97,8 @@ type ViewContext = {
     TagsLive  : bool
     Open      : OpenTarget
     SourceUrl : SiteDocument -> string option
+    /// True on pages with the query line: source and tag cells become buttons that add a filter.
+    Filterable : bool
 }
 
 type ViewSpec = {
@@ -119,7 +121,7 @@ let private jsonArray (xs: string list) =
 /// The filter contract: marks an element as a filterable document.
 let docAttrs (d: SiteDocument) : string =
     let one (v: string option) = jsonArray (Option.toList v)
-    $"""data-doc data-id="{escapeHtml d.Id}" data-path="{escapeHtml d.RemotePath}" data-source="{jsonArray [ d.Source ]}" data-ext="{jsonArray [ d.Extension ]}" data-tags="{jsonArray d.Tags}" data-type="{one d.Type}" data-bundle="{one d.Bundle}" data-status="{one d.Status}" """.TrimEnd()
+    $"""data-doc data-id="{escapeHtml d.Id}" data-path="{escapeHtml d.RemotePath}" data-source="{jsonArray [ d.Source ]}" data-ext="{jsonArray [ d.Extension ]}" data-tags="{jsonArray d.Tags}" data-type="{one d.Type}" data-bundle="{one d.Bundle}" data-status="{one d.Status}" data-sync="{jsonArray [ DocFacts.statusLabel d.SyncStatus ]}" """.TrimEnd()
 
 let private docHref (vc: ViewContext) (d: SiteDocument) : (string * bool) option =
     let page = d.PageUrl |> Option.map (fun u -> vc.Prefix + u, false)
@@ -134,6 +136,16 @@ let titleLink (vc: ViewContext) (d: SiteDocument) : string =
     | Some (href, true) -> $"""<a href="{escapeHtml href}" target="_blank" rel="noopener">{escapeHtml d.Title}</a>"""
     | Some (href, false) -> $"""<a href="{href}">{escapeHtml d.Title}</a>"""
     | None -> escapeHtml d.Title
+
+/// Sync status as one glyph (● pulled, ◐ cached, ○ index-only); the legend lives in the query widget.
+let syncGlyph (d: SiteDocument) : string =
+    let label = DocFacts.statusLabel d.SyncStatus
+    let glyph = match label with "pulled" -> "●" | "cached" -> "◐" | _ -> "○"
+    $"""<span class="gl gl-{label}" title="{label}" aria-label="{label}">{glyph}</span>"""
+
+/// A filter button: clicking it adds `key:value` to the query line.
+let private addButton (key: string) (value: string) (text: string) : string =
+    $"""<button type="button" class="add-filter" data-add="{key}:{escapeHtml value}">{escapeHtml text}</button>"""
 
 let lifecycleBadge (status: string) =
     $"""<span class="badge badge-lifecycle badge-lifecycle-{escapeHtml status}">{escapeHtml status}</span>"""
@@ -152,10 +164,12 @@ let private columnLabel =
 /// Inline HTML for one field of a document, empty when the document has no value.
 let private fieldHtml (vc: ViewContext) (field: string) (d: SiteDocument) : string =
     match field with
+    | "source" when vc.Filterable -> addButton "source" d.Source d.Source
     | "source" -> $"""<span class="badge badge-source">{escapeHtml d.Source}</span>"""
     | "path" -> $"<code>{escapeHtml d.RemotePath}</code>"
     | "bundle" -> d.Bundle |> Option.map escapeHtml |> Option.defaultValue ""
     | "type" -> d.Type |> Option.map (fun t -> $"""<span class="badge badge-type">{escapeHtml t}</span>""") |> Option.defaultValue ""
+    | "tags" when vc.Filterable -> d.Tags |> List.map (fun t -> addButton "tag" t ("#" + t)) |> String.concat " "
     | "tags" -> tagList d.Tags vc.Prefix vc.TagsLive
     | "status" -> d.Status |> Option.map lifecycleBadge |> Option.defaultValue ""
     | "verified" -> trustBadge d.Verified
@@ -216,6 +230,14 @@ let private listView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument list
 {docs |> List.map item |> String.concat "\n"}
 </ul>"""
 
+/// Table title cell: sync glyph and name, with the description underneath.
+let private titleCell (vc: ViewContext) (d: SiteDocument) : string =
+    let desc =
+        match d.Description with
+        | Some t -> $"""<div class="cell-desc">{escapeHtml t}</div>"""
+        | None -> ""
+    $"""<div class="cell-name">{syncGlyph d}{titleLink vc d}</div>{desc}"""
+
 let private tableView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument list) : string =
     let head =
         spec.TableColumns
@@ -225,7 +247,7 @@ let private tableView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument lis
         let cells =
             spec.TableColumns
             |> List.map (fun c ->
-                let inner = if c = "title" then titleLink vc d else fieldHtml vc c d
+                let inner = if c = "title" then titleCell vc d else fieldHtml vc c d
                 $"""<td data-col="{c}">{inner}</td>""")
             |> String.concat ""
         $"""<tr {docAttrs d}>{cells}</tr>"""

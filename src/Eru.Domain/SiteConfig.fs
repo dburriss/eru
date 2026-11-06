@@ -152,6 +152,7 @@ module SiteVocabulary =
           "cli",         mainAndSide
           "content",     [ Main ]
           "list",        [ Main ]
+          "query",       [ Main ]
           "toc",         sideOnly
           "related",     mainAndSide
           "graph",       mainAndSide

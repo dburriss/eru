@@ -139,8 +139,8 @@ Each page has four slots, each an ordered list or `false` (disabled):
 | Slot | Takes | Default |
 |---|---|---|
 | `top` | Page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }` | Every page that exists |
-| `left` | Widget names, page ids, links | `facets` |
-| `right` | Widget names, page ids, links | `toc` |
+| `left` | Widget names, page ids, links | `facets` (none on Browse) |
+| `right` | Widget names, page ids, links | `toc` (none on Browse) |
 | `main` | Widget names | Depends on the page kind, below |
 
 An empty slot, or one whose widgets all render nothing, leaves no gap: the page grid drops the region.
@@ -154,7 +154,8 @@ the built-in `tags` page, which shares its name with a widget, write `{ "page": 
 
 | Page kind | Default `main` |
 |---|---|
-| List page (browse, tags, custom) | `title`, `list` |
+| Browse | `title`, `query`, `list` |
+| List page (tags, custom) | `title`, `list` |
 | Detail page (`tags/<tag>/`, ...) | `breadcrumbs`, `title`, `cli`, `list` |
 | Content page | `title`, `content` |
 | Document page | `graph`, `breadcrumbs`, `title`, `meta`, `verified`, `generated`, `description`, `tags`, `stale`, `cli`, `content`, `related` |
@@ -169,7 +170,8 @@ the built-in `tags` page, which shares its name with a widget, write `{ "page": 
 | `stale` | Warning, only when past `stale_after` | `main` |
 | `cli` | Copyable `eru add ...` commands | `main`, side slots |
 | `content` | The rendered Markdown | `main` |
-| `list` | The page's filtered documents, in its view, with a search box | `main` |
+| `list` | The page's filtered documents, in its view, with a search box (unless the page has `query`) | `main` |
+| `query` | The query line: typed `key:value` filter tokens, a completion list with live counts, key buttons and a status legend. Replaces the search box | `main` |
 | `toc` | Table of contents from the content's headings | side slots |
 | `related` | Incoming and outgoing link lists (no JS) | `main`, side slots |
 | `graph` | Linked-documents visualisation. Hidden until JS draws it, so it needs `related` for readers without JS | `main`, side slots |
@@ -195,10 +197,25 @@ unless checked.
 option block for a different view than the page uses (for example `cards` on a `table` page) is an error. All three
 views work without JS; click-to-sort table headers are a JS enhancement.
 
+### The query line
+
+On Browse the `query` widget replaces the sidebar. Type free text to search, or `key:value` words to filter. A
+word becomes a token when you press space or enter, pick it from the completion list, or click a source or tag in
+the table. Keys: `source`, `status` (`pulled`, `cached`, `index-only`), `tag`, `type`, `ext`, `bundle` and
+`lifecycle` (the frontmatter `status`). Prefix a word with `-` to exclude it (`-tag:adr`). Values for one key are
+OR-ed, different keys are AND-ed, and the counts in the completion list follow the same rule as the sidebar
+counts. Values with a space take quotes: `tag:"has space"`. The query is kept in the address as `?q=`, so a
+filtered view can be linked. Press `/` to focus the line, `j` and `k` to move through the rows and enter to open one.
+
+The status of each file shows as a glyph before its name: `●` pulled, `◐` cached, `○` index-only.
+
+Browse shows a table of name, source and tags unless `defaultView` or `pages.browse.view` says otherwise. To bring
+the sidebar back, set `"layout": { "left": ["facets"] }`; the checkboxes and the query line filter together.
+
 ### The filter contract
 
 Every view marks each document with `data-doc` and one `data-<facet>` attribute per facet (`source`, `ext`,
-`tags`, `type`, `bundle`, `status`), each a JSON array of values so a value containing a space or pipe stays one
+`tags`, `type`, `bundle`, `status` and `sync`, the pulled/cached/index-only state), each a JSON array of values so a value containing a space or pipe stays one
 value. A facet list in the sidebar carries `data-facet="<name>"`; `app.js` builds its filter state from whichever
 lists exist, so it knows nothing about cards, lists or tables. Matching is OR within a facet, AND across facets,
 plus a text search, and the sidebar counts follow the same rule. `data-doc-group` sections hide when none of their documents is visible, and `data-doc-count`

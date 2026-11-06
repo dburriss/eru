@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the generated site has a new terminal look: monospace type, square corners, hairline borders and an orange accent. The CSS variable names are unchanged, so a `custom.css` that sets `--color-*`, `--font-family` or `--radius` still applies, but overrides of component classes may need a second look.
+- **Breaking:** Browse is now a query line above a table of name, source and tags, with no sidebar. Set `layout.left` to `["facets"]` to bring the sidebar back, or `defaultView` to `cards` for the old cards.
+
+### Added
+
+- A `query` widget: type `tag:`, `source:` or `status:` to filter with a completion list and live counts, exclude with `-tag:x`, click a source or tag in the table to add it, and share the filtered view through `?q=` in the address. Press `/` to focus it and `j`, `k` and enter to move through rows.
+- The sync state of each file shows as a glyph before its name (`●` pulled, `◐` cached, `○` index-only), and rows carry a `data-sync` attribute.
+
 ## [0.15.1] - 2026-11-05
 
 ### Changed

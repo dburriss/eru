@@ -235,12 +235,33 @@ let private contentWidget (ctx: WidgetContext) =
     | Some html -> $"""<article class="markdown-body">{html}</article>"""
     | None -> ""
 
+/// The query line: typed `key:value` tokens, a completion list and key buttons. js/app.js
+/// fills the tokens, counts and completions from the documents on the page.
+let private queryWidget (ctx: WidgetContext) =
+    if not ctx.Page.Searchable then ""
+    else
+        let legend =
+            [ "pulled", "●"; "cached", "◐"; "index-only", "○" ]
+            |> List.map (fun (l, g) -> $"""<span><span class="gl gl-{l}">{g}</span>{l}</span>""")
+            |> String.concat ""
+        $"""<div id="search-container" class="query" style="display:none" data-query>
+  <div class="q-bar">
+    <span class="q-prompt" aria-hidden="true">&gt;</span>
+    <span class="q-tokens" data-q-tokens></span>
+    <input type="text" id="search-input" class="q-input" placeholder="Search, or type tag: source: status:" aria-label="Search and filter files" autocomplete="off" spellcheck="false" />
+    <kbd>/</kbd>
+  </div>
+  <div class="q-pop" data-q-pop hidden></div>
+  <div class="q-keys" data-q-keys><span class="q-label">filter by</span></div>
+  <div class="q-help"><span class="q-legend">{legend}</span><span class="q-hints"><code>-tag:adr</code> excludes <kbd>j</kbd><kbd>k</kbd> move <kbd>↵</kbd> open</span></div>
+</div>"""
+
 let private listWidget (ctx: WidgetContext) =
     match ctx.Page.ListHtml with
     | None -> ""
     | Some html ->
         let search =
-            if ctx.Page.Searchable then
+            if ctx.Page.Searchable && not (List.contains "query" ctx.Slots.Main) then
                 """<div id="search-container" class="list-search" style="display:none">
   <input type="search" id="search-input" placeholder="Search…" aria-label="Search files" />
 </div>
@@ -275,6 +296,7 @@ let renderers : Map<string, WidgetContext -> string> =
         "cli",         cliWidget
         "content",     contentWidget
         "list",        listWidget
+        "query",       queryWidget
         "toc",         tocWidget
         "related",     relatedWidget
         "graph",       graphWidget

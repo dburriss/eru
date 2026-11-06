@@ -46,12 +46,12 @@ wins, whole-slot replacement: built-in defaults, `site.layout`, the page's `layo
 `top`/`left`/`right`; `main` is per page or in `site.document`.
 
 - `top` takes page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }`. Default: every page.
-- `left` default `facets`; `right` default `toc`. A string is a widget name if one matches, else a page id link (use `{ "page": "tags" }` for the built-in `tags`).
+- `left` default `facets`; `right` default `toc`; Browse has neither (`"left": ["facets"]` brings the sidebar back). A string is a widget name if one matches, else a page id link (use `{ "page": "tags" }` for the built-in `tags`).
 
-Default `main` by page kind: list `title, list`; detail (`tags/<tag>/`) `breadcrumbs, title, cli, list`; content
+Default `main` by page kind: browse `title, query, list`; list `title, list`; detail (`tags/<tag>/`) `breadcrumbs, title, cli, list`; content
 `title, content`; document `graph, breadcrumbs, title, meta, verified, generated, description, tags, stale, cli, content, related`.
 
-Widgets: `breadcrumbs`, `title`, `stale`, `content`, `list` (main only); `meta`, `verified`, `generated`,
+Widgets: `breadcrumbs`, `title`, `stale`, `content`, `list`, `query` (main only; `query` is the filter line on Browse: `tag:x`, `source:x`, `status:pulled`, `-tag:x`); `meta`, `verified`, `generated`,
 `description`, `tags`, `cli`, `related`, `graph` (main + sides); `toc`, `facets`, `links` (sides only). Widgets
 with no data render nothing and leave no gap.
 

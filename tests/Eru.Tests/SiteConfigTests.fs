@@ -235,3 +235,9 @@ let ``normalizeRelPath folds dot segments and rejects escapes`` () =
     Assert.Equal(None, SiteSettings.normalizeRelPath "../a.md")
     Assert.Equal(None, SiteSettings.normalizeRelPath "/a.md")
     Assert.Equal(None, SiteSettings.normalizeRelPath "")
+
+[<Fact>]
+let ``the query widget is valid in main only`` () =
+    let s = siteSettings """{ "pages": { "p": { "filter": {}, "layout": { "main": ["title", "query", "list"] } } } }"""
+    Assert.True(s.Pages |> List.exists (fun (id, _) -> id = "p"))
+    assertRejected "query" """{ "layout": { "left": ["query"] } }"""

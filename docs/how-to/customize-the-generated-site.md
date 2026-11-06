@@ -55,16 +55,21 @@ via `--custom-css`, and let `style.css` stay untouched as the base.
 
 ```css
 :root {
-  --color-primary: #0366d6;   /* links, active states, focus rings */
-  --color-text: #24292e;      /* body copy */
-  --color-bg: #ffffff;        /* page background */
-  --color-surface: #f6f8fa;   /* card and sidebar background */
-  --color-border: #e1e4e8;    /* card borders and dividers */
-  --color-badge-bg: #eef2ff;  /* source/tag badge background */
-  --color-badge-text: #3730a3;/* source/tag badge text */
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --radius: 6px;               /* border radius for cards and inputs */
+  --color-primary: #c2410c;   /* accent: filter tokens, focus, the cursor in the logo */
+  --color-text: #201d1d;      /* body copy */
+  --color-bg: #fdfcfc;        /* page background */
+  --color-surface: #f4f1f1;   /* table header, hover and code background */
+  --color-border: #d6d1d1;    /* hairlines and dividers */
+  --color-muted: #6f6969;     /* descriptions, counts and labels */
+  --color-accent-soft: #fde7da; /* focus shadow of the query line */
+  --color-ok: #15803d;        /* pulled */
+  --color-warn: #a16207;      /* cached */
+  --color-badge-bg: #f1ece9;  /* type badge background */
+  --color-badge-text: #7c2d12;/* type badge text */
+  --font-family: var(--font-mono);  /* the whole site is monospace by default */
+  --font-prose: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; /* rendered Markdown */
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --radius: 0;                /* square corners; set e.g. 6px to soften */
 }
 ```
 

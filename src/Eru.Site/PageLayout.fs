@@ -16,7 +16,8 @@ type ResolvedSlots = {
 }
 
 type PageKind =
-    | ListPage           // browse, tags, custom filter pages
+    | BrowsePage         // the browse page: query line and table, no sidebars
+    | ListPage           // tags, custom filter pages
     | DetailPage         // tags/<tag>, sources/<name>, ...
     | ContentPage
     | ContentListPage    // content and filter on one page
@@ -24,6 +25,7 @@ type PageKind =
 
 let defaultMain (kind: PageKind) : string list =
     match kind with
+    | BrowsePage -> [ "title"; "query"; "list" ]
     | ListPage -> [ "title"; "list" ]
     | DetailPage -> [ "breadcrumbs"; "title"; "cli"; "list" ]
     | ContentPage -> [ "title"; "content" ]
@@ -33,8 +35,8 @@ let defaultMain (kind: PageKind) : string list =
 let baseLayout (settings: SiteSettings) (kind: PageKind) : Layout =
     let widgets = List.map WidgetRef
     { Top = Some (Items (SiteSettings.knownPageIds settings |> List.map (fun id -> PageRef (id, None))))
-      Left = Some (Items (widgets [ "facets" ]))
-      Right = Some (Items (widgets [ "toc" ]))
+      Left = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "facets" ]))
+      Right = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "toc" ]))
       Main = Some (Items (widgets (defaultMain kind))) }
 
 let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
@@ -69,3 +71,12 @@ let viewSpec (settings: SiteSettings) (def: PageDef option) : Views.ViewSpec =
       Columns = def |> Option.bind (fun p -> p.CardsColumns) |> Option.orElse settings.CardsColumns |> Option.defaultValue d.Columns
       TableColumns = def |> Option.bind (fun p -> p.TableColumns) |> Option.defaultValue d.TableColumns
       ListShow = def |> Option.bind (fun p -> p.ListShow) |> Option.defaultValue d.ListShow }
+
+/// Browse shows a table of name, source and tags unless the site or the page picks a view.
+let browseViewSpec (settings: SiteSettings) (def: PageDef option) : Views.ViewSpec =
+    let s = viewSpec settings def
+    let viewSet = (def |> Option.bind (fun p -> p.View) |> Option.isSome) || settings.DefaultView.IsSome
+    let colsSet = def |> Option.bind (fun p -> p.TableColumns) |> Option.isSome
+    { s with
+        View = if viewSet then s.View else "table"
+        TableColumns = if colsSet then s.TableColumns else [ "title"; "source"; "tags" ] }

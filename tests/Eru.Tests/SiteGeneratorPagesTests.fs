@@ -38,12 +38,15 @@ let ``no config renders the refreshed defaults`` () =
         // top nav: every built-in page
         for url in [ "index.html"; "sources/index.html"; "tags/index.html"; "types/index.html"; "bundles/index.html" ] do
             Assert.Contains($"""<a href="{url}">""", index)
-        // left = facets (filter mode on browse); no right content on a plain list page
-        Assert.Contains("region-left", index)
-        Assert.Contains("data-facet-mode=\"filter\"", index)
+        // browse: the query line and a table, with no sidebars
+        Assert.DoesNotContain("region-left", index)
         Assert.DoesNotContain("region-right", index)
-        // main = title + list, in the cards view
-        Assert.Contains("card-grid", index)
+        Assert.DoesNotContain("data-facet-mode", index)
+        Assert.Contains("data-query", index)
+        Assert.Contains("id=\"search-input\"", index)
+        Assert.Contains("doc-table", index)
+        Assert.Contains("data-add=\"source:src\"", index)
+        Assert.Contains("gl gl-pulled", index)
         Assert.Contains("data-doc-list", index)
         // document page: facets on the left, toc on the right
         let doc = readOut out "files/src/ops_restart.md.html"
@@ -251,18 +254,23 @@ let ``document layout applies to every document page`` () =
 let ``a page layout replaces a slot for that page only`` () =
     run """{ "pages": { "ops": { "filter": {}, "layout": { "left": false } } } }""" (fun out ->
         Assert.DoesNotContain("region-left", readOut out "pages/ops/index.html")
-        Assert.Contains("region-left", readOut out "index.html"))
+        Assert.Contains("region-left", readOut out "tags/ops/index.html"))
 
 [<Fact>]
 let ``site default view and card columns apply to browse`` () =
     run """{ "defaultView": "table", "cards": { "columns": 2 } }""" (fun out ->
         Assert.Contains("doc-table", readOut out "index.html"))
-    run """{ "cards": { "columns": 2 } }""" (fun out ->
+    run """{ "defaultView": "cards", "cards": { "columns": 2 } }""" (fun out ->
         Assert.Contains("--cols: 2", readOut out "index.html"))
+    // with no view configured, browse is the table of name, source and tags
+    run "{}" (fun out ->
+        let index = readOut out "index.html"
+        Assert.Contains("data-col=\"tags\"", index)
+        Assert.DoesNotContain("data-col=\"type\"", index))
 
 [<Fact>]
 let ``browse documents carry the filter contract and facets become filters`` () =
-    run "{}" (fun out ->
+    run """{ "layout": { "left": ["facets"] } }""" (fun out ->
         let index = readOut out "index.html"
         Assert.Contains("data-doc ", index)
         Assert.Contains("data-type=", index)
@@ -274,7 +282,19 @@ let ``browse documents carry the filter contract and facets become filters`` () 
         Assert.Contains("facet-empty", js)
         Assert.Contains("facet-empty", readOut out "assets/css/style.css")
         Assert.DoesNotContain("source-filters", js)
-        Assert.DoesNotContain(".file-card", js))
+        Assert.DoesNotContain(".file-card", js)
+        // the query line shares the facet pipeline
+        Assert.Contains("data-query", js)
+        Assert.Contains("data-add", js)
+        Assert.Contains("lifecycle", js))
+
+[<Fact>]
+let ``the query widget can be left out of browse`` () =
+    run """{ "pages": { "browse": { "filter": {}, "layout": { "main": ["title", "list"] } } } }""" (fun out ->
+        let index = readOut out "index.html"
+        Assert.DoesNotContain("data-query", index)
+        // without the query widget the plain search box returns
+        Assert.Contains("id=\"search-input\"", index))
 
 [<Fact>]
 let ``detail pages keep breadcrumbs and cli tips`` () =

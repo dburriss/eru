@@ -44,44 +44,55 @@ module GenerateOptions =
 
 let private css = """
 :root {
-  --color-primary: #0366d6;
-  --color-text: #24292e;
-  --color-bg: #ffffff;
-  --color-surface: #f6f8fa;
-  --color-border: #e1e4e8;
-  --color-badge-bg: #eef2ff;
-  --color-badge-text: #3730a3;
+  --color-primary: #c2410c;
+  --color-text: #201d1d;
+  --color-bg: #fdfcfc;
+  --color-surface: #f4f1f1;
+  --color-border: #d6d1d1;
+  --color-muted: #6f6969;
+  --color-accent-soft: #fde7da;
+  --color-ok: #15803d;
+  --color-warn: #a16207;
+  --color-badge-bg: #f1ece9;
+  --color-badge-text: #7c2d12;
   --color-graph-incoming: #065f46;
   --color-graph-outgoing: #92400e;
   --color-graph-external: #6b7280;
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --radius: 6px;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-family: var(--font-mono);
+  --font-prose: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --radius: 0;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-text: #c9d1d9;
-    --color-bg: #0d1117;
-    --color-surface: #161b22;
-    --color-border: #30363d;
-    --color-primary: #58a6ff;
-    --color-badge-bg: #1e2a3a;
-    --color-badge-text: #79b8ff;
+    --color-text: #ededed;
+    --color-bg: #0a0a0a;
+    --color-surface: #161616;
+    --color-border: #2c2c2c;
+    --color-muted: #8a8a8a;
+    --color-primary: #ff8a3d;
+    --color-accent-soft: #3a1d0b;
+    --color-ok: #4ade80;
+    --color-warn: #facc15;
+    --color-badge-bg: #26211e;
+    --color-badge-text: #ffb27a;
     --color-graph-incoming: #6ee7b7;
     --color-graph-outgoing: #fcd34d;
     --color-graph-external: #9ca3af;
   }
 }
 body.theme-light {
-  --color-text: #24292e; --color-bg: #ffffff; --color-surface: #f6f8fa;
-  --color-border: #e1e4e8; --color-primary: #0366d6;
-  --color-badge-bg: #eef2ff; --color-badge-text: #3730a3;
+  --color-text: #201d1d; --color-bg: #fdfcfc; --color-surface: #f4f1f1;
+  --color-border: #d6d1d1; --color-muted: #6f6969; --color-primary: #c2410c;
+  --color-accent-soft: #fde7da; --color-ok: #15803d; --color-warn: #a16207;
+  --color-badge-bg: #f1ece9; --color-badge-text: #7c2d12;
   --color-graph-incoming: #065f46; --color-graph-outgoing: #92400e; --color-graph-external: #6b7280;
 }
 body.theme-dark {
-  --color-text: #c9d1d9; --color-bg: #0d1117; --color-surface: #161b22;
-  --color-border: #30363d; --color-primary: #58a6ff;
-  --color-badge-bg: #1e2a3a; --color-badge-text: #79b8ff;
+  --color-text: #ededed; --color-bg: #0a0a0a; --color-surface: #161616;
+  --color-border: #2c2c2c; --color-muted: #8a8a8a; --color-primary: #ff8a3d;
+  --color-accent-soft: #3a1d0b; --color-ok: #4ade80; --color-warn: #facc15;
+  --color-badge-bg: #26211e; --color-badge-text: #ffb27a;
   --color-graph-incoming: #6ee7b7; --color-graph-outgoing: #fcd34d; --color-graph-external: #9ca3af;
 }
 
@@ -92,13 +103,13 @@ body {
   color: var(--color-text);
   background: var(--color-bg);
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 a { color: var(--color-primary); text-decoration: none; transition: color 0.15s ease; }
-a:hover { text-decoration: underline; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1rem; }
+h1 { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 1rem; }
 h3 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
      letter-spacing: 0.05em; color: var(--color-text); opacity: 0.7; margin-bottom: 0.5rem; }
 
@@ -108,11 +119,12 @@ h3 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1.5rem;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
-.nav-brand { font-weight: 700; font-size: 1.1rem; }
+.nav-brand { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; color: var(--color-text); }
+.nav-brand::after { content: "_"; color: var(--color-primary); }
 #theme-toggle {
   margin-left: auto;
   background: transparent;
@@ -198,19 +210,16 @@ body.theme-dark .sidebar-section h3 { opacity: 0.6; }
   display: inline-block;
   font-size: 0.72rem;
   padding: 0.15rem 0.45rem;
-  border-radius: 999px;
+  border-radius: 0;
   font-weight: 500;
   white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .badge-source { background: var(--color-badge-bg); color: var(--color-badge-text); }
-.badge-status    { background: #ddf4ff; color: #0969da; }
-.badge-pulled    { background: #d1fae5; color: #065f46; }
-.badge-cached    { background: #fef3c7; color: #92400e; }
+.badge-status    { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+.badge-pulled    { color: var(--color-ok); }
+.badge-cached    { color: var(--color-warn); }
 .badge-index-only { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
-body.theme-dark .badge-status { background: #0c2d6b; color: #79b8ff; }
-body.theme-dark .badge-pulled { background: #064e3b; color: #6ee7b7; }
-body.theme-dark .badge-cached { background: #451a03; color: #fcd34d; }
 .tag {
   display: inline-block;
   font-size: 0.75rem;
@@ -269,6 +278,7 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 
 /* markdown body */
 .markdown-body {
+  font-family: var(--font-prose);
   max-width: 860px;
   font-size: 15px;
   line-height: 1.7;
@@ -531,6 +541,91 @@ body.theme-dark .doc-stale-warning { background: #451a03; color: #fcd34d; }
 .side-links { list-style: none; }
 .side-links li { padding: 0.15rem 0; }
 .empty-note { opacity: 0.6; }
+
+/* terminal look: hairline grid, status glyphs, query line */
+.gl { display: inline-block; width: 1.4ch; margin-right: 0.6ch; font-weight: 700; }
+.gl-pulled { color: var(--color-ok); }
+.gl-cached { color: var(--color-warn); }
+.gl-index-only { color: var(--color-muted); }
+kbd {
+  font: inherit; font-size: 0.8em; border: 1px solid var(--color-border);
+  padding: 0 0.4em; color: var(--color-text); background: var(--color-bg);
+}
+.query { position: relative; margin-bottom: 1rem; }
+.q-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+  border: 1px solid var(--color-text); background: var(--color-bg); padding: 0.45rem 0.7rem;
+}
+.q-bar:focus-within { border-color: var(--color-primary); box-shadow: 4px 4px 0 var(--color-accent-soft); }
+.q-prompt { color: var(--color-primary); font-weight: 700; }
+.q-tokens { display: contents; }
+.q-tok {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1px solid var(--color-primary); color: var(--color-primary); padding: 0 0.4rem; font-size: 0.92em;
+}
+.q-tok.q-neg { border-style: dashed; color: var(--color-muted); border-color: var(--color-muted); }
+.q-tok button { background: none; border: 0; color: var(--color-muted); cursor: pointer; font: inherit; padding: 0; }
+.q-tok button:hover { color: var(--color-text); }
+.q-input {
+  flex: 1; min-width: 12ch; border: 0; outline: none; background: transparent;
+  color: var(--color-text); font: inherit; padding: 0.1rem 0;
+}
+.q-bar kbd { margin-left: auto; }
+.q-pop {
+  position: absolute; left: 0; top: calc(100% - 0.35rem); z-index: 5; width: min(420px, 100%);
+  border: 1px solid var(--color-text); background: var(--color-bg);
+  box-shadow: 6px 6px 0 var(--color-border); max-height: 18rem; overflow-y: auto;
+}
+.q-pop-head {
+  padding: 0.25rem 0.7rem; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--color-muted); background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+}
+.q-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.6rem; padding: 0.2rem 0.7rem; cursor: pointer; }
+.q-opt u { text-decoration: none; color: var(--color-muted); }
+.q-opt em { font-style: normal; color: var(--color-muted); }
+.q-opt.q-zero { opacity: 0.5; }
+.q-opt.q-none { color: var(--color-muted); cursor: default; display: block; }
+.q-opt.q-on { background: var(--color-text); color: var(--color-bg); }
+.q-opt.q-on u, .q-opt.q-on em { color: var(--color-bg); }
+.q-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.6rem; color: var(--color-muted); font-size: 0.9em; }
+.q-key {
+  font: inherit; background: var(--color-bg); color: var(--color-text);
+  border: 1px solid var(--color-border); padding: 0.05rem 0.55rem; cursor: pointer;
+}
+.q-key:hover, .q-key:focus-visible { border-color: var(--color-text); }
+.q-key i { font-style: normal; color: var(--color-muted); }
+.q-help { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem 1.5rem; margin-top: 0.5rem; font-size: 0.85em; color: var(--color-muted); }
+.q-legend { display: inline-flex; gap: 1rem; }
+.q-help code { color: var(--color-text); }
+.q-input:focus-visible { outline: none; }
+.q-key:focus-visible, .add-filter:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+.cell-name { display: flex; align-items: baseline; font-weight: 600; }
+.cell-name a, .site-nav a { color: var(--color-text); }
+.site-nav a:hover { color: var(--color-primary); }
+.site-nav .nav-brand:hover { text-decoration: none; }
+.cell-desc { color: var(--color-muted); font-size: 0.9em; padding-left: 2ch; }
+.doc-table [data-col="source"] { width: 1%; white-space: nowrap; }
+.doc-table [data-col="tags"] { width: 22ch; }
+.add-filter {
+  font: inherit; color: var(--color-primary); background: none; border: 1px solid transparent;
+  padding: 0 0.3rem; margin: 0 0.1rem 0 -0.3rem; cursor: pointer;
+}
+.add-filter:hover { border-color: var(--color-text); color: var(--color-text); }
+.add-filter:hover::after { content: " +"; }
+.doc-table th { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-muted); }
+.doc-table th + th, .doc-table td + td { border-left: 1px solid var(--color-border); }
+.doc-table tbody tr:hover td { background: var(--color-surface); }
+.doc-table tr.q-sel td { background: var(--color-surface); }
+.doc-table tr.q-sel td:first-child { box-shadow: inset 3px 0 0 var(--color-primary); }
+.file-card.q-sel, .doc-list-item.q-sel { box-shadow: inset 3px 0 0 var(--color-primary); }
+@media (max-width: 640px) {
+  .doc-table [data-col="source"] { display: none; }
+  .q-bar kbd { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .q-bar, .q-key, .add-filter { transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+}
 """
 
 let private themeJs = """
@@ -573,7 +668,9 @@ let private appJs = """
   //   [data-facet="<name>"]      a sidebar list that filters that facet (inside [data-facet-mode="filter"])
   //   [data-doc-group]           a section hidden when none of its documents is visible
   //   [data-doc-count]           receives the visible document count
-  // Matching: OR within a facet, AND across facets, plus a text search.
+  //   [data-query]               the query line: typed key:value tokens drive the same facets
+  //   [data-add="key:value"]     a button that adds that token to the query line
+  // Matching: OR within a facet, AND across facets, minus any -key:value, plus a text search.
   // Facet counts follow the same matching, ignoring the facet's own selection.
   var facetState = {};      // facet name -> { value: true }
   var query = '';
@@ -588,8 +685,30 @@ let private appJs = """
     } catch (e) { return []; }
   }
 
+  // Query-line keys and the data-<facet> attribute each one filters.
+  var KEYS = { source: 'source', status: 'sync', tag: 'tags', type: 'type', ext: 'ext', bundle: 'bundle', lifecycle: 'status' };
+  var KEY_BUTTONS = ['source', 'status', 'tag', 'type'];
+  var tokens = [];          // { key, value, neg }
+  var qEl = null, qInput = null, qTokens = null, qPop = null;
+  var allValues = {};       // facet -> every value on the page
+  var lastCounts = {};
+  var popItems = [], popIdx = 0;
+  var selRow = -1;
+
+  function tokenValues(f, neg) {
+    return tokens.filter(function (t) { return KEYS[t.key] === f && !!t.neg === neg; })
+      .map(function (t) { return t.value; });
+  }
+
   function activeValues(f) {
-    return Object.keys(facetState[f]).filter(function (k) { return facetState[f][k]; });
+    var boxes = facetState[f] ? Object.keys(facetState[f]).filter(function (k) { return facetState[f][k]; }) : [];
+    return boxes.concat(tokenValues(f, false));
+  }
+
+  function facetNames() {
+    var names = Object.keys(facetState);
+    if (qEl) Object.keys(allValues).forEach(function (f) { if (names.indexOf(f) < 0) names.push(f); });
+    return names;
   }
 
   // Facet counts: a value's count is the number of documents matching the text and every
@@ -610,16 +729,17 @@ let private appJs = """
 
   function render() {
     var q = query.toLowerCase().trim();
-    var facets = Object.keys(facetState);
-    var active = {};
-    facets.forEach(function (f) { active[f] = activeValues(f); });
+    var facets = facetNames();
+    var active = {}, neg = {};
+    facets.forEach(function (f) { active[f] = activeValues(f); neg[f] = tokenValues(f, true); });
     var counts = {};
     var visible = 0;
     document.querySelectorAll('[data-doc]').forEach(function (el) {
       var passes = {};
       facets.forEach(function (f) {
-        passes[f] = active[f].length === 0 ||
-          valuesOf(el, f).some(function (v) { return active[f].indexOf(v) >= 0; });
+        var vals = valuesOf(el, f);
+        passes[f] = (active[f].length === 0 || vals.some(function (v) { return active[f].indexOf(v) >= 0; })) &&
+          !vals.some(function (v) { return neg[f].indexOf(v) >= 0; });
       });
       var facetsOk = facets.every(function (f) { return passes[f]; });
       var textOk;
@@ -644,6 +764,8 @@ let private appJs = """
       }
     });
     updateFacetCounts(counts);
+    lastCounts = counts;
+    if (qEl && qPop) { refreshPop(); selRow = -1; markRow(); }
     document.querySelectorAll('[data-doc-group]').forEach(function (g) {
       var any = Array.prototype.some.call(g.querySelectorAll('[data-doc]'), function (el) { return el.style.display !== 'none'; });
       g.style.display = any ? '' : 'none';
@@ -740,6 +862,241 @@ let private appJs = """
     });
   }
 
+  // ── query line ──────────────────────────────────────────────────────────────
+
+  var WORD = /-?[a-z]+:"[^"]*"|-?[a-z]+:\S+|\S+/gi;
+
+  function parseWord(w) {
+    var m = /^(-?)([a-z]+):(.*)$/i.exec(w);
+    if (!m || !KEYS[m[2].toLowerCase()]) return null;
+    return { key: m[2].toLowerCase(), value: m[3].replace(/^"|"$/g, ''), neg: m[1] === '-' };
+  }
+
+  function canonical(key, value) {
+    var found = (allValues[KEYS[key]] || []).filter(function (v) { return v.toLowerCase() === value.toLowerCase(); });
+    return found.length ? found[0] : value;
+  }
+
+  function addToken(key, value, neg) {
+    value = canonical(key, value);
+    var dup = tokens.some(function (t) { return t.key === key && t.value === value && !!t.neg === !!neg; });
+    if (!dup) tokens.push({ key: key, value: value, neg: !!neg });
+    return !dup;
+  }
+
+  function serialize() {
+    var parts = tokens.map(function (t) {
+      return (t.neg ? '-' : '') + t.key + ':' + (/\s/.test(t.value) ? '"' + t.value + '"' : t.value);
+    });
+    if (query.trim()) parts.push(query.trim());
+    return parts.join(' ');
+  }
+
+  function drawTokens() {
+    qTokens.textContent = '';
+    tokens.forEach(function (t, i) {
+      var s = document.createElement('span');
+      s.className = 'q-tok' + (t.neg ? ' q-neg' : '');
+      s.appendChild(document.createTextNode((t.neg ? '-' : '') + t.key + ':' + t.value + ' '));
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Remove ' + t.key + ':' + t.value);
+      b.textContent = '\u00d7';
+      b.addEventListener('click', function () { tokens.splice(i, 1); changed(); qInput.focus(); });
+      s.appendChild(b);
+      qTokens.appendChild(s);
+    });
+  }
+
+  function changed() {
+    drawTokens();
+    hidePop();
+    applyFilters();
+    try {
+      var u = new URL(window.location.href);
+      var s = serialize();
+      if (s) u.searchParams.set('q', s); else u.searchParams.delete('q');
+      window.history.replaceState(null, '', u);
+    } catch (e) { /* file: pages may refuse */ }
+  }
+
+  // Splits the input into tokens (complete key:value words) and free text. The word still
+  // being typed stays in the input unless the input ends in a space or `force` is set.
+  function commitWords(force) {
+    var raw = qInput.value;
+    var words = raw.match(WORD) || [];
+    var trailing = /\s$/.test(raw);
+    var keep = [], added = false;
+    words.forEach(function (w, i) {
+      var t = parseWord(w);
+      var complete = i < words.length - 1 || trailing || force;
+      if (t && t.value && complete) { addToken(t.key, t.value, t.neg); added = true; }
+      else keep.push(w);
+    });
+    if (added) {
+      qInput.value = keep.join(' ') + (trailing && keep.length ? ' ' : '');
+      readText();
+      changed();
+    }
+    return added;
+  }
+
+  // Free text is every word that is not a key:value word being typed.
+  function readText() {
+    var words = (qInput.value.match(WORD) || []).filter(function (w) { return !parseWord(w); });
+    query = words.join(' ');
+  }
+
+  function typingWord() {
+    var words = qInput.value.match(WORD) || [];
+    if (!words.length || /\s$/.test(qInput.value)) return null;
+    var m = /^(-?)([a-z]+):(.*)$/i.exec(words[words.length - 1]);
+    return m && KEYS[m[2].toLowerCase()] ? { key: m[2].toLowerCase(), neg: m[1] === '-', part: m[3].replace(/^"/, '').toLowerCase() } : null;
+  }
+
+  function hidePop() { qPop.hidden = true; popItems = []; popIdx = 0; }
+
+  function refreshPop() {
+    var w = typingWord();
+    if (!w || document.activeElement !== qInput) { hidePop(); return; }
+    var f = KEYS[w.key];
+    var counts = lastCounts[f] || {};
+    popItems = (allValues[f] || []).filter(function (v) {
+      var taken = tokens.some(function (t) { return t.key === w.key && t.value === v && !!t.neg === w.neg; });
+      return !taken && v.toLowerCase().indexOf(w.part) >= 0;
+    }).map(function (v) { return { key: w.key, value: v, neg: w.neg, n: counts[v] || 0 }; });
+    if (popIdx >= popItems.length) popIdx = 0;
+    qPop.textContent = '';
+    var h = document.createElement('div');
+    h.className = 'q-pop-head';
+    h.textContent = w.key + ' \u00b7 within current results';
+    qPop.appendChild(h);
+    if (!popItems.length) {
+      var none = document.createElement('div');
+      none.className = 'q-opt q-none';
+      none.textContent = 'no matching ' + w.key;
+      qPop.appendChild(none);
+    }
+    popItems.forEach(function (it, i) {
+      var o = document.createElement('div');
+      o.className = 'q-opt' + (i === popIdx ? ' q-on' : '') + (it.n ? '' : ' q-zero');
+      o.setAttribute('role', 'option');
+      var k = document.createElement('u'); k.textContent = (it.neg ? '-' : '') + it.key + ':';
+      var v = document.createElement('span'); v.textContent = it.value;
+      var n = document.createElement('em'); n.textContent = it.n;
+      o.appendChild(k); o.appendChild(v); o.appendChild(n);
+      o.addEventListener('mousedown', function (ev) { ev.preventDefault(); pick(it); });
+      qPop.appendChild(o);
+    });
+    qPop.hidden = false;
+  }
+
+  function pick(it) {
+    var words = qInput.value.match(WORD) || [];
+    words.pop();
+    qInput.value = words.join(' ') + (words.length ? ' ' : '');
+    addToken(it.key, it.value, it.neg);
+    readText();
+    changed();
+    qInput.focus();
+  }
+
+  function visibleRows() {
+    return Array.prototype.filter.call(document.querySelectorAll('[data-doc]'), function (el) { return el.style.display !== 'none'; });
+  }
+
+  function markRow() {
+    var rows = visibleRows();
+    document.querySelectorAll('[data-doc].q-sel').forEach(function (el) { el.classList.remove('q-sel'); });
+    if (selRow >= 0 && rows[selRow]) {
+      rows[selRow].classList.add('q-sel');
+      if (rows[selRow].scrollIntoView) rows[selRow].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function initQuery() {
+    qInput = qEl.querySelector('.q-input');
+    qTokens = qEl.querySelector('[data-q-tokens]');
+    qPop = qEl.querySelector('[data-q-pop]');
+    var keys = qEl.querySelector('[data-q-keys]');
+    KEY_BUTTONS.forEach(function (key) {
+      var n = (allValues[KEYS[key]] || []).length;
+      if (!n) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'q-key';
+      b.appendChild(document.createTextNode(key));
+      var i = document.createElement('i');
+      i.textContent = '\u00b7' + n;
+      b.appendChild(i);
+      b.addEventListener('click', function () {
+        qInput.value = qInput.value.replace(/\S*$/, '') + key + ':';
+        qInput.focus();
+        refreshPop();
+      });
+      keys.appendChild(b);
+    });
+
+    qInput.addEventListener('input', function () {
+      if (!commitWords(false)) { readText(); applyFilters(); }
+      refreshPop();
+    });
+    qInput.addEventListener('focus', refreshPop);
+    qInput.addEventListener('blur', hidePop);
+    qInput.addEventListener('keydown', function (e) {
+      var open = !qPop.hidden && popItems.length > 0;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!open) return;
+        e.preventDefault();
+        popIdx = (popIdx + (e.key === 'ArrowDown' ? 1 : popItems.length - 1)) % popItems.length;
+        refreshPop();
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (open) { e.preventDefault(); pick(popItems[popIdx]); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (!commitWords(true)) { qInput.blur(); } }
+      } else if (e.key === 'Escape') {
+        if (!qPop.hidden) hidePop(); else qInput.blur();
+      } else if (e.key === 'Backspace' && qInput.value === '' && tokens.length) {
+        tokens.pop();
+        changed();
+      }
+    });
+
+    var q = '';
+    try { q = new URL(window.location.href).searchParams.get('q') || ''; } catch (e) { q = ''; }
+    if (q) {
+      qInput.value = q + ' ';
+      commitWords(false);
+      readText();
+      qInput.value = query;
+    }
+    drawTokens();
+    applyFilters();
+  }
+
+  document.addEventListener('click', function (e) {
+    var add = qEl && e.target.closest('[data-add]');
+    if (!add) return;
+    var spec = add.getAttribute('data-add');
+    var i = spec.indexOf(':');
+    if (addToken(spec.slice(0, i), spec.slice(i + 1), false)) changed();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!qEl || e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === '/') { e.preventDefault(); qInput.focus(); return; }
+    var rows = visibleRows();
+    if (e.key === 'j' || e.key === 'k') {
+      if (!rows.length) return;
+      selRow = e.key === 'j' ? Math.min(selRow + 1, rows.length - 1) : Math.max(selRow - 1, 0);
+      markRow();
+    } else if (e.key === 'Enter' && selRow >= 0 && rows[selRow]) {
+      var a = rows[selRow].querySelector('a');
+      if (a) a.click();
+    }
+  });
+
   // Click-to-sort headers for table views.
   function enableTableSort(table) {
     table.querySelectorAll('th[data-sortable]').forEach(function (th, idx) {
@@ -772,13 +1129,23 @@ let private appJs = """
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-facet-mode="filter"] [data-facet]').forEach(upgradeFacet);
     document.querySelectorAll('table.doc-table').forEach(enableTableSort);
-    if (Object.keys(facetState).length > 0) render();
+    qEl = document.querySelector('[data-query]');
+    if (qEl) {
+      Object.keys(KEYS).forEach(function (key) {
+        var f = KEYS[key], seen = {};
+        document.querySelectorAll('[data-doc]').forEach(function (el) { valuesOf(el, f).forEach(function (v) { seen[v] = true; }); });
+        allValues[f] = Object.keys(seen).sort(function (a, b) { return a.localeCompare(b); });
+      });
+    }
+    if (Object.keys(facetState).length > 0 || qEl) render();
 
     var searchContainer = document.getElementById('search-container');
     if (searchContainer) searchContainer.style.display = '';
 
     var searchInput = document.getElementById('search-input');
-    if (searchInput) {
+    if (qEl) {
+      initQuery();
+    } else if (searchInput) {
       searchInput.addEventListener('input', function () {
         query = searchInput.value;
         applyFilters();
@@ -1237,8 +1604,9 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
         |> List.tryFind (fun s -> s.Name = d.Source)
         |> Option.bind (fun s -> s.Url |> Option.bind (fun u -> Views.sourceFileUrl u s.Branch d.RemotePath))
 
-    let viewContext (prefix: string) (def: PageDef option) : Views.ViewContext =
-        { Prefix = prefix; TagsLive = isLive "tags"; Open = PageLayout.openTarget settings def; SourceUrl = sourceUrlFor }
+    let viewContext (browse: bool) (prefix: string) (def: PageDef option) : Views.ViewContext =
+        { Prefix = prefix; TagsLive = isLive "tags"; Open = PageLayout.openTarget settings def; SourceUrl = sourceUrlFor
+          Filterable = browse }
 
     // link targets for rewriting links inside content pages
     let docUrls =
@@ -1300,9 +1668,9 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     let pages = ResizeArray<string * string>()
     let add (path: string) (html: string) = pages.Add((path, html))
 
-    let docList (prefix: string) (def: PageDef option) (docs: SiteDocument list) : string =
-        let vc = viewContext prefix def
-        let spec = PageLayout.viewSpec settings def
+    let docList (browse: bool) (prefix: string) (def: PageDef option) (docs: SiteDocument list) : string =
+        let vc = viewContext browse prefix def
+        let spec = if browse then PageLayout.browseViewSpec settings def else PageLayout.viewSpec settings def
         match def |> Option.bind (fun d -> d.Group) with
         | Some g -> Views.renderGroups vc spec (FilterEngine.group g docs)
         | None -> Views.renderDocs vc spec docs
@@ -1325,14 +1693,14 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     match def.Content, def.Filter with
                     | Some _, Some _ -> ContentListPage
                     | Some _, None -> ContentPage
-                    | None, _ -> ListPage
+                    | None, _ -> if spec.Id = "browse" then BrowsePage else ListPage
                 let contentDoc = content |> Option.bind snd
                 { Widgets.PageData.empty with
                     Title = spec.Title
                     ContentHtml = content |> Option.map fst
                     Doc = contentDoc
                     Related = contentDoc |> Option.map relatedFor
-                    ListHtml = docs |> Option.map (docList p (Some def))
+                    ListHtml = docs |> Option.map (docList (spec.Id = "browse") p (Some def))
                     DocCount = docs |> Option.map List.length
                     Searchable = docs.IsSome
                     FacetMode = if spec.Id = "browse" then Widgets.FacetFilter else Widgets.FacetLinks },
@@ -1344,7 +1712,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     match spec.Id with
                     | "browse" ->
                         { basePage with
-                            ListHtml = Some (docList p None model.Documents)
+                            ListHtml = Some (docList true p None model.Documents)
                             DocCount = Some model.Documents.Length
                             Searchable = true
                             FacetMode = Widgets.FacetFilter }
@@ -1352,14 +1720,14 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     | "tags" -> listPage (HtmlTemplates.tagsListHtml p model.Tags)
                     | "types" -> listPage (HtmlTemplates.typesListHtml p model.Types)
                     | _ -> listPage (HtmlTemplates.bundlesListHtml p model.Bundles)
-                data, ListPage, Layout.empty
+                data, (if spec.Id = "browse" then BrowsePage else ListPage), Layout.empty
         let slots = PageLayout.forPage settings kind pageLayout
         add spec.Url (HtmlTemplates.render env depth slots data)
 
     let detailPage (parentId: string) (parentLabel: string) (depth: int) (title: string) (titleHtml: string option)
                    (cli: (string * string) list) (docs: SiteDocument list) : string =
         let p = prefixFor depth
-        let data = HtmlTemplates.detailPageData env depth parentId parentLabel title titleHtml cli (docList p None docs) docs.Length
+        let data = HtmlTemplates.detailPageData env depth parentId parentLabel title titleHtml cli (docList false p None docs) docs.Length
         HtmlTemplates.render env depth (PageLayout.forPage settings DetailPage Layout.empty) data
 
     // sources/<name>/index.html
