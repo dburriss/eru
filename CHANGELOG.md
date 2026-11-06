@@ -4,11 +4,15 @@
 
 ### Changed
 
+- **Breaking:** the `top` layout slot is renamed `nav`. A config that puts page ids or links in `top` now fails with a message pointing to `nav`; rename the key (also `ERU__SITE__LAYOUT__TOP__*` to `ERU__SITE__LAYOUT__NAV__*`). `top` is now a full-width widget band.
+- **Breaking:** the `query` widget is no longer valid in `main`; it goes in `toolbar`, `left` or `right`. Browse now shows `title` in `top`, the query line in `toolbar` and `list` in `main`.
 - **Breaking:** the generated site has a new terminal look: monospace type, square corners, hairline borders and an orange accent. The CSS variable names are unchanged, so a `custom.css` that sets `--color-*`, `--font-family` or `--radius` still applies, but overrides of component classes may need a second look.
 - **Breaking:** Browse is now a query line above a table of name, source and tags, with no sidebar. Set `layout.left` to `["facets"]` to bring the sidebar back, or `defaultView` to `cards` for the old cards.
 
 ### Added
 
+- New layout slots `top`, `toolbar` and `footer`: full-width bands above and below the columns. Every page footer links to the eru docs by default; set `footer` to replace it or `"footer": false` to remove it. Widgets are valid in more slots (`breadcrumbs`, `title`, `stale` in `top`; `meta`, `verified`, `generated`, `description`, `tags`, `cli`, `links` in `top` and `footer`).
+- The query line can be moved: `query` is valid in `toolbar`, `left` and `right` (once per page), and any page can opt in.
 - A `query` widget: type `tag:`, `source:` or `status:` to filter with a completion list and live counts, exclude with `-tag:x`, click a source or tag in the table to add it, and share the filtered view through `?q=` in the address. Press `/` to focus it and `j`, `k` and enter to move through rows.
 - The sync state of each file shows as a glyph before its name (`●` pulled, `◐` cached, `○` index-only), and rows carry a `data-sync` attribute.
 

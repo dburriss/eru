@@ -8,7 +8,7 @@ open System.Text.Json
 // `string | object`), which System.Text.Json cannot map, so SiteSection keeps those
 // keys as raw JsonElements and this module parses them into the types below.
 
-type SlotName = Top | Left | Right | Main
+type SlotName = Nav | Top | Toolbar | Left | Main | Right | Footer
 
 type LayoutItem =
     | PageRef   of id: string * label: string option
@@ -21,37 +21,50 @@ type Slot =
 
 // A slot that is None is "not set here": it falls through to the next level.
 type Layout = {
-    Top   : Slot option
-    Left  : Slot option
-    Right : Slot option
-    Main  : Slot option
+    Nav     : Slot option
+    Top     : Slot option
+    Toolbar : Slot option
+    Left    : Slot option
+    Right   : Slot option
+    Main    : Slot option
+    Footer  : Slot option
 }
 
 module Layout =
-    let empty : Layout = { Top = None; Left = None; Right = None; Main = None }
+    let empty : Layout =
+        { Nav = None; Top = None; Toolbar = None; Left = None; Right = None; Main = None; Footer = None }
 
     let get (name: SlotName) (l: Layout) : Slot option =
         match name with
+        | Nav -> l.Nav
         | Top -> l.Top
+        | Toolbar -> l.Toolbar
         | Left -> l.Left
         | Right -> l.Right
         | Main -> l.Main
+        | Footer -> l.Footer
 
     let set (name: SlotName) (slot: Slot option) (l: Layout) : Layout =
         match name with
+        | Nav -> { l with Nav = slot }
         | Top -> { l with Top = slot }
+        | Toolbar -> { l with Toolbar = slot }
         | Left -> { l with Left = slot }
         | Right -> { l with Right = slot }
         | Main -> { l with Main = slot }
+        | Footer -> { l with Footer = slot }
 
     /// Slots set in `over` replace the ones in `under`, each as a whole.
     let overlay (under: Layout) (over: Layout) : Layout =
-        { Top   = over.Top   |> Option.orElse under.Top
-          Left  = over.Left  |> Option.orElse under.Left
-          Right = over.Right |> Option.orElse under.Right
-          Main  = over.Main  |> Option.orElse under.Main }
+        { Nav     = over.Nav     |> Option.orElse under.Nav
+          Top     = over.Top     |> Option.orElse under.Top
+          Toolbar = over.Toolbar |> Option.orElse under.Toolbar
+          Left    = over.Left    |> Option.orElse under.Left
+          Right   = over.Right   |> Option.orElse under.Right
+          Main    = over.Main    |> Option.orElse under.Main
+          Footer  = over.Footer  |> Option.orElse under.Footer }
 
-    let slotNames = [ Top; Left; Right; Main ]
+    let slotNames = [ Nav; Top; Toolbar; Left; Main; Right; Footer ]
 
 // AND across fields, OR within a field's list. Empty lists and None mean "no constraint".
 type FilterSpec = {
@@ -137,27 +150,29 @@ module SiteVocabulary =
 
     let private sideOnly = [ Left; Right ]
     let private mainAndSide = [ Main; Left; Right ]
+    let private topMain = [ Top; Main ]
+    let private everywhere = [ Top; Main; Left; Right; Footer ]
 
     /// Every widget and the slots it may appear in. Rendering lives in Eru.Site; a test
     /// asserts that each name here has a renderer.
     let widgets : (string * SlotName list) list =
-        [ "breadcrumbs", [ Main ]
-          "title",       [ Main ]
-          "meta",        mainAndSide
-          "verified",    mainAndSide
-          "generated",   mainAndSide
-          "description", mainAndSide
-          "tags",        mainAndSide
-          "stale",       [ Main ]
-          "cli",         mainAndSide
+        [ "breadcrumbs", topMain
+          "title",       topMain
+          "meta",        everywhere
+          "verified",    everywhere
+          "generated",   everywhere
+          "description", everywhere
+          "tags",        everywhere
+          "stale",       topMain
+          "cli",         everywhere
           "content",     [ Main ]
           "list",        [ Main ]
-          "query",       [ Main ]
+          "query",       [ Toolbar; Left; Right ]
           "toc",         sideOnly
           "related",     mainAndSide
           "graph",       mainAndSide
           "facets",      sideOnly
-          "links",       sideOnly ]
+          "links",       everywhere ]
 
     let isWidget (name: string) = widgets |> List.exists (fun (n, _) -> n = name)
 
@@ -192,10 +207,13 @@ module SiteSettings =
 
     let slotLabel =
         function
+        | Nav -> "nav"
         | Top -> "top"
+        | Toolbar -> "toolbar"
         | Left -> "left"
         | Right -> "right"
         | Main -> "main"
+        | Footer -> "footer"
 
     /// Normalises a repo-relative path to `/` separators. None when it is empty, rooted or
     /// escapes the repo root via `..`.
@@ -275,9 +293,9 @@ module SiteSettings =
         | JsonValueKind.String ->
             let s = el.GetString()
             match slot with
-            | Top -> PageRef (s, None)
-            | Main -> WidgetRef s
-            | Left | Right -> if SiteVocabulary.isWidget s then WidgetRef s else PageRef (s, None)
+            | Nav -> PageRef (s, None)
+            | Top | Toolbar | Main -> WidgetRef s
+            | Left | Right | Footer -> if SiteVocabulary.isWidget s then WidgetRef s else PageRef (s, None)
         | JsonValueKind.Object ->
             expectKeys path [ "page"; "label"; "url" ] el
             let get (k: string) = match el.TryGetProperty k with | true, v -> Some v | _ -> None
@@ -296,12 +314,14 @@ module SiteSettings =
 
     let private parseLayout (path: string) (el: JsonElement) : Layout =
         expectObject path el
-        expectKeys path [ "top"; "left"; "right"; "main" ] el
+        expectKeys path [ "nav"; "top"; "toolbar"; "left"; "right"; "main"; "footer" ] el
         let slot name (key: string) =
             match el.TryGetProperty key with
             | true, v -> Some (parseSlot $"{path}.{key}" name v)
             | _ -> None
-        { Top = slot Top "top"; Left = slot Left "left"; Right = slot Right "right"; Main = slot Main "main" }
+        { Nav = slot Nav "nav"; Top = slot Top "top"; Toolbar = slot Toolbar "toolbar"
+          Left = slot Left "left"; Right = slot Right "right"; Main = slot Main "main"
+          Footer = slot Footer "footer" }
 
     let rec private parseFilter (path: string) (el: JsonElement) : FilterSpec =
         expectObject path el
@@ -470,32 +490,54 @@ module SiteSettings =
         if not (List.contains value allowed) then
             fail $"{path}: unknown {what} '{value}' (expected one of: {joinList allowed})"
 
+    let private movedToNav (ip: string) =
+        fail $"{ip}: page ids and links moved to 'nav'; top takes widget names only"
+
+    /// `query` uses fixed element ids, so a layout may place it once.
+    let private checkSingleQuery (path: string) (layout: Layout) =
+        let places =
+            Layout.slotNames
+            |> List.collect (fun name ->
+                match Layout.get name layout with
+                | Some (Items items) ->
+                    items |> List.choose (function WidgetRef "query" -> Some (slotLabel name) | _ -> None)
+                | _ -> [])
+        match places with
+        | first :: second :: _ ->
+            if first = second then fail $"{path}: widget 'query' appears more than once in {first}; a page can have only one"
+            else fail $"{path}: widget 'query' appears in both {first} and {second}; a page can have only one"
+        | _ -> ()
+
     let private validateLayout (known: Set<string>) (path: string) (layout: Layout) =
         for name in Layout.slotNames do
             match Layout.get name layout with
             | None | Some Disabled -> ()
             | Some (Items items) ->
                 let sp = $"{path}.{slotLabel name}"
+                let widgetIn (ip: string) (w: string) =
+                    if not (SiteVocabulary.isWidget w) then fail $"{ip}: unknown widget '{w}'"
+                    elif not (SiteVocabulary.widgetValidIn w name) then
+                        fail $"{ip}: widget '{w}' is not valid in {slotLabel name}"
                 for i, item in List.indexed items do
                     let ip = $"{sp}[{i}]"
                     match name, item with
-                    | Top, PageRef (id, _) ->
+                    | Nav, PageRef (id, _) ->
                         if known.Contains id then ()
                         elif SiteVocabulary.isWidget id then
-                            fail $"{ip}: '{id}' is a widget, not a page; top takes pages and links"
+                            fail $"{ip}: '{id}' is a widget, not a page; nav takes pages and links"
                         else fail $"{ip}: unknown page id '{id}'"
-                    | Top, WidgetRef w -> fail $"{ip}: widget '{w}' is not valid in top; top takes pages and links"
-                    | Top, LinkRef _ -> ()
-                    | Main, WidgetRef w ->
-                        if not (SiteVocabulary.isWidget w) then fail $"{ip}: unknown widget '{w}'"
-                        elif not (SiteVocabulary.widgetValidIn w Main) then fail $"{ip}: widget '{w}' is not valid in main"
-                    | Main, (PageRef _ | LinkRef _) -> fail $"{ip}: main takes widget names only"
-                    | (Left | Right), WidgetRef w ->
-                        if not (SiteVocabulary.widgetValidIn w name) then
-                            fail $"{ip}: widget '{w}' is not valid in {slotLabel name}"
-                    | (Left | Right), PageRef (id, _) ->
+                    | Nav, WidgetRef w -> fail $"{ip}: widget '{w}' is not valid in nav; nav takes pages and links"
+                    | Nav, LinkRef _ -> ()
+                    | Top, (PageRef _ | LinkRef _) -> movedToNav ip
+                    | Top, WidgetRef w when not (SiteVocabulary.isWidget w) && known.Contains w -> movedToNav ip
+                    | (Top | Toolbar | Main), WidgetRef w -> widgetIn ip w
+                    | (Toolbar | Main), (PageRef _ | LinkRef _) ->
+                        fail $"{ip}: {slotLabel name} takes widget names only"
+                    | (Left | Right | Footer), WidgetRef w -> widgetIn ip w
+                    | (Left | Right | Footer), PageRef (id, _) ->
                         if not (known.Contains id) then fail $"{ip}: unknown widget or page id '{id}'"
-                    | (Left | Right), LinkRef _ -> ()
+                    | (Left | Right | Footer), LinkRef _ -> ()
+        checkSingleQuery path layout
 
     let private mainWidgets (layout: Layout) : string list option =
         match layout.Main with
@@ -506,6 +548,15 @@ module SiteSettings =
         // Nothing to check beyond shape today; kept so rules and pages share one entry point.
         ignore path
         ignore f
+
+    /// The page's layout laid over `site.layout`, plus Browse's default query line in the toolbar,
+    /// must still place `query` once.
+    let private checkPageQuery (s: SiteSettings) (id: string) (pageLayout: Layout) =
+        let merged = Layout.overlay s.Layout pageLayout
+        let merged =
+            if id = "browse" && merged.Toolbar.IsNone then { merged with Toolbar = Some (Items [ WidgetRef "query" ]) }
+            else merged
+        checkSingleQuery $"site.pages.{id}.layout" merged
 
     let private validatePage (s: SiteSettings) (known: Set<string>) (id: string) (def: PageDef) =
         let path = $"site.pages.{id}"
@@ -540,6 +591,7 @@ module SiteSettings =
             if not (d.IndexOf ':' > 0 && d.IndexOf ':' < d.Length - 1) then fail $"{path}.content.doc '{d}' must look like <source>:<path>"
         | None -> ()
         validateLayout known $"{path}.layout" def.Layout
+        checkPageQuery s id def.Layout
         match mainWidgets def.Layout with
         | Some ws ->
             if List.contains "content" ws && def.Content.IsNone then
@@ -577,6 +629,8 @@ module SiteSettings =
                 match entry with
                 | Defined def -> validatePage s known id def
                 | Dropped -> ()
+            if not (s.Pages |> List.exists (fun (id, _) -> id = "browse")) then
+                checkPageQuery s "browse" Layout.empty
             validateLayout known "site.document.layout" s.Document.Layout
             requireContent "site.document.layout" s.Document.Layout
             s.Document.Rules |> List.iteri (fun i r ->

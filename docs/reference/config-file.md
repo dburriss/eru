@@ -224,7 +224,7 @@ independently, so setting `site.hideEmptyBundles` locally does not hide a `site.
 | `site` | `home` | `"browse"` | Id of the page written to `index.html` — a built-in id or a custom page id. See [site generation](site-generation.md#pages). |
 | `site` | `defaultView` | `"cards"` | View for document lists: `cards`, `list` or `table`. A page's own `view` overrides it — see [views](site-generation.md#views). |
 | `site` | `cards.columns` | `3` | Maximum columns (1-6) of the `cards` view; narrow screens and crowded layouts drop to fewer. Set `1` for the old single-column list. |
-| `site` | `layout` | refreshed defaults | Site-wide `top`, `left` and `right` slots: an array of items, or `false` to disable the slot. Merges per slot. See [layout and widgets](site-generation.md#layout-slots-and-widgets). |
+| `site` | `layout` | refreshed defaults | Site-wide `nav`, `top`, `toolbar`, `left`, `right` and `footer` slots: an array of items, or `false` to disable the slot. Merges per slot. See [layout and widgets](site-generation.md#layout-slots-and-widgets). |
 | `site` | `pages` | built-in pages | Map of page id to a page definition, or `false` to drop a built-in page. Merges by id. See [pages](site-generation.md#pages). |
 | `site` | `document` | — | Layout for document pages: `layout`, `open` and `rules` (per-document overrides). `rules` concatenate, global first. See [document pages](site-generation.md#document-pages). |
 | `okf` | `ignorePatterns` | `["apm_modules/**", "inbox/**", "node_modules/**"]` | Gitignore-style globs, anchored at the bundle root; matching markdown files are skipped by OKF bundle discovery and `eru okf validate`. Dot-directories (`.github`, `.claude`, …) are always skipped and need no pattern, and so is a `README.md` without a `type`. Use `**/inbox/**` to match nested directories. |
@@ -240,7 +240,7 @@ Notes:
 - The `site` keys `layout`, `pages` and `document` are structured values (`false`, arrays and objects). Their shape,
   merge behaviour and the validation errors are documented in [site generation](site-generation.md). A bad value
   fails config loading with a message naming the key path, for example
-  `site.layout.top[1]: unknown page id 'nope'`.
+  `site.layout.nav[1]: unknown page id 'nope'`.
 - `sync.stateFile`, `sync.branch` and `mcp.refreshIntervalMinutes` used to be valid in only one of the two files
   (`stateFile` local, `branch`/`mcpRefreshIntervalMinutes` global). Sections are now shared, so they are valid in
   either file and merge local-over-global like every other key.
@@ -298,7 +298,7 @@ by `__`. Names are case-insensitive. The full list of variables is in
   `ERU__FILES__BLOCKPATTERNS__1=*.dll`. A list set this way replaces the files' list; it does not extend it.
   Giving a list as a single value is an error.
 - **Objects inside lists and structured settings** follow the same rule: `ERU__OKF__FIXTYPES__0__PATTERN=README.md`,
-  `ERU__OKF__FIXTYPES__0__TYPE=concept`, `ERU__SITE__LAYOUT__TOP__0=tags`. Keys you choose yourself, such as page
+  `ERU__OKF__FIXTYPES__0__TYPE=concept`, `ERU__SITE__LAYOUT__NAV__0=tags`. Keys you choose yourself, such as page
   ids under `site.pages`, are lower-cased.
 - **Settings only.** `source`, `collection` and `inbox.items` are configured in the files only; an `ERU__` variable
   for one of them is ignored with a warning, as is any other name that is not a setting. The one exception is a

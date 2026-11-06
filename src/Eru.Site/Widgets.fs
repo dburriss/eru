@@ -261,7 +261,7 @@ let private listWidget (ctx: WidgetContext) =
     | None -> ""
     | Some html ->
         let search =
-            if ctx.Page.Searchable && not (List.contains "query" ctx.Slots.Main) then
+            if ctx.Page.Searchable && not (ResolvedSlots.hasQuery ctx.Slots) then
                 """<div id="search-container" class="list-search" style="display:none">
   <input type="search" id="search-input" placeholder="Search…" aria-label="Search files" />
 </div>
@@ -271,7 +271,7 @@ let private listWidget (ctx: WidgetContext) =
 
 let private linksWidget (ctx: WidgetContext) =
     let links =
-        ctx.Slots.Top
+        ctx.Slots.Nav
         |> List.choose (function LinkRef (label, url) -> Some (label, url) | _ -> None)
     if links.IsEmpty then ""
     else
@@ -315,7 +315,7 @@ let renderWidget (ctx: WidgetContext) (name: string) : string =
 let renderMain (ctx: WidgetContext) (names: string list) : string =
     names |> List.map (renderWidget ctx) |> List.filter (fun h -> h <> "") |> String.concat "\n"
 
-/// Side slots hold widgets plus page links and custom links; runs of links share a list.
+/// Side slots and the footer hold widgets plus page links and custom links; runs of links share a list.
 let renderSide (ctx: WidgetContext) (items: LayoutItem list) : string =
     let linkHtml =
         function

@@ -23,9 +23,12 @@ let private navLinks (env: SiteEnv) (p: string) (items: LayoutItem list) : strin
         | WidgetRef _ -> None)
     |> String.concat "\n    "
 
-/// The shared frame: top nav plus a CSS grid with `left`, `main` and `right` regions. An
-/// empty region is left out of the grid so it leaves no gap.
-let private frame (depth: int) (title: string) (nav: string) (left: string) (main: string) (right: string) : string =
+/// The shared frame: the nav, full-width `top` and `toolbar` bands, a CSS grid with `left`, `main`
+/// and `right` regions, then a full-width `footer` band. An empty region or band is left out so it
+/// leaves no gap.
+let private frame
+    (depth: int) (title: string) (nav: string) (top: string) (toolbar: string)
+    (left: string) (main: string) (right: string) (footer: string) : string =
     let p = prefixFor depth
     let present (html: string) = not (String.IsNullOrWhiteSpace html)
     let classes =
@@ -34,6 +37,9 @@ let private frame (depth: int) (title: string) (nav: string) (left: string) (mai
         |> String.concat " "
     let leftHtml = if present left then $"""<aside class="region region-left sidebar">{left}</aside>""" else ""
     let rightHtml = if present right then $"""<aside class="region region-right">{right}</aside>""" else ""
+    let band (name: string) (html: string) =
+        if present html then $"""<div class="region region-{name}">{html}</div>""" else ""
+    let footerHtml = if present footer then $"""<footer class="region region-footer">{footer}</footer>""" else ""
     $"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,12 +57,15 @@ let private frame (depth: int) (title: string) (nav: string) (left: string) (mai
   </nav>
   <noscript><p class="noscript-note">Search requires JavaScript. Browse by source or tag using the navigation links.</p></noscript>
   <main>
+    {band "top" top}
+    {band "toolbar" toolbar}
     <div class="page-grid {classes}">
       {leftHtml}
       <div class="region region-main">{main}</div>
       {rightHtml}
     </div>
   </main>
+  {footerHtml}
   <script defer src="{p}js/theme.js"></script>
   <script>window.ERU_DATA_ROOT = "{p}data/";</script>
   <script defer src="{p}js/app.js"></script>
@@ -68,7 +77,8 @@ let private frame (depth: int) (title: string) (nav: string) (left: string) (mai
 let render (env: SiteEnv) (depth: int) (slots: ResolvedSlots) (page: PageData) : string =
     let p = prefixFor depth
     let ctx = { Env = env; Prefix = p; Slots = slots; Page = page }
-    frame depth page.Title (navLinks env p slots.Top) (renderSide ctx slots.Left) (renderMain ctx slots.Main) (renderSide ctx slots.Right)
+    frame depth page.Title (navLinks env p slots.Nav) (renderMain ctx slots.Top) (renderMain ctx slots.Toolbar)
+        (renderSide ctx slots.Left) (renderMain ctx slots.Main) (renderSide ctx slots.Right) (renderSide ctx slots.Footer)
 
 // ── environment ──────────────────────────────────────────────────────────────
 

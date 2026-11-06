@@ -123,14 +123,14 @@ body.theme-dark {
 
 ## Change the layout
 
-Every page has a top nav, a left column, a main column and a right column. Set them under `site.layout` in
+Every page has a nav, a left column, a main column, a right column, and full-width `top`, `toolbar` and `footer` bands. Set them under `site.layout` in
 `.eru/config.json` (or the global config). Each slot is an ordered list, or `false` to switch it off:
 
 ```json
 {
   "site": {
     "layout": {
-      "top": ["browse", "sources", { "label": "Wiki", "url": "https://wiki.example.com" }],
+      "nav": ["browse", "sources", { "label": "Wiki", "url": "https://wiki.example.com" }],
       "left": false,
       "right": ["toc"]
     }
@@ -143,17 +143,39 @@ to two built-in pages plus an external link. An omitted slot keeps its default; 
 gap in the page. The widgets you can put in a slot are listed in the
 [site generation reference](../reference/site-generation.md#layout-slots-and-widgets).
 
+## Move the query line
+
+Browse shows the query line in the `toolbar` band, below the title. Put it in a column instead, or bring back the
+plain search box:
+
+```json
+{ "site": { "pages": { "browse": { "filter": {}, "layout": { "toolbar": false, "left": ["query", "facets"] } } } } }
+```
+
+`query` is valid in `toolbar`, `left` and `right`, once per page. Any other page can opt in with
+`"toolbar": ["query"]`. `"layout": { "toolbar": false }` under `site` restores the plain search box on Browse.
+
+## Change the footer
+
+Every page ends with a link to the eru docs. Replace it with your own links, or remove it:
+
+```json
+{ "site": { "layout": { "footer": [{ "label": "Handbook", "url": "https://wiki.example.com" }] } } }
+```
+
+`"footer": false` removes the footer.
+
 ## Drop or reorder built-in pages
 
 ```json
 { "site": { "pages": { "types": false, "bundles": false } } }
 ```
 
-`false` removes the page, its detail pages and its nav link. To reorder the nav, list the pages in `layout.top`.
+`false` removes the page, its detail pages and its nav link. To reorder the nav, list the pages in `layout.nav`.
 
 ## Opt out of the refreshed defaults
 
-Sites generated before layouts existed had a plain top nav, no side columns on most pages and a single-column list.
+Sites generated before layouts existed had a plain nav, no side columns on most pages and a single-column list.
 The defaults are now a facet column on the left, a table of contents and linked documents on the right, and a card
 grid of up to three columns. To get close to the old look:
 

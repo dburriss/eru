@@ -22,7 +22,7 @@ let ``layout slots parse false, arrays and mixed items`` () =
     let s =
         siteSettings """{
           "layout": {
-            "top": ["browse", "sources", { "label": "Wiki", "url": "https://wiki.example" }, { "page": "tags", "label": "Labels" }],
+            "nav": ["browse", "sources", { "label": "Wiki", "url": "https://wiki.example" }, { "page": "tags", "label": "Labels" }],
             "left": false,
             "right": ["toc", "related"]
           }
@@ -30,7 +30,7 @@ let ``layout slots parse false, arrays and mixed items`` () =
     Assert.Equal(Some Disabled, s.Layout.Left)
     Assert.Equal<LayoutItem list>(
         [ PageRef ("browse", None); PageRef ("sources", None); LinkRef ("Wiki", "https://wiki.example"); PageRef ("tags", Some "Labels") ],
-        items s.Layout.Top)
+        items s.Layout.Nav)
     Assert.Equal<LayoutItem list>([ WidgetRef "toc"; WidgetRef "related" ], items s.Layout.Right)
     Assert.Equal(None, s.Layout.Main)
 
@@ -90,7 +90,7 @@ let ``document layout and rules parse`` () =
 
 [<Fact>]
 let ``site section survives a serialize and deserialize round trip`` () =
-    let json = """{ "version": 3, "site": { "home": "welcome", "layout": { "left": false, "top": ["browse"] },
+    let json = """{ "version": 3, "site": { "home": "welcome", "layout": { "left": false, "nav": ["browse"] },
                      "pages": { "welcome": { "content": { "file": "docs/welcome.md" } }, "types": false } } }"""
     let local = Serialization.deserialize<LocalConfig> json |> Result.defaultWith failwith
     let again = Serialization.serialize local |> Serialization.deserialize<LocalConfig> |> Result.defaultWith failwith
@@ -144,16 +144,16 @@ let ``a custom page id equal to a widget name is rejected`` () =
 
 [<Fact>]
 let ``a built-in page id that is also a widget name can still be overridden and listed in top`` () =
-    let s = siteSettings """{ "layout": { "top": ["tags"] }, "pages": { "tags": { "filter": { "tag": "x" } } } }"""
-    Assert.Equal<LayoutItem list>([ PageRef ("tags", None) ], items s.Layout.Top)
+    let s = siteSettings """{ "layout": { "nav": ["tags"] }, "pages": { "tags": { "filter": { "tag": "x" } } } }"""
+    Assert.Equal<LayoutItem list>([ PageRef ("tags", None) ], items s.Layout.Nav)
 
 [<Fact>]
 let ``an unknown page id in top is rejected`` () =
-    assertRejected "unknown page id 'nope'" """{ "layout": { "top": ["browse", "nope"] } }"""
+    assertRejected "unknown page id 'nope'" """{ "layout": { "nav": ["browse", "nope"] } }"""
 
 [<Fact>]
 let ``a widget name in top is rejected`` () =
-    assertRejected "is a widget, not a page" """{ "layout": { "top": ["facets"] } }"""
+    assertRejected "is a widget, not a page" """{ "layout": { "nav": ["facets"] } }"""
 
 [<Fact>]
 let ``an unknown widget in main is rejected`` () =
@@ -249,7 +249,54 @@ let ``normalizeRelPath folds dot segments and rejects escapes`` () =
     Assert.Equal(None, SiteSettings.normalizeRelPath "")
 
 [<Fact>]
-let ``the query widget is valid in main only`` () =
-    let s = siteSettings """{ "pages": { "p": { "filter": {}, "layout": { "main": ["title", "query", "list"] } } } }"""
-    Assert.True(s.Pages |> List.exists (fun (id, _) -> id = "p"))
-    assertRejected "query" """{ "layout": { "left": ["query"] } }"""
+let ``the query widget is valid in toolbar, left and right only`` () =
+    siteSettings """{ "layout": { "toolbar": ["query"] } }""" |> ignore
+    for slot in [ "left"; "right" ] do
+        siteSettings $"""{{ "pages": {{ "p": {{ "filter": {{}}, "layout": {{ "{slot}": ["query"] }} }} }} }}""" |> ignore
+    assertRejected "widget 'query' is not valid in main" """{ "pages": { "p": { "filter": {}, "layout": { "main": ["title", "query", "list"] } } } }"""
+    assertRejected "widget 'query' is not valid in top" """{ "layout": { "top": ["query"] } }"""
+    assertRejected "widget 'query' is not valid in footer" """{ "layout": { "footer": ["query"] } }"""
+    assertRejected "query" """{ "layout": { "nav": ["query"] } }"""
+
+[<Fact>]
+let ``the query widget may be placed only once`` () =
+    assertRejected "'query' appears in both toolbar and left" """{ "layout": { "toolbar": ["query"], "left": ["query"] } }"""
+    assertRejected "'query' appears more than once in toolbar" """{ "layout": { "toolbar": ["query", "query"] } }"""
+    // site.layout and the page layout are laid over each other
+    assertRejected "'query' appears in both" """{ "layout": { "left": ["query"] }, "pages": { "p": { "filter": {}, "layout": { "toolbar": ["query"] } } } }"""
+    // Browse puts the query line in the toolbar by default
+    assertRejected "'query' appears in both" """{ "layout": { "left": ["query"] } }"""
+    siteSettings """{ "layout": { "left": ["query"], "toolbar": false } }""" |> ignore
+
+[<Fact>]
+let ``every new slot parses and overlays`` () =
+    let s =
+        siteSettings
+            """{ "layout": { "nav": ["tags"], "top": ["title"], "toolbar": ["query"], "footer": ["links", { "label": "Docs", "url": "https://d.example" }] },
+                 "pages": { "p": { "filter": {}, "layout": { "top": false, "footer": false } } } }"""
+    Assert.Equal<LayoutItem list>([ WidgetRef "title" ], items s.Layout.Top)
+    Assert.Equal<LayoutItem list>([ WidgetRef "query" ], items s.Layout.Toolbar)
+    Assert.Equal<LayoutItem list>([ WidgetRef "links"; LinkRef ("Docs", "https://d.example") ], items s.Layout.Footer)
+    match s.Pages |> List.find (fun (id, _) -> id = "p") with
+    | _, Defined d ->
+        Assert.Equal(Some Disabled, d.Layout.Top)
+        Assert.Equal(Some Disabled, d.Layout.Footer)
+        let merged = Layout.overlay s.Layout d.Layout
+        Assert.Equal(Some Disabled, merged.Top)
+        Assert.Equal(s.Layout.Toolbar, merged.Toolbar)
+    | _ -> failwith "expected a defined page"
+
+[<Fact>]
+let ``page ids and links in top are rejected with a pointer to nav`` () =
+    assertRejected "moved to 'nav'" """{ "layout": { "top": ["browse", "sources"] } }"""
+    assertRejected "moved to 'nav'" """{ "layout": { "top": [{ "label": "Wiki", "url": "https://wiki.example" }] } }"""
+    assertRejected "moved to 'nav'" """{ "layout": { "top": [{ "page": "tags", "label": "Labels" }] } }"""
+
+[<Fact>]
+let ``widget placement follows the registry for the bands`` () =
+    for ok in [ "breadcrumbs"; "title"; "stale"; "meta"; "links" ] do
+        siteSettings $"""{{ "layout": {{ "top": ["{ok}"] }} }}""" |> ignore
+    assertRejected "widget 'list' is not valid in top" """{ "layout": { "top": ["list"] } }"""
+    assertRejected "widget 'title' is not valid in footer" """{ "layout": { "footer": ["title"] } }"""
+    assertRejected "widget 'toc' is not valid in toolbar" """{ "layout": { "toolbar": ["toc"] } }"""
+    assertRejected "toolbar takes widget names only" """{ "layout": { "toolbar": [{ "label": "x", "url": "https://x" }] } }"""

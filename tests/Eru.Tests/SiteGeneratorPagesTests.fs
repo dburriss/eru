@@ -65,7 +65,7 @@ let ``disabled slots leave no region`` () =
 
 [<Fact>]
 let ``top can list pages and links and drop the rest`` () =
-    run """{ "layout": { "top": ["tags", { "label": "Wiki", "url": "https://wiki.example" }, { "page": "sources", "label": "Repos" }] } }"""
+    run """{ "layout": { "nav": ["tags", { "label": "Wiki", "url": "https://wiki.example" }, { "page": "sources", "label": "Repos" }] } }"""
         (fun out ->
             let index = readOut out "index.html"
             Assert.Contains("""<a href="tags/index.html">Tags</a>""", index)
@@ -302,12 +302,66 @@ let ``browse documents carry the filter contract and facets become filters`` () 
         Assert.Contains("lifecycle", js))
 
 [<Fact>]
-let ``the query widget can be left out of browse`` () =
-    run """{ "pages": { "browse": { "filter": {}, "layout": { "main": ["title", "list"] } } } }""" (fun out ->
+let ``browse puts the title, then the query, then the list`` () =
+    run "{}" (fun out ->
+        let index = readOut out "index.html"
+        let at (s: string) = index.IndexOf(s, System.StringComparison.Ordinal)
+        let top, toolbar, grid = at "region-top", at "region-toolbar", at "page-grid"
+        Assert.True(top > 0 && top < toolbar && toolbar < grid, "bands should come in order top, toolbar, columns")
+        Assert.True(at "<h1>" > top && at "<h1>" < toolbar)
+        Assert.True(at "data-query" > toolbar && at "data-query" < grid)
+        Assert.True(at "data-doc-list" > grid)
+        Assert.DoesNotContain("id=\"search-input\" placeholder=\"Search…\"", index))
+
+[<Fact>]
+let ``pages other than browse keep the title in main and have no top or toolbar band`` () =
+    run "{}" (fun out ->
+        for page in [ "tags/index.html"; "tags/ops/index.html"; "files/src/ops_restart.md.html" ] do
+            let html = readOut out page
+            Assert.DoesNotContain("region-top", html)
+            Assert.DoesNotContain("region-toolbar", html)
+            Assert.Contains("region-main", html))
+
+[<Fact>]
+let ``the toolbar can be turned off to restore the plain search box`` () =
+    run """{ "layout": { "toolbar": false } }""" (fun out ->
         let index = readOut out "index.html"
         Assert.DoesNotContain("data-query", index)
-        // without the query widget the plain search box returns
+        Assert.DoesNotContain("region-toolbar", index)
         Assert.Contains("id=\"search-input\"", index))
+
+[<Fact>]
+let ``the query line can move to a side column`` () =
+    run """{ "pages": { "browse": { "filter": {}, "layout": { "toolbar": false, "left": ["query", "facets"] } } } }""" (fun out ->
+        let index = readOut out "index.html"
+        Assert.DoesNotContain("region-toolbar", index)
+        let left = index.IndexOf("region-left", System.StringComparison.Ordinal)
+        Assert.True(left > 0)
+        Assert.True(index.IndexOf("data-query", System.StringComparison.Ordinal) > left))
+
+[<Fact>]
+let ``a custom page can opt in to the query in the toolbar`` () =
+    run """{ "pages": { "runbooks": { "filter": { "type": "runbook" }, "layout": { "toolbar": ["query"] } } } }""" (fun out ->
+        let page = readOut out "pages/runbooks/index.html"
+        Assert.Contains("region-toolbar", page)
+        Assert.Contains("data-query", page))
+
+[<Fact>]
+let ``every page links to the eru docs in the footer by default`` () =
+    run "{}" (fun out ->
+        for page in [ "index.html"; "tags/index.html"; "files/src/ops_restart.md.html" ] do
+            let html = readOut out page
+            Assert.Contains("region-footer", html)
+            Assert.Contains("""<a href="https://github.com/dburriss/eru/tree/main/docs" target="_blank" rel="noopener">eru docs</a>""", html))
+
+[<Fact>]
+let ``footer false removes the footer and a custom footer replaces the docs link`` () =
+    run """{ "layout": { "footer": false } }""" (fun out ->
+        Assert.DoesNotContain("region-footer", readOut out "index.html"))
+    run """{ "layout": { "footer": [{ "label": "Wiki", "url": "https://wiki.example" }] } }""" (fun out ->
+        let html = readOut out "index.html"
+        Assert.Contains("https://wiki.example", html)
+        Assert.DoesNotContain("eru docs", html))
 
 [<Fact>]
 let ``detail pages keep breadcrumbs and cli tips`` () =

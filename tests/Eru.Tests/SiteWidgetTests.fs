@@ -13,7 +13,7 @@ let private ctxFor (doc: SiteDocument) (contentHtml: string) (related: RelatedLi
     let env = HtmlTemplates.defaultEnv HtmlTemplates.emptyModel
     { Env = env
       Prefix = "../../"
-      Slots = { Top = []; Left = []; Right = []; Main = [] }
+      Slots = PageLayout.ResolvedSlots.empty
       Page = HtmlTemplates.documentPageData env doc contentHtml related }
 
 let private render (name: string) (doc: SiteDocument) =
@@ -125,7 +125,7 @@ let ``a facets widget with checkbox mode marks the container for the script`` ()
             AllExtensions = [ ".md" ] }
     let env = HtmlTemplates.defaultEnv model
     let ctx mode =
-        { Env = env; Prefix = ""; Slots = { Top = []; Left = []; Right = []; Main = [] }
+        { Env = env; Prefix = ""; Slots = PageLayout.ResolvedSlots.empty
           Page = { PageData.empty with FacetMode = mode } }
     let filter = renderWidget (ctx FacetFilter) "facets"
     Assert.Contains("data-facet-mode=\"filter\"", filter)

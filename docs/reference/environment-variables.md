@@ -34,7 +34,7 @@ written, and what happens on a bad value are described in
 | `site.home` | `ERU__SITE__HOME` | page id |
 | `site.defaultView` | `ERU__SITE__DEFAULTVIEW` | `cards`, `list` or `table` |
 | `site.cards.columns` | `ERU__SITE__CARDS__COLUMNS` | whole number |
-| `site.layout.top`, `left`, `right` | `ERU__SITE__LAYOUT__TOP__0`, … | list of items |
+| `site.layout.nav`, `top`, `toolbar`, `left`, `right`, `footer` | `ERU__SITE__LAYOUT__NAV__0`, … | list of items |
 | `site.pages.<id>` | `ERU__SITE__PAGES__<ID>__…` | structured; the page id is lower-cased |
 | `site.document` | `ERU__SITE__DOCUMENT__LAYOUT__…`, `ERU__SITE__DOCUMENT__RULES__0__MATCH__…` | structured |
 | `inbox.default` | `ERU__INBOX__DEFAULT` | inbox name |

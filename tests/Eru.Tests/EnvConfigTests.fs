@@ -181,12 +181,12 @@ let ``site settings from the env merge over the files`` () =
     let eff =
         effective [ "ERU__SITE__HOME", "types"
                     "ERU__SITE__CARDS__COLUMNS", "2"
-                    "ERU__SITE__LAYOUT__TOP__0", "tags"
-                    "ERU__SITE__LAYOUT__TOP__1", "types" ] None l
+                    "ERU__SITE__LAYOUT__NAV__0", "tags"
+                    "ERU__SITE__LAYOUT__NAV__1", "types" ] None l
     Assert.Equal(Some "types", eff.Site.Home)
     Assert.Equal(Some "list", eff.Site.DefaultView)
     Assert.Equal(Some 2, eff.Site.CardsColumns)
-    Assert.Equal(Some (Items [ PageRef ("tags", None); PageRef ("types", None) ]), eff.Site.Layout.Top)
+    Assert.Equal(Some (Items [ PageRef ("tags", None); PageRef ("types", None) ]), eff.Site.Layout.Nav)
 
 [<Fact>]
 let ``env overrides leave sources and inboxes to the files`` () =
@@ -205,7 +205,7 @@ let ``an invalid search mode fails the merge and validateEnv`` () =
 
 [<Fact>]
 let ``an invalid site value fails validateEnv naming the environment`` () =
-    let env = envConfig [ "ERU__SITE__LAYOUT__TOP__0", "no-such-page"; "ERU__SITE__DEFAULTVIEW", "cards"; "ERU__SITE__LAYOUT__BOTTOM__0", "x" ]
+    let env = envConfig [ "ERU__SITE__LAYOUT__NAV__0", "no-such-page"; "ERU__SITE__DEFAULTVIEW", "cards"; "ERU__SITE__LAYOUT__BOTTOM__0", "x" ]
     Config.validateEnv env |> assertError "ERU__SITE__"
 
 [<Fact>]

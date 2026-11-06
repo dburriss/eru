@@ -34,21 +34,25 @@ set per-mode colours under `body.theme-light` and `body.theme-dark`. Status badg
 | `site.home` | Page id written to `index.html` (default `browse`; required if `browse` is dropped). Browse then moves to `browse/index.html` |
 | `site.defaultView` | `cards` (default), `list`, `table` |
 | `site.cards.columns` | Max columns 1-6 (default 3) |
-| `site.layout` | `top`, `left`, `right` slots for every page |
+| `site.layout` | `nav`, `top`, `toolbar`, `left`, `right`, `footer` slots for every page |
 | `site.pages` | Map of page id to definition, or `false` to drop a built-in |
 | `site.document` | `layout`, `open`, `rules` for document pages |
 | `site.ignorePatterns`, `site.hideEmptyBundles` | Exclude files / empty bundles |
 
 ## Layout slots
 
-Slots: `top` (nav), `left`, `right`, `main`. Each is an ordered array, or `false` to disable. Precedence, last
-wins, whole-slot replacement: built-in defaults, `site.layout`, the page's `layout`. `site.layout` takes only
-`top`/`left`/`right`; `main` is per page or in `site.document`.
+Slots, from the top of the page: `nav`, `top` (widget band), `toolbar` (the query line), `left` | `main` | `right`,
+`footer` (widget band). Each is an ordered array, or `false` to disable. Precedence, last wins, whole-slot
+replacement: built-in defaults, `site.layout`, the page's `layout`. `site.layout` takes every slot but `main`;
+`main` is per page or in `site.document`.
 
-- `top` takes page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }`. Default: every page.
+- `top` and `toolbar` take widget names only. Browse defaults: `top: ["title"]`, `toolbar: ["query"]`, `main: ["list"]`; other pages leave both empty. `query` is valid in `toolbar`, `left`, `right`, once per page; move it with `"toolbar": false, "left": ["query", "facets"]`.
+- `footer` takes widgets and links; default is a link to the eru docs on every page, `"footer": false` removes it.
+- Old configs that put page ids or links in `top` fail with a pointer to `nav`.
+- `nav` takes page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }`. Default: every page.
 - `left` default `facets`; `right` default `toc`; Browse has neither (`"left": ["facets"]` brings the sidebar back). A string is a widget name if one matches, else a page id link (use `{ "page": "tags" }` for the built-in `tags`).
 
-Default `main` by page kind: browse `title, query, list`; list `title, list`; detail (`tags/<tag>/`) `breadcrumbs, title, cli, list`; content
+Default `main` by page kind: browse `list` (`title` in `top`, `query` in `toolbar`); list `title, list`; detail (`tags/<tag>/`) `breadcrumbs, title, cli, list`; content
 `title, content`; document `graph, breadcrumbs, title, meta, verified, generated, description, tags, stale, cli, content, related`.
 
 Widgets: `breadcrumbs`, `title`, `stale`, `content`, `list`, `query` (main only; `query` is the filter line on Browse: `tag:x`, `source:x`, `status:pulled`, `-tag:x`); `meta`, `verified`, `generated`,
@@ -89,7 +93,7 @@ limits it); `path` uses gitignore globs; `stale: true` = past `stale_after`; `no
 {
   "site": {
     "home": "welcome",
-    "layout": { "top": ["browse", "runbooks", { "label": "Wiki", "url": "https://wiki.example.com" }], "left": false },
+    "layout": { "nav": ["browse", "runbooks", { "label": "Wiki", "url": "https://wiki.example.com" }], "left": false },
     "pages": {
       "welcome": { "title": "Welcome", "content": { "file": "docs/welcome.md" } },
       "runbooks": { "title": "Runbooks", "filter": { "type": ["runbook"], "not": { "status": ["deprecated"] } }, "view": "list" },
@@ -128,7 +132,7 @@ Each is a fragment to merge into the existing `site` block.
 
 **Drop the left column everywhere, keep only a TOC, trim the nav**
 ```json
-"layout": { "top": ["browse", "sources", { "label": "Wiki", "url": "https://wiki.example.com" }], "left": false, "right": ["toc"] }
+"layout": { "nav": ["browse", "sources", { "label": "Wiki", "url": "https://wiki.example.com" }], "left": false, "right": ["toc"] }
 ```
 
 **Grouped cards by type, two columns**
@@ -187,7 +191,7 @@ A runbook in `kb/ops` gets both: rules apply in order and each replaces only the
 |---|---|
 | Run aborts naming a key path | Config validation; nothing was written. Typical causes: unknown page id or widget, widget in a slot it is not valid in (e.g. `toc` in `main`), custom page id equal to a widget name, unknown view/column/sort field, `cards.columns` outside 1-6, option block for another view (e.g. `cards` on a `table` page), empty rule `match`, document `main` without `content`, missing/escaping `content.file`, uncached `content.doc` |
 | `site.home` error | `site.home` is required when `browse` is dropped and must name an existing page |
-| Page not in nav | `site.layout.top` is set and omits it; list it there (custom pages are only auto-appended to the default nav) |
+| Page not in nav | `site.layout.nav` is set and omits it; list it there (custom pages are only auto-appended to the default nav) |
 | Edited `style.css` and lost it | Regenerated each run; use `custom.css` or `--custom-css` |
 | `custom.css` edits ignored | Only `custom.css` is preserved; confirm it is under the output dir actually being served |
 | `content.doc` fails | Document is `index-only`; run `eru sync` so it is cached or pulled |

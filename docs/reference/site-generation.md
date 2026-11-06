@@ -88,7 +88,7 @@ Every page is built from the same model: a URL, up to two parts (a **content** s
   not be a widget name (the built-in ids `tags` and so on are exempt because they override a built-in).
 - **Home**: `site.home` names the page written to `index.html`, default `browse`. If `browse` is dropped,
   `site.home` is required.
-- Custom pages are appended to the default top nav after the built-ins; list `site.layout.top` to choose the
+- Custom pages are appended to the default top nav after the built-ins; list `site.layout.nav` to choose the
   order yourself.
 
 A page definition takes these keys (at least one of `content` and `filter` is required):
@@ -134,19 +134,33 @@ A page definition takes these keys (at least one of `content` and `filter` is re
 
 ## Layout slots and widgets
 
-Each page has four slots, each an ordered list or `false` (disabled):
+Each page has seven slots, each an ordered list or `false` (disabled). From the top of the page:
+
+```
+nav        page links
+top        full-width widget band: breadcrumbs, title, ...
+toolbar    the query line
+left | main | right
+footer     full-width widget band
+```
+
 
 | Slot | Takes | Default |
 |---|---|---|
-| `top` | Page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }` | Every page that exists |
+| `nav` | Page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }` | Every page that exists |
+| `top` | Widget names | `title` on Browse, empty elsewhere |
+| `toolbar` | Widget names (the `query` line today) | `query` on Browse, empty elsewhere |
 | `left` | Widget names, page ids, links | `facets` (none on Browse) |
-| `right` | Widget names, page ids, links | `toc` (none on Browse) |
 | `main` | Widget names | Depends on the page kind, below |
+| `right` | Widget names, page ids, links | `toc` (none on Browse) |
+| `footer` | Widget names, page ids, links | A link to the eru docs, on every page. `"footer": false` removes it |
 
-An empty slot, or one whose widgets all render nothing, leaves no gap: the page grid drops the region.
+An empty slot, or one whose widgets all render nothing, leaves no gap: the page grid or band is dropped.
+
+`top` used to be the nav. A config that puts page ids or links in `top` fails with a message that points to `nav`.
 
 Precedence, last wins, each slot replaced **as a whole** (no per-widget merging): built-in defaults for the page
-kind, then `site.layout`, then the page's own `layout`. `site.layout` takes `top`, `left` and `right` only; `main`
+kind, then `site.layout`, then the page's own `layout`. `site.layout` takes every slot except `main`; `main`
 is set per page or in `site.document`.
 
 A string in `left` or `right` is a widget name when one matches; otherwise it is a page id rendered as a link. For
@@ -154,7 +168,7 @@ the built-in `tags` page, which shares its name with a widget, write `{ "page": 
 
 | Page kind | Default `main` |
 |---|---|
-| Browse | `title`, `query`, `list` |
+| Browse | `list` (with `title` in `top` and `query` in `toolbar`) |
 | List page (tags, custom) | `title`, `list` |
 | Detail page (`tags/<tag>/`, ...) | `breadcrumbs`, `title`, `cli`, `list` |
 | Content page | `title`, `content` |
@@ -162,21 +176,21 @@ the built-in `tags` page, which shares its name with a widget, write `{ "page": 
 
 | Widget | Shows | Valid in |
 |---|---|---|
-| `breadcrumbs`, `title` | Trail and heading | `main` |
-| `meta` | Type and lifecycle status badges | `main`, side slots |
-| `verified` | Trust tier (`unverified`, `human-reviewed`, `machine-confirmed`) plus each verifier (`by`, human or machine, with `at` when present) | `main`, side slots |
-| `generated` | Who or what generated the document (`by`) and when (`at`); nothing when the field is absent | `main`, side slots |
-| `description`, `tags` | Frontmatter description and tag links | `main`, side slots |
-| `stale` | Warning, only when past `stale_after` | `main` |
-| `cli` | Copyable `eru add ...` commands | `main`, side slots |
+| `breadcrumbs`, `title` | Trail and heading | `top`, `main` |
+| `meta` | Type and lifecycle status badges | `top`, `main`, side slots, `footer` |
+| `verified` | Trust tier (`unverified`, `human-reviewed`, `machine-confirmed`) plus each verifier (`by`, human or machine, with `at` when present) | `top`, `main`, side slots, `footer` |
+| `generated` | Who or what generated the document (`by`) and when (`at`); nothing when the field is absent | `top`, `main`, side slots, `footer` |
+| `description`, `tags` | Frontmatter description and tag links | `top`, `main`, side slots, `footer` |
+| `stale` | Warning, only when past `stale_after` | `top`, `main` |
+| `cli` | Copyable `eru add ...` commands | `top`, `main`, side slots, `footer` |
 | `content` | The rendered Markdown | `main` |
 | `list` | The page's filtered documents, in its view, with a search box (unless the page has `query`) | `main` |
-| `query` | The query line: typed `key:value` filter tokens, a completion list with live counts, key buttons and a status legend. Replaces the search box | `main` |
+| `query` | The query line: typed `key:value` filter tokens, a completion list with live counts, key buttons and a status legend. Replaces the search box. At most one per page | `toolbar`, side slots |
 | `toc` | Table of contents from the content's headings | side slots |
 | `related` | Incoming and outgoing link lists (no JS) | `main`, side slots |
 | `graph` | Linked-documents visualisation. Hidden until JS draws it, so it needs `related` for readers without JS | `main`, side slots |
 | `facets` | Source, extension, tag, type and bundle lists | side slots |
-| `links` | The custom `{ "label", "url" }` links from `top` | side slots |
+| `links` | The custom `{ "label", "url" }` links from `nav` | `top`, `main`, side slots, `footer` |
 
 Widgets that need data the page lacks render nothing (`toc` on a list page, `related` on a document with no links,
 `stale` on a fresh document). The `facets` widget is plain links everywhere; on Browse (and an override of it) the
@@ -199,7 +213,7 @@ views work without JS; click-to-sort table headers are a JS enhancement.
 
 ### The query line
 
-On Browse the `query` widget replaces the sidebar. Type free text to search, or `key:value` words to filter. A
+On Browse the `query` widget sits in the `toolbar` band, between the title and the table, and replaces the sidebar. Type free text to search, or `key:value` words to filter. A
 word becomes a token when you press space or enter, pick it from the completion list, or click a source or tag in
 the table. Keys: `source`, `status` (`pulled`, `cached`, `index-only`), `tag`, `type`, `ext`, `bundle` and
 `lifecycle` (the frontmatter `status`). Prefix a word with `-` to exclude it (`-tag:adr`). Values for one key are
@@ -209,7 +223,9 @@ filtered view can be linked. Press `/` to focus the line, `j` and `k` to move th
 
 The status of each file shows as a glyph before its name: `●` pulled, `◐` cached, `○` index-only.
 
-Browse shows a table of name, source and tags unless `defaultView` or `pages.browse.view` says otherwise. To bring
+Browse shows a table of name, source and tags unless `defaultView` or `pages.browse.view` says otherwise. To move the
+query line into a column, set `"layout": { "toolbar": false, "left": ["query", "facets"] }`; `query` is valid in `toolbar`,
+`left` and `right`, once per page. To bring
 the sidebar back, set `"layout": { "left": ["facets"] }`; the checkboxes and the query line filter together.
 
 ### The filter contract

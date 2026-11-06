@@ -3,17 +3,33 @@ module Eru.Site.PageLayout
 open System
 open Eru
 
-// Pure resolution of what a page shows: its four slots and its list view. Precedence is
+// Pure resolution of what a page shows: its seven slots and its list view. Precedence is
 // built-in defaults for the page kind, then `site.layout`, then the page's own `layout`
 // (document pages: `site.document.layout`, then matching `site.document.rules` in order).
 // A slot set at a later level replaces the earlier one as a whole.
 
 type ResolvedSlots = {
-    Top   : LayoutItem list
-    Left  : LayoutItem list
-    Right : LayoutItem list
-    Main  : string list
+    Nav     : LayoutItem list
+    Top     : string list
+    Toolbar : string list
+    Left    : LayoutItem list
+    Right   : LayoutItem list
+    Main    : string list
+    Footer  : LayoutItem list
 }
+
+module ResolvedSlots =
+    let empty : ResolvedSlots =
+        { Nav = []; Top = []; Toolbar = []; Left = []; Right = []; Main = []; Footer = [] }
+
+    /// True when any slot places the query line, so the list should not add its plain search box.
+    let hasQuery (s: ResolvedSlots) : bool =
+        let widget (items: LayoutItem list) = items |> List.exists (function WidgetRef "query" -> true | _ -> false)
+        let named (names: string list) = List.contains "query" names
+        named s.Top || named s.Toolbar || named s.Main || widget s.Left || widget s.Right || widget s.Footer
+
+/// Where the footer points by default, on every page.
+let docsLink = LinkRef ("eru docs", "https://github.com/dburriss/eru/tree/main/docs")
 
 type PageKind =
     | BrowsePage         // the browse page: query line and table, no sidebars
@@ -25,7 +41,7 @@ type PageKind =
 
 let defaultMain (kind: PageKind) : string list =
     match kind with
-    | BrowsePage -> [ "title"; "query"; "list" ]
+    | BrowsePage -> [ "list" ]
     | ListPage -> [ "title"; "list" ]
     | DetailPage -> [ "breadcrumbs"; "title"; "cli"; "list" ]
     | ContentPage -> [ "title"; "content" ]
@@ -34,10 +50,13 @@ let defaultMain (kind: PageKind) : string list =
 
 let baseLayout (settings: SiteSettings) (kind: PageKind) : Layout =
     let widgets = List.map WidgetRef
-    { Top = Some (Items (SiteSettings.knownPageIds settings |> List.map (fun id -> PageRef (id, None))))
+    { Nav = Some (Items (SiteSettings.knownPageIds settings |> List.map (fun id -> PageRef (id, None))))
+      Top = Some (Items (if kind = BrowsePage then widgets [ "title" ] else []))
+      Toolbar = Some (Items (if kind = BrowsePage then widgets [ "query" ] else []))
       Left = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "facets" ]))
       Right = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "toc" ]))
-      Main = Some (Items (widgets (defaultMain kind))) }
+      Main = Some (Items (widgets (defaultMain kind)))
+      Footer = Some (Items [ docsLink ]) }
 
 let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
     let l = overlays |> List.fold Layout.overlay baseL
@@ -45,10 +64,15 @@ let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
         function
         | Some (Items xs) -> xs
         | _ -> []
-    { Top = items l.Top
+    let widgets (slot: Slot option) =
+        items slot |> List.choose (function WidgetRef w -> Some w | _ -> None)
+    { Nav = items l.Nav
+      Top = widgets l.Top
+      Toolbar = widgets l.Toolbar
       Left = items l.Left
       Right = items l.Right
-      Main = items l.Main |> List.choose (function WidgetRef w -> Some w | _ -> None) }
+      Main = widgets l.Main
+      Footer = items l.Footer }
 
 let forPage (settings: SiteSettings) (kind: PageKind) (pageLayout: Layout) : ResolvedSlots =
     resolve (baseLayout settings kind) [ settings.Layout; pageLayout ]
