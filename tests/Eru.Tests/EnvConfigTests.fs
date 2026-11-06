@@ -197,7 +197,7 @@ let ``the site theme comes from the env over the files`` () =
 
 [<Fact>]
 let ``env overrides leave sources and inboxes to the files`` () =
-    let src : SourceConfig = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+    let src : SourceConfig = { Name = "kb"; Url = Some "https://example.com/kb.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None; Enabled = None }
     let g = Some { GlobalConfig.empty with Source = Some { Items = Some [ src ] } }
     let eff = effective [ "ERU__SEARCH__MODE", "lex" ] g None
     Assert.Equal<string list>([ "kb" ], eff.Sources |> List.map (fun s -> s.Name))
@@ -224,7 +224,7 @@ let ``validateEnv accepts an empty or valid layer`` () =
 // ── per-source overrides ────────────────────────────────────────────────────
 
 let private kbSource name : SourceConfig =
-    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None; Enabled = None }
 
 let private globalWithSources (names: string list) : GlobalConfig option =
     Some (GlobalConfig.withSources (names |> List.map kbSource) GlobalConfig.empty)
@@ -282,3 +282,14 @@ let ``per-source env values are typed like the settings they name`` () =
 [<Fact>]
 let ``a bad per-source env value names the variable`` () =
     EnvConfig.read [ "ERU__SOURCE__KB__FILES__ALLOWBINARIES", "maybe" ] |> assertError "ERU__SOURCE__KB__FILES__ALLOWBINARIES must be true or false"
+
+[<Fact>]
+let ``a source can be disabled from the environment`` () =
+    let eff = effective [ "ERU__SOURCE__KB__ENABLED", "false" ] (globalWithSources [ "kb"; "other" ]) None
+    Assert.Equal<string list>([ "other" ], eff.Sources |> List.map (fun s -> s.Name))
+
+[<Fact>]
+let ``a non-boolean ENABLED is an error`` () =
+    match EnvConfig.read [ "ERU__SOURCE__KB__ENABLED", "maybe" ] with
+    | Error e -> Assert.Contains("must be true or false", e)
+    | Ok _ -> failwith "expected an error"

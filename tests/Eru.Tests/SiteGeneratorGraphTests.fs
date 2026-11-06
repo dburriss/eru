@@ -8,7 +8,7 @@ open Eru.Site
 open Eru.Site.SiteGenerator
 
 let private makeSource name : SourceConfig =
-    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+    { Name = name; Url = Some $"https://example.com/{name}.git"; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None; Enabled = None }
 
 let private makeGlobal sources : GlobalConfig =
     { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some (sources) } }

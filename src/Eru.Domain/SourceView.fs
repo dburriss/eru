@@ -20,6 +20,7 @@ module SourceView =
         Url      : string option
         Branch   : string option
         Bundles  : Bundle list
+        Enabled  : bool
         Manifest : ManifestState
     }
 
@@ -79,5 +80,6 @@ module SourceView =
             Url      = src.Url
             Branch   = src.Branch
             Bundles  = src.Bundles
+            Enabled  = SourceConfig.isEnabledIn globalSources src
             Manifest = manifest
         }

@@ -61,6 +61,7 @@ Describes one knowledge source (a remote repo, or a reference to one defined glo
 | `Url` | `url` | Conditional | Git URL of the source repo. Required in the global config. In the local config, may be omitted if a source of the same `name` exists in the global config (see [source resolution](#source-resolution)). |
 | `Branch` | `branch` | No | Branch/ref to fetch from. Falls back to the source's default branch if omitted. |
 | `Bundles` | `bundles` | No | Directories the source publishes from, each `{ "path": "...", "kind": "manifest" \| "okf" }` (`path: ""` is the repo root). Manage them with `eru source bundle add/remove`. |
+| `Enabled` | `enabled` | No | `false` switches the source off: it stays in the config but is not synced, searched, served or shown in the site. Absent or `true` leaves it on. A url-less local entry can override the global entry's value. Toggle it with `eru source enable` / `disable`. |
 | `Files` | `files` | No | Per-source override of [`files`](#settings-sections): `blockPatterns`, `allowPatterns`, `allowBinaries`. See [per-source settings](#per-source-settings). |
 | `Search` | `search` | No | Per-source override of `search.ignorePatterns`. |
 | `Okf` | `okf` | No | Per-source override of `okf.ignorePatterns`. |

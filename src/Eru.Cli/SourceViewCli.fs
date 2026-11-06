@@ -24,6 +24,8 @@ let (|SourceViewCmd|_|) (r: ParseResults<EruArgs>) =
 
 let private printKv label (value: string) = printfn "%-9s %s" (label + ":") value
 
+let private statusText (enabled: bool) = if enabled then "enabled" else "disabled"
+
 let private bundleLabel (path: string) = if path = "" then "(root)" else path
 
 let private bundlesText (bundles: Bundle list) =
@@ -41,6 +43,7 @@ let private groupByBundle (entries: SourceView.SourceFileEntry list) =
 let private renderText (detail: SourceView.SourceDetail) =
     printKv "Name"  detail.Name
     printKv "Scope" detail.Scope
+    printKv "Status" (statusText detail.Enabled)
     detail.Url    |> Option.iter (printKv "URL")
     detail.Branch |> Option.iter (printKv "Branch")
     if not detail.Bundles.IsEmpty then printKv "Bundles" (bundlesText detail.Bundles)
@@ -71,6 +74,7 @@ let private renderTable (detail: SourceView.SourceDetail) =
     let meta = makeTable ["Field"; "Value"]
     meta.AddRowEscaped("Name",  detail.Name)  |> ignore
     meta.AddRowEscaped("Scope", detail.Scope) |> ignore
+    meta.AddRowEscaped("Status", statusText detail.Enabled) |> ignore
     detail.Url    |> Option.iter (fun v -> meta.AddRowEscaped("URL",    v) |> ignore)
     detail.Branch |> Option.iter (fun v -> meta.AddRowEscaped("Branch", v) |> ignore)
     if not detail.Bundles.IsEmpty then meta.AddRowEscaped("Bundles", bundlesText detail.Bundles) |> ignore

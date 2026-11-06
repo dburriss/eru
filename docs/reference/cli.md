@@ -172,15 +172,32 @@ eru source add https://github.com/my-org/knowledge -g   # add to global config
 
 ### `eru source list`
 
-List all configured knowledge sources (merged from global and local config).
+List all configured knowledge sources (merged from global and local config). A disabled source is listed with the status `disabled`.
 
 ```
 eru source list
 ```
 
+### `eru source enable` / `eru source disable`
+
+Switch a source on or off without removing it. A disabled source keeps its config entry, cache and lock entries, but is left out of the effective config: it is not synced, searched, served by the MCP server or shown in the generated site, and collection files that point at it are skipped.
+
+```
+eru source enable  <name> [-g] [--dryrun]
+eru source disable <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the source (required) |
+| `-g` | Change the entry in global config (`~/.config/eru/config.json`) instead of `.eru/config.json` |
+| `--dryrun` | Preview without writing |
+
+Without `-g` the change goes in `.eru/config.json`. A source that only exists in the global config gets a url-less local entry carrying `enabled`, so only the current repo is affected. The same switch is the [`enabled`](config-file.md#sourceconfig) field and `ERU__SOURCE__<NAME>__ENABLED`.
+
 ### `eru source view`
 
-Show details and available files for a specific source.
+Show details and available files for a specific source. The header includes the source's status (`enabled` or `disabled`).
 
 ```
 eru source view <name> [--full]

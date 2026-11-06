@@ -11,6 +11,7 @@
 
 ### Added
 
+- `eru source disable <name>` and `eru source enable <name>` switch a source off and on without removing it. A disabled source is not synced, searched, served over MCP or shown in the site, and collection files pointing at it are skipped. It is also the `enabled` field of a source entry and `ERU__SOURCE__<NAME>__ENABLED`, and `eru source list` shows its status. `-g` edits the global config; otherwise a url-less local entry is used so only the current repo is affected.
 - Site themes: `site.theme` (`terminal` by default, or `ledger`) switches the look of the generated site. A theme is a folder with a `theme.json` (default `site` settings) and a `theme.css`; custom themes go in `.eru/themes/<name>/` or `~/.config/eru/themes/<name>/`. Your config and `custom.css` still win. `ERU__SITE__THEME` and `eru config set site.theme` work too. See [themes](docs/reference/site-generation.md#themes).
 - `eru theme list` shows the built-in and installed themes and which one is active.
 - A `rows` view: one bordered row per document with its description, source, tags and sync state. It is the `ledger` theme's default.

@@ -51,6 +51,7 @@ config file; they cannot create one or set its `url`, `branch` or `bundles`.
 
 | Per-source key | Environment variable | Value |
 |---|---|---|
+| `enabled` | `ERU__SOURCE__<NAME>__ENABLED` | `true` or `false` (`false` disables the source) |
 | `files.blockPatterns` | `ERU__SOURCE__<NAME>__FILES__BLOCKPATTERNS__0`, `__1`, … | list of globs |
 | `files.allowPatterns` | `ERU__SOURCE__<NAME>__FILES__ALLOWPATTERNS__0`, `__1`, … | list of globs |
 | `files.allowBinaries` | `ERU__SOURCE__<NAME>__FILES__ALLOWBINARIES` | `true` or `false` |

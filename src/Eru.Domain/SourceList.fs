@@ -9,6 +9,7 @@ module SourceList =
         Bundles  : Bundle list
         Scope    : string
         Tags     : string list
+        Enabled  : bool
     }
 
     let private rowTags (deps: Deps) (src: SourceConfig) : string list =
@@ -36,6 +37,7 @@ module SourceList =
             Bundles  = src.Bundles
             Scope    = scope
             Tags     = rowTags deps src
+            Enabled  = SourceConfig.isEnabledIn globalSources src
         }
 
         let localRows =

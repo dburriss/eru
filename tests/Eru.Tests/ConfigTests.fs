@@ -18,7 +18,7 @@ let private makeInbox path : InboxConfig =
     { Path = path; RawPath = None; DefaultChannel = None; Channels = Map.empty; Branch = None }
 
 let private makeSource name url : SourceConfig =
-    { Name = name; Url = url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+    { Name = name; Url = url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None; Enabled = None }
 
 // ── merge: basic cases ──────────────────────────────────────────────────────
 
@@ -880,3 +880,26 @@ let ``per-source overrides survive a JSON round trip`` () =
     Assert.Equal(kb.Files, (GlobalConfig.sources back).Head.Files)
     Assert.Equal(kb.Site, (GlobalConfig.sources back).Head.Site)
     Assert.Equal(None, (GlobalConfig.sources back).Head.Okf)
+
+// ── enabled flag ────────────────────────────────────────────────────────────
+
+[<Fact>]
+let ``a disabled source is left out of the effective config`` () =
+    let g = makeGlobal [ makeSource "on" (Some "https://x/on.git"); { makeSource "off" (Some "https://x/off.git") with Enabled = Some false } ] []
+    let eff = Config.merge (Some g) None |> unwrapOk "merge"
+    Assert.Equal<string list>([ "on" ], eff.Sources |> List.map (fun s -> s.Name))
+
+[<Fact>]
+let ``a local alias can disable a global source and enable a disabled one`` () =
+    let g = makeGlobal [ makeSource "a" (Some "https://x/a.git"); { makeSource "b" (Some "https://x/b.git") with Enabled = Some false } ] []
+    let l = LocalConfig.withSources [ { makeSource "a" None with Enabled = Some false }; { makeSource "b" None with Enabled = Some true } ] LocalConfig.empty
+    let eff = Config.merge (Some g) (Some l) |> unwrapOk "merge"
+    Assert.Equal<string list>([ "b" ], eff.Sources |> List.map (fun s -> s.Name))
+
+[<Fact>]
+let ``collection files pointing at a disabled source are skipped`` () =
+    let file s = { Source = s; RemotePath = "x.md"; Tags = []; Description = None }
+    let col : CollectionConfig = { Name = "c"; Tags = []; Files = [ file "on"; file "off" ]; Description = None }
+    let g = makeGlobal [ makeSource "on" (Some "https://x/on.git"); { makeSource "off" (Some "https://x/off.git") with Enabled = Some false } ] [ col ]
+    let eff = Config.merge (Some g) None |> unwrapOk "merge"
+    Assert.Equal<string list>([ "on" ], eff.Collections |> List.map (fun f -> f.Source))

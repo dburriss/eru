@@ -131,6 +131,19 @@ type SourceRemoveArgs =
             | Dryrun   -> "Show what would be removed without writing anything."
             | Output _ -> "Output format: table (default), text, json."
 
+type SourceToggleArgs =
+    | [<MainCommand; ExactlyOnce>] Name   of name: string
+    | [<AltCommandLine("-g")>]     Global
+    | [<Unique>]                   Dryrun
+    | [<Unique; AltCommandLine("-o")>] Output of format: string
+    interface IArgParserTemplate with
+        member a.Usage =
+            match a with
+            | Name _   -> "Name of the source."
+            | Global   -> "Change it in global config (~/.config/eru/config.json) instead of .eru/config.json."
+            | Dryrun   -> "Show what would change without writing anything."
+            | Output _ -> "Output format: table (default), text, json."
+
 type SourceBundleAddArgs =
     | [<MainCommand; ExactlyOnce>] Source_And_Path of source: string * path: string
     | [<AltCommandLine("-k")>]     Kind            of kind: string
@@ -184,6 +197,8 @@ type SourceArgs =
     | [<SubCommand>] Files  of ParseResults<SourceFilesArgs>
     | [<SubCommand>] Remove of ParseResults<SourceRemoveArgs>
     | [<SubCommand>] Bundle of ParseResults<SourceBundleArgs>
+    | [<SubCommand>] Enable  of ParseResults<SourceToggleArgs>
+    | [<SubCommand>] Disable of ParseResults<SourceToggleArgs>
     interface IArgParserTemplate with
         member a.Usage =
             match a with
@@ -193,6 +208,8 @@ type SourceArgs =
             | Files  _ -> "List all concrete files exposed by a source, resolving any manifest glob patterns."
             | Remove _ -> "Remove a knowledge source."
             | Bundle _ -> "Manage a source's bundles."
+            | Enable  _ -> "Switch a disabled source back on."
+            | Disable _ -> "Switch a source off without removing it: no sync, search, site or MCP."
 
 type InboxAddArgs =
     | [<MainCommand; ExactlyOnce>] Name_And_Path   of name: string * path: string

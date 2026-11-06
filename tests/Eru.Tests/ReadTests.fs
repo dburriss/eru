@@ -3,7 +3,7 @@ module Eru.Tests.ReadTests
 open Xunit
 open Eru
 
-let private source name url : SourceConfig = { Name = name; Url = url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+let private source name url : SourceConfig = { Name = name; Url = url; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None; Enabled = None }
 
 let private index (entries: (string * IndexEntry) list) : SourceIndex =
     { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = Map.ofList entries }

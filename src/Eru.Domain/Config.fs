@@ -186,6 +186,9 @@ type SourceConfig = {
     Search: SearchSection option
     Okf: OkfSection option
     Site: SourceSiteSection option
+    // `Some false` switches the source off: it stays in the config but is left out of the effective
+    // config, so nothing syncs, searches or serves it. `None` (and `Some true`) leave it on.
+    Enabled: bool option
 }
 
 // Items are keyed by inbox name; merged by name, local wins.
@@ -266,8 +269,15 @@ module SourceConfig =
     let hasOverrides (s: SourceConfig) : bool =
         s.Files.IsSome || s.Search.IsSome || s.Okf.IsSome || s.Site.IsSome
 
+    let isEnabled (s: SourceConfig) : bool = s.Enabled <> Some false
+
+    // For a raw config entry: a url-less local entry inherits `enabled` from the global entry of the same name.
+    let isEnabledIn (globalSources: SourceConfig list) (s: SourceConfig) : bool =
+        let inherited = globalSources |> List.tryFind (fun g -> g.Name = s.Name) |> Option.bind (fun g -> g.Enabled)
+        s.Enabled |> Option.orElse (if s.Url.IsNone then inherited else None) |> (<>) (Some false)
+
     let empty : SourceConfig =
-        { Name = ""; Url = None; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None }
+        { Name = ""; Url = None; Branch = None; Bundles = []; Files = None; Search = None; Okf = None; Site = None; Enabled = None }
 
 module OkfSection =
     let empty : OkfSection = { IgnorePatterns = None; FixTypes = None; DefaultType = None }
@@ -694,7 +704,8 @@ module Config =
             Files  = both files  local.Files  global'.Files
             Search = both search local.Search global'.Search
             Okf    = both okf    local.Okf    global'.Okf
-            Site   = both site   local.Site   global'.Site }
+            Site   = both site   local.Site   global'.Site
+            Enabled = orElse local.Enabled global'.Enabled }
 
     let private resolveLocalSources (localSources: SourceConfig list) (globalSources: SourceConfig list) =
         localSources
@@ -830,10 +841,14 @@ module Config =
                 globalInboxes
                 |> Map.fold (fun acc name inbox -> if Map.containsKey name acc then acc else Map.add name inbox acc) localInboxes
 
-            let collectionFiles (cols: CollectionConfig list) = cols |> List.collect (fun col -> col.Files)
+            // A disabled source is dropped from the effective config, and so are the collection
+            // files that point at it; both stay in the config files.
+            let disabledNames = mergedSources |> List.filter (SourceConfig.isEnabled >> not) |> List.map (fun s -> s.Name) |> Set.ofList
+            let collectionFiles (cols: CollectionConfig list) =
+                cols |> List.collect (fun col -> col.Files) |> List.filter (fun f -> not (Set.contains f.Source disabledNames))
 
             {
-                Sources      = mergedSources
+                Sources      = mergedSources |> List.filter SourceConfig.isEnabled
                 CommitOnPull = first3 eSync lSync gSync (fun (s: SyncSection) -> s.CommitOnPull) |> Option.defaultValue false
                 StateFile    = first3 eSync lSync gSync (fun (s: SyncSection) -> s.StateFile) |> Option.defaultValue "eru.lock"
                 Collections  =
@@ -950,7 +965,7 @@ module Config =
             | None    -> []
             | Some "" -> []
             | Some p  -> [ { Path = p; Kind = Manifest } ]
-          Files = None; Search = None; Okf = None; Site = None }
+          Files = None; Search = None; Okf = None; Site = None; Enabled = None }
 
     // Defends against System.Text.Json silently leaving a missing list field null
     // rather than throwing, regardless of exactly which failure mode a given

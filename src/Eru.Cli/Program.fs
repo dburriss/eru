@@ -12,6 +12,7 @@ open Eru.Cli.SourceViewCli
 open Eru.Cli.SourceFilesCli
 open Eru.Cli.SourceAddCli
 open Eru.Cli.SourceRemoveCli
+open Eru.Cli.SourceToggleCli
 open Eru.Cli.SourceBundleAddCli
 open Eru.Cli.SourceBundleListCli
 open Eru.Cli.SourceBundleRemoveCli
@@ -86,6 +87,7 @@ let main argv =
         | SourceFilesCmd cmd          -> SourceFilesCli.run deps cmd
         | SourceAddCmd cmd            -> SourceAddCli.run deps cmd
         | SourceRemoveCmd cmd         -> SourceRemoveCli.run deps cmd
+        | SourceToggleCmd cmd         -> SourceToggleCli.run deps cmd
         | SourceBundleAddCmd cmd      -> SourceBundleAddCli.run deps cmd
         | SourceBundleListCmd cmd     -> SourceBundleListCli.run deps cmd
         | SourceBundleRemoveCmd cmd   -> SourceBundleRemoveCli.run deps cmd

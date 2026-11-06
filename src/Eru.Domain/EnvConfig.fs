@@ -72,7 +72,7 @@ module EnvConfig =
 
     // Settings that are whole numbers or booleans, checked up front so the error names the variable.
     let private intPaths = set [ "mcp.refreshintervalminutes"; "inbox.watchintervalseconds"; "site.cards.columns" ]
-    let private boolPaths = set [ "sync.commitonpull"; "files.allowbinaries"; "site.hideemptybundles" ]
+    let private boolPaths = set [ "sync.commitonpull"; "files.allowbinaries"; "site.hideemptybundles"; "enabled" ]
 
     let private isIndex (seg: string) = seg <> "" && seg |> Seq.forall Char.IsAsciiDigit
 
@@ -188,9 +188,10 @@ module EnvConfig =
             |> List.filter (fun (path, _) ->
                 match path with
                 | section :: key :: _ when vocabulary.ContainsKey section && vocabulary[section].ContainsKey key -> true
+                | [ "source"; _; "enabled" ] -> true
                 | "source" :: _ :: section :: key :: _ when sourceVocabulary.ContainsKey section && sourceVocabulary[section].ContainsKey key -> true
                 | "source" :: _ :: _ :: _ :: _ ->
-                    warnings.Add $"{varName path}: ignored (a source can override only files.*, search.ignorePatterns, okf.ignorePatterns and site.ignorePatterns)"
+                    warnings.Add $"{varName path}: ignored (a source can override only enabled, files.*, search.ignorePatterns, okf.ignorePatterns and site.ignorePatterns)"
                     false
                 | section :: _ when section = "source" || section = "collection" ->
                     warnings.Add $"{varName path}: ignored (sources and collections are configured in the config file only; a source's own settings are ERU__SOURCE__<NAME>__<SECTION>__<KEY>)"

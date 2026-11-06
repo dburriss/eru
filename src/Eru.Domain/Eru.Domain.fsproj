@@ -24,6 +24,7 @@
     <Compile Include="BundleKindWarning.fs" />
     <Compile Include="SourceAdd.fs" />
     <Compile Include="SourceRemove.fs" />
+    <Compile Include="SourceToggle.fs" />
     <Compile Include="SourceBundleAdd.fs" />
     <Compile Include="SourceBundleList.fs" />
     <Compile Include="SourceBundleRemove.fs" />

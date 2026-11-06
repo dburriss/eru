@@ -1,6 +1,6 @@
 ---
 name: eru
-description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru site", "eru remove", "eru disconnect", "eru print", "eru config", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "clear the cache", "generate a site", "list source files", or any question about using the eru CLI tool.
+description: Use this skill when the user wants to pull, sync, or manage shared knowledge files with eru. Triggers on "eru add", "eru sync", "eru source", "eru collection", "eru manifest", "eru cache", "eru site", "eru remove", "eru disconnect", "eru print", "eru config", "set up eru", "pull a knowledge file", "add a source to eru", "remove a source from eru", "disable a source", "enable a source", "create a manifest", "verify a manifest", "remove from a collection", "prune the cache", "clear the cache", "generate a site", "list source files", or any question about using the eru CLI tool.
 ---
 
 # eru
@@ -156,6 +156,8 @@ eru source files knowledge --refresh     # re-fetch from network, then display
 eru source remove knowledge
 eru source remove org-knowledge --global
 eru source remove knowledge --dryrun
+eru source disable knowledge             # keep it configured but skip sync, search, MCP and site
+eru source enable knowledge
 ```
 
 `eru source files` reads from the source index cache — no network call unless `--refresh` is passed. Run `eru sync` first if no index has been built.

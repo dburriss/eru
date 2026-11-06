@@ -201,7 +201,7 @@ module Add =
                 Url      = Some parsed.RepoUrl
                 Branch   = Some parsed.Branch
                 Bundles  = bundles
-                Files = None; Search = None; Okf = None; Site = None
+                Files = None; Search = None; Okf = None; Site = None; Enabled = None
             }
             if isGlobal then
                 let g = globalCfg |> Option.defaultValue GlobalConfig.empty

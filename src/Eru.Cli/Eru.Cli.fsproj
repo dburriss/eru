@@ -51,6 +51,7 @@
     <Compile Include="SourceFilesCli.fs" />
     <Compile Include="SourceAddCli.fs" />
     <Compile Include="SourceRemoveCli.fs" />
+    <Compile Include="SourceToggleCli.fs" />
     <Compile Include="SourceBundleAddCli.fs" />
     <Compile Include="SourceBundleListCli.fs" />
     <Compile Include="SourceBundleRemoveCli.fs" />

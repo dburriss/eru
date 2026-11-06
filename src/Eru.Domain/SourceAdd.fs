@@ -101,7 +101,7 @@ module SourceAdd =
             Url      = Some cmd.Url
             Branch   = cmd.Branch
             Bundles  = bundles
-            Files = None; Search = None; Okf = None; Site = None
+            Files = None; Search = None; Okf = None; Site = None; Enabled = None
         }
 
         let cacheManifest () =

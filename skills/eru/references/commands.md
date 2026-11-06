@@ -165,7 +165,22 @@ eru source remove <name> [-g] [--dryrun]
 
 ## `eru source list`
 
-No arguments. Lists all configured sources (local + global), with tags from the manifest cache.
+No arguments. Lists all configured sources (local + global), with tags from the manifest cache. A disabled source shows as `disabled`.
+
+## `eru source enable` / `eru source disable`
+
+```
+eru source enable  <name> [-g] [--dryrun]
+eru source disable <name> [-g] [--dryrun]
+```
+
+| Argument / Flag | Description |
+|---|---|
+| `<name>` | Name of the source (required) |
+| `-g` | Change global config instead of `.eru/config.json` |
+| `--dryrun` | Show what would change without writing anything |
+
+A disabled source keeps its config, cache and lock entries but is not synced, searched, served over MCP or shown in the site, and collection files pointing at it are skipped. Without `-g` a global-only source gets a url-less local entry, so only this repo is affected. Also settable as `enabled` in the source entry or `ERU__SOURCE__<NAME>__ENABLED`.
 
 ## `eru source view`
 
@@ -177,6 +192,8 @@ eru source view <name> [--full]
 |---|---|
 | `<name>` | Name of the source to inspect (required) |
 | `--full` | Show all files without the default 20-entry cap |
+
+The header shows the source's status (`enabled` or `disabled`).
 
 Files table columns: **Hash** (8-char SHA-256 of the path, usable with `eru add`), **Path**, **Tags**, **Description**.
 
