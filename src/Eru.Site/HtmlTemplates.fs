@@ -20,7 +20,7 @@ let private navLinks (env: SiteEnv) (p: string) (items: LayoutItem list) : strin
             |> Option.map (fun (defaultLabel, url) -> $"""<a href="{p}{url}">{escapeHtml (defaultArg label defaultLabel)}</a>""")
         | LinkRef (label, url) ->
             Some $"""<a href="{escapeHtml url}" target="_blank" rel="noopener">{escapeHtml label}</a>"""
-        | WidgetRef _ -> None)
+        | WidgetRef _ | TextRef _ -> None)
     |> String.concat "\n    "
 
 /// The shared frame: the nav, full-width `top` and `toolbar` bands, a CSS grid with `left`, `main`
@@ -89,6 +89,7 @@ let emptyModel : SiteModel =
 let defaultEnv (model: SiteModel) : SiteEnv =
     { Model = model
       PageLinks = PageSpecs.resolve SiteSettings.empty |> PageSpecs.pageLinks
+      TextFiles = Map.empty
       ShowSyncStatus = false
       EruVersion = "" }
 

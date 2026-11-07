@@ -508,6 +508,8 @@ body.theme-dark .badge-okf { background: #1e3a8a; color: #93c5fd; }
   color: var(--color-muted); font-size: 0.85rem;
 }
 .region-footer .widget { margin-bottom: 0; }
+.region-footer .widget p { margin: 0; text-align: center; }
+.region-footer .widget-text a[target], .region-footer .widget-text a { text-decoration: none; }
 .region-footer .side-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem 1.25rem; }
 /* with the version widget: links centered, version at the right edge */
 .region-footer:has(.widget-version) { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; }
@@ -1567,10 +1569,12 @@ let private writeFileR (path: string) (content: string) : unit =
 
 /// Repo-relative Markdown files that custom pages render; `eru site serve` watches these.
 let referencedContentFiles (cfg: EffectiveConfig) : string list =
-    cfg.Site.Pages
-    |> List.choose (function
-        | _, Defined { Content = Some (ContentFile f) } -> SiteSettings.normalizeRelPath f
-        | _ -> None)
+    let pageFiles =
+        cfg.Site.Pages
+        |> List.choose (function
+            | _, Defined { Content = Some (ContentFile f) } -> SiteSettings.normalizeRelPath f
+            | _ -> None)
+    pageFiles @ SiteSettings.referencedTextFiles cfg.Site
     |> List.distinct
 
 let private hasScheme (s: string) = System.Text.RegularExpressions.Regex.IsMatch(s, @"^[a-zA-Z][a-zA-Z0-9+.\-]*:")
@@ -1678,7 +1682,20 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
 
     let now = deps.GetUtcNow()
     let specs = PageSpecs.resolve settings
-    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs; ShowSyncStatus = cfg.SiteShowSyncStatus; EruVersion = opts.EruVersion }
+    // footer text/html files are read up front too, so a bad reference fails before anything is written
+    let textFiles =
+        SiteSettings.referencedTextFiles settings
+        |> List.fold (fun acc rel ->
+            acc |> Result.bind (fun (m: Map<string, string>) ->
+                match deps.ReadLocalFile (Path.Combine(deps.GetCwd(), rel)) with
+                | Error e -> Error $"site.layout.footer file '{rel}' could not be read: {e}"
+                | Ok None -> Error $"site.layout.footer file '{rel}' does not exist"
+                | Ok (Some text) -> Ok (Map.add rel text m))) (Ok Map.empty)
+    match textFiles with
+    | Error e -> Error e
+    | Ok textFiles ->
+
+    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs; TextFiles = textFiles; ShowSyncStatus = cfg.SiteShowSyncStatus; EruVersion = opts.EruVersion }
     let isLive (id: string) = env.PageLinks.ContainsKey id
 
     let sourceUrlFor (d: SiteDocument) : string option =

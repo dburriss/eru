@@ -10,10 +10,18 @@ open System.Text.Json
 
 type SlotName = Nav | Top | Toolbar | Left | Main | Right | Footer
 
+/// Footer text: Markdown (HTML escaped) or raw HTML, written inline or read from a repo-relative file.
+type TextKind = Markdown | Html
+
+type TextSource =
+    | TextInline of string
+    | TextFile   of string
+
 type LayoutItem =
     | PageRef   of id: string * label: string option
     | WidgetRef of name: string
     | LinkRef   of label: string * url: string
+    | TextRef   of kind: TextKind * source: TextSource
 
 type Slot =
     | Disabled
@@ -242,6 +250,26 @@ module SiteSettings =
             | Some (_ :: _ as stack) -> Some (String.Join("/", List.rev stack))
             | _ -> None
 
+    /// Normalised repo-relative files named by footer `text`/`html` items in any layout.
+    let referencedTextFiles (s: SiteSettings) : string list =
+        let layouts =
+            [ yield s.Layout
+              yield s.Document.Layout
+              for r in s.Document.Rules do yield r.Layout
+              for _, entry in s.Pages do
+                  match entry with
+                  | Defined d -> yield d.Layout
+                  | Dropped -> () ]
+        layouts
+        |> List.collect (fun l ->
+            match l.Footer with
+            | Some (Items items) ->
+                items |> List.choose (function
+                    | TextRef (_, TextFile f) -> normalizeRelPath f
+                    | _ -> None)
+            | _ -> [])
+        |> List.distinct
+
     // ── parsing ──────────────────────────────────────────────────────────────
 
     exception private Invalid of string
@@ -302,12 +330,24 @@ module SiteSettings =
             | Top | Toolbar | Main -> WidgetRef s
             | Left | Right | Footer -> if SiteVocabulary.isWidget s then WidgetRef s else PageRef (s, None)
         | JsonValueKind.Object ->
-            expectKeys path [ "page"; "label"; "url" ] el
+            expectKeys path [ "page"; "label"; "url"; "text"; "html" ] el
             let get (k: string) = match el.TryGetProperty k with | true, v -> Some v | _ -> None
-            match get "page", get "label", get "url" with
-            | Some p, label, None -> PageRef (str $"{path}.page" p, label |> Option.map (str $"{path}.label"))
-            | None, Some l, Some u -> LinkRef (str $"{path}.label" l, str $"{path}.url" u)
-            | _ -> fail $"{path} must be {{ \"page\", \"label\"? }} or {{ \"label\", \"url\" }}"
+            let textItem (kind: TextKind) (key: string) (v: JsonElement) =
+                let p = $"{path}.{key}"
+                match v.ValueKind with
+                | JsonValueKind.String -> TextRef (kind, TextInline (v.GetString()))
+                | JsonValueKind.Object ->
+                    expectKeys p [ "file" ] v
+                    match v.TryGetProperty "file" with
+                    | true, f -> TextRef (kind, TextFile (str $"{p}.file" f))
+                    | _ -> fail $"{p} must be a string or {{ \"file\" }}"
+                | _ -> fail $"{p} must be a string or {{ \"file\" }}, not {kindName v}"
+            match get "page", get "label", get "url", get "text", get "html" with
+            | Some p, label, None, None, None -> PageRef (str $"{path}.page" p, label |> Option.map (str $"{path}.label"))
+            | None, Some l, Some u, None, None -> LinkRef (str $"{path}.label" l, str $"{path}.url" u)
+            | None, None, None, Some t, None -> textItem Markdown "text" t
+            | None, None, None, None, Some h -> textItem Html "html" h
+            | _ -> fail $"{path} must be {{ \"page\", \"label\"? }}, {{ \"label\", \"url\" }}, {{ \"text\" }} or {{ \"html\" }}"
         | _ -> fail $"{path} must be a page id, a widget name or an object, not {kindName el}"
 
     let private parseSlot (path: string) (slot: SlotName) (el: JsonElement) : Slot =
@@ -535,6 +575,14 @@ module SiteSettings =
                         else fail $"{ip}: unknown page id '{id}'"
                     | Nav, WidgetRef w -> fail $"{ip}: widget '{w}' is not valid in nav; nav takes pages and links"
                     | Nav, LinkRef _ -> ()
+                    | (Nav | Top | Toolbar | Left | Main | Right), TextRef (kind, _) ->
+                        let key = match kind with Markdown -> "text" | Html -> "html"
+                        fail $"{ip}: '{key}' items are only valid in footer"
+                    | Footer, TextRef (kind, TextFile f) ->
+                        if (normalizeRelPath f).IsNone then
+                            let key = match kind with Markdown -> "text" | Html -> "html"
+                            fail $"{ip}.{key}.file '{f}' must be a path inside the repository (no '..' escape, not absolute)"
+                    | Footer, TextRef _ -> ()
                     | Top, (PageRef _ | LinkRef _) -> movedToNav ip
                     | Top, WidgetRef w when not (SiteVocabulary.isWidget w) && known.Contains w -> movedToNav ip
                     | (Top | Toolbar | Main), WidgetRef w -> widgetIn ip w

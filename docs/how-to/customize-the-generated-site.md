@@ -176,6 +176,17 @@ Every page ends with centered `docs | changelog` links to eru and the eru versio
 
 `"footer": false` removes the footer.
 
+For formatted text, use a `text` item (Markdown, with raw HTML escaped) and keep the version widget if you want it:
+
+```json
+{ "site": { "layout": { "footer": [
+  { "text": "Owned by **platform**. [Handbook](https://wiki.example.com)" },
+  "version"
+] } } }
+```
+
+Long text can live in a file: `{ "text": { "file": "docs/footer.md" } }`. When you need markup Markdown cannot express, use `{ "html": "<b>…</b>" }` or `{ "html": { "file": "docs/footer.html" } }`. `html` is emitted unescaped, so only use content you trust.
+
 ## Drop or reorder built-in pages
 
 ```json

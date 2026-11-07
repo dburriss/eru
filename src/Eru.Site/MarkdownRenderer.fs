@@ -7,6 +7,9 @@ open Markdig.Syntax.Inlines
 
 let private pipeline = MarkdownPipelineBuilder().UseAdvancedExtensions().Build()
 
+// Same as `pipeline` but raw HTML in the Markdown is escaped, for config-supplied snippets.
+let private escapingPipeline = MarkdownPipelineBuilder().UseAdvancedExtensions().DisableHtml().Build()
+
 let private stripFrontmatter (markdown: string) : string =
     if not (markdown.StartsWith("---")) then markdown
     else
@@ -32,6 +35,10 @@ let private stripFrontmatter (markdown: string) : string =
 
 let render (markdown: string) : string =
     Markdown.ToHtml(stripFrontmatter markdown, pipeline)
+
+/// Renders Markdown with raw HTML escaped (inline and block).
+let renderEscaped (markdown: string) : string =
+    Markdown.ToHtml(markdown, escapingPipeline)
 
 /// Renders Markdown, letting `rewrite` replace any link target (None leaves it alone).
 let renderWith (rewrite: string -> string option) (markdown: string) : string =

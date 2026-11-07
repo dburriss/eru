@@ -57,7 +57,7 @@ replacement: built-in defaults, `site.layout`, the page's `layout`. `site.layout
 `main` is per page or in `site.document`.
 
 - `top` and `toolbar` take widget names only. Browse defaults: `top: ["title"]`, `toolbar: ["query"]`, `main: ["list"]`; other pages leave both empty. `query` is valid in `toolbar`, `left`, `right`, once per page; move it with `"toolbar": false, "left": ["query", "facets"]`.
-- `footer` takes widgets and links; default is a link to the eru docs on every page, `"footer": false` removes it.
+- `footer` takes widgets, links, `{ "text": "markdown" }` (HTML escaped) and `{ "html": "<b>raw</b>" }`; `text` and `html` also take `{ "file": "path" }` for a repo-relative file. Default is an `html` item with docs and changelog links plus the `version` widget on every page; `"footer": false` removes it.
 - Old configs that put page ids or links in `top` fail with a pointer to `nav`.
 - `nav` takes page ids and links: `"tags"`, `{ "page": "tags", "label": "Labels" }`, `{ "label": "Wiki", "url": "https://..." }`. Default: every page.
 - `left` default `facets`; `right` default `toc`; Browse has neither (`"left": ["facets"]` brings the sidebar back). A string is a widget name if one matches, else a page id link (use `{ "page": "tags" }` for the built-in `tags`).

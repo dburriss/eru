@@ -153,7 +153,18 @@ footer     full-width widget band
 | `left` | Widget names, page ids, links | `facets` (none on Browse) |
 | `main` | Widget names | Depends on the page kind, below |
 | `right` | Widget names, page ids, links | `toc` (none on Browse) |
-| `footer` | Widget names, page ids, links | `docs | changelog` links to eru (centered) and the eru version (right), on every page. `"footer": false` removes it |
+| `footer` | Widget names, page ids, links, `text`, `html` | An `html` item with `docs | changelog` links to eru (centered) and the eru version (right), on every page. `"footer": false` removes it |
+
+Footer-only items:
+
+| Item | Content | Notes |
+|---|---|---|
+| `{ "text": "markdown" }` | Inline Markdown | Rendered with raw HTML escaped |
+| `{ "text": { "file": "path" } }` | Markdown read from a repo-relative file | Same path rules as `content.file`; watched by `eru site serve` |
+| `{ "html": "<b>x</b>" }` | Inline raw HTML | Emitted as is; the config is trusted |
+| `{ "html": { "file": "path" } }` | Raw HTML read from a repo-relative file | Same path rules; a missing file fails generation |
+
+Using `text` or `html` in any slot other than `footer` is an error.
 
 An empty slot, or one whose widgets all render nothing, leaves no gap: the page grid or band is dropped.
 

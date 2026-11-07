@@ -287,6 +287,26 @@ let ``every new slot parses and overlays`` () =
     | _ -> failwith "expected a defined page"
 
 [<Fact>]
+let ``footer text and html items parse inline and from files`` () =
+    let s =
+        siteSettings
+            """{ "layout": { "footer": [{ "text": "hi" }, { "text": { "file": "a.md" } }, { "html": "<b>x</b>" }, { "html": { "file": "f.html" } }] } }"""
+    Assert.Equal<LayoutItem list>(
+        [ TextRef (Markdown, TextInline "hi"); TextRef (Markdown, TextFile "a.md")
+          TextRef (Html, TextInline "<b>x</b>"); TextRef (Html, TextFile "f.html") ],
+        items s.Layout.Footer)
+
+[<Fact>]
+let ``footer text and html items reject bad shapes, bad paths and other slots`` () =
+    assertRejected "must be a string or" """{ "layout": { "footer": [{ "text": 1 }] } }"""
+    assertRejected "must be a string or" """{ "layout": { "footer": [{ "html": {} }] } }"""
+    assertRejected "must be { \"page\"" """{ "layout": { "footer": [{ "text": "a", "html": "b" }] } }"""
+    assertRejected "inside the repository" """{ "layout": { "footer": [{ "text": { "file": "../x.md" } }] } }"""
+    assertRejected "inside the repository" """{ "layout": { "footer": [{ "html": { "file": "/abs.html" } }] } }"""
+    assertRejected "'text' items are only valid in footer" """{ "layout": { "left": [{ "text": "hi" }] } }"""
+    assertRejected "'html' items are only valid in footer" """{ "layout": { "top": [{ "html": "<b/>" }] } }"""
+
+[<Fact>]
 let ``page ids and links in top are rejected with a pointer to nav`` () =
     assertRejected "moved to 'nav'" """{ "layout": { "top": ["browse", "sources"] } }"""
     assertRejected "moved to 'nav'" """{ "layout": { "top": [{ "label": "Wiki", "url": "https://wiki.example" }] } }"""

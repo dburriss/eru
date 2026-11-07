@@ -380,6 +380,44 @@ let ``footer false removes the footer and a custom footer replaces the docs link
         Assert.DoesNotContain("eru-version", html))
 
 [<Fact>]
+let ``a footer text item renders markdown and escapes raw html`` () =
+    run """{ "layout": { "footer": [{ "text": "Owned by **ops** - [wiki](https://wiki.example) <script>alert(1)</script>" }] } }""" (fun out ->
+        let html = readOut out "index.html"
+        Assert.Contains("widget-text", html)
+        Assert.Contains("<strong>ops</strong>", html)
+        Assert.Contains("""<a href="https://wiki.example">wiki</a>""", html)
+        Assert.DoesNotContain("<script>alert(1)</script>", html)
+        Assert.Contains("&lt;script&gt;", html)
+        Assert.DoesNotContain("dburriss/eru", html))
+
+[<Fact>]
+let ``a footer html item is emitted as is`` () =
+    run """{ "layout": { "footer": [{ "html": "<b class=\"x\">raw</b>" }, "version"] } }""" (fun out ->
+        let html = readOut out "index.html"
+        Assert.Contains("widget-html", html)
+        Assert.Contains("""<b class="x">raw</b>""", html)
+        Assert.Contains("eru-version", html))
+
+[<Fact>]
+let ``footer text and html items can come from files`` () =
+    let local = Map.ofList [ "docs/foot.md", "Contact *ops*"; "docs/foot.html", "<i>legal</i>" ]
+    generateWith (makeDeps sourceIndex content local)
+        """{ "layout": { "footer": [{ "text": { "file": "docs/foot.md" } }, { "html": { "file": "./docs/foot.html" } }] } }""" (fun out ->
+            let html = readOut out "index.html"
+            Assert.Contains("<em>ops</em>", html)
+            Assert.Contains("<i>legal</i>", html))
+
+[<Fact>]
+let ``a missing footer file fails generation with a clear message`` () =
+    let e = expectError deps """{ "layout": { "footer": [{ "text": { "file": "docs/nope.md" } }] } }"""
+    Assert.Contains("site.layout.footer file 'docs/nope.md' does not exist", e)
+
+[<Fact>]
+let ``footer files are listed for serve to watch`` () =
+    let cfg = cfgWithSite """{ "layout": { "footer": [{ "text": { "file": "./docs/f.md" } }, { "html": { "file": "docs/f.html" } }] }, "pages": { "a": { "content": { "file": "docs/a.md" } } } }"""
+    Assert.Equal<string list>([ "docs/a.md"; "docs/f.md"; "docs/f.html" ], SiteGenerator.referencedContentFiles cfg)
+
+[<Fact>]
 let ``detail pages keep breadcrumbs and cli tips`` () =
     run "{}" (fun out ->
         let tag = readOut out "tags/ops/index.html"

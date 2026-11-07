@@ -36,6 +36,8 @@ module PageData =
 type SiteEnv = {
     Model     : SiteModel
     PageLinks : Map<string, string * string>   // page id -> (label, site-root-relative url)
+    /// Contents of the files footer `text`/`html` items point at, keyed by normalised repo-relative path.
+    TextFiles : Map<string, string>
     /// Whether listings show the sync-state glyph; the query legend follows it.
     ShowSyncStatus : bool
     /// The eru version that generated the site, shown by the `version` footer widget. Empty hides it.
@@ -340,7 +342,18 @@ let renderSide (ctx: WidgetContext) (items: LayoutItem list) : string =
             | None -> None
         | LinkRef (label, url) ->
             Some $"""<li><a href="{escapeHtml url}" target="_blank" rel="noopener">{escapeHtml label}</a></li>"""
-        | WidgetRef _ -> None
+        | WidgetRef _ | TextRef _ -> None
+    let textHtml (kind: TextKind) (source: TextSource) : string =
+        let raw =
+            match source with
+            | TextInline t -> t
+            | TextFile f ->
+                SiteSettings.normalizeRelPath f
+                |> Option.bind ctx.Env.TextFiles.TryFind
+                |> Option.defaultValue ""
+        match kind with
+        | Markdown -> MarkdownRenderer.renderEscaped raw
+        | Html -> raw
     let flush (run: string list) =
         if run.IsEmpty then []
         else [ $"""<div class="widget widget-page-links"><ul class="side-links">{String.concat "" (List.rev run)}</ul></div>""" ]
@@ -350,6 +363,11 @@ let renderSide (ctx: WidgetContext) (items: LayoutItem list) : string =
             match item with
             | WidgetRef w ->
                 let html = renderWidget ctx w
+                (chunks @ flush run @ (if html = "" then [] else [ html ])), []
+            | TextRef (kind, source) ->
+                let body = (textHtml kind source).Trim()
+                let cls = match kind with Markdown -> "widget-text" | Html -> "widget-html"
+                let html = if body = "" then "" else $"""<div class="widget {cls}">{body}</div>"""
                 (chunks @ flush run @ (if html = "" then [] else [ html ])), []
             | other ->
                 match linkHtml other with

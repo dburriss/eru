@@ -4,6 +4,7 @@
 
 ### Added
 
+- Footer `text` and `html` items on the generated site: `{ "text": "markdown" }` renders Markdown with raw HTML escaped, `{ "html": "<b>raw</b>" }` is emitted as is, and both accept `{ "file": "path" }` to read a repo-relative file (watched by `eru site serve`). They are footer-only
 - Table views on the generated site have visible sort controls on every column header. Headers are keyboard-operable buttons that expose `aria-sort`, and sorting uses the same keys as the `sort` page option (dates, trust tiers, sync status) instead of the displayed text, with blank cells last
 - Search can be limited to specific sources: `eru search <terms> --source <name>` (repeatable, `-s`) and a `sources` parameter on the `search_knowledge` MCP tool. Names match case-insensitively and any of them may match; `local` selects local `knowledge/` files. An unknown source name is an error that lists the valid ones
 - `mcp.idleTimeoutMinutes` (and `ERU__MCP__IDLETIMEOUTMINUTES`) pauses an `eru mcp` server's background refresh after that many minutes without a request. The server keeps answering and the next request resumes it. `0`, the default, never pauses

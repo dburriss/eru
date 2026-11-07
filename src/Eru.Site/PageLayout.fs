@@ -29,8 +29,8 @@ module ResolvedSlots =
         named s.Top || named s.Toolbar || named s.Main || widget s.Left || widget s.Right || widget s.Footer
 
 /// Where the footer points by default, on every page.
-let docsLink = LinkRef ("docs", "https://github.com/dburriss/eru/tree/main/docs")
-let changelogLink = LinkRef ("changelog", "https://github.com/dburriss/eru/blob/main/CHANGELOG.md")
+let defaultFooterHtml =
+    """<ul class="side-links"><li><a href="https://github.com/dburriss/eru/tree/main/docs" target="_blank" rel="noopener">docs</a></li><li><a href="https://github.com/dburriss/eru/blob/main/CHANGELOG.md" target="_blank" rel="noopener">changelog</a></li></ul>"""
 
 type PageKind =
     | BrowsePage         // the browse page: query line and table, no sidebars
@@ -57,7 +57,7 @@ let baseLayout (settings: SiteSettings) (kind: PageKind) : Layout =
       Left = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "facets" ]))
       Right = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "toc" ]))
       Main = Some (Items (widgets (defaultMain kind)))
-      Footer = Some (Items [ docsLink; changelogLink; WidgetRef "version" ]) }
+      Footer = Some (Items [ TextRef (Html, TextInline defaultFooterHtml); WidgetRef "version" ]) }
 
 let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
     let l = overlays |> List.fold Layout.overlay baseL
