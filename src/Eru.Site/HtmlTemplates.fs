@@ -97,11 +97,16 @@ let private indexUrl (env: SiteEnv) (p: string) (id: string) : string option =
 
 // ── built-in list bodies ─────────────────────────────────────────────────────
 
+/// Badges for a source: `manifest` when it has a cached manifest, `okf` when any bundle is OKF.
+/// A plain source gets none.
+let sourceBadges (s: SiteSource) : string =
+    [ if s.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
+      if s.HasOkf then """<span class="badge badge-okf">okf</span>""" ]
+    |> String.concat " "
+
 let sourcesListHtml (p: string) (sources: SiteSource list) : string =
     let sourceCard (s: SiteSource) =
-        let manifestBadge =
-            if s.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
-            else """<span class="badge badge-no-manifest">no manifest</span>"""
+        let manifestBadge = sourceBadges s
         let descHtml =
             match s.Description with
             | Some d -> $"""<p class="source-card-desc">{escapeHtml d}</p>"""

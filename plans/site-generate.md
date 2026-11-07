@@ -175,10 +175,11 @@ Sidebar entries are `<a href="sources/<name>/index.html">` etc. JS replaces them
 eru sources
 
   source-a   [manifest]   42 files   →
-  source-b   [no manifest]   7 files   →
+  source-b   [okf]   7 files   →
+  source-c   7 files   →
 ```
 
-Each source name links to `sources/<name>/index.html`. `[manifest]` / `[no manifest]` indicates whether a cached `manifest.json` exists. Sources with a manifest explicitly advertise their files; sources without one were indexed by other means (glob patterns, direct add).
+Each source name links to `sources/<name>/index.html`. `[manifest]` indicates a cached `manifest.json` exists; `[okf]` indicates the source has an OKF bundle. A source with neither shows no badge; it was indexed by other means (glob patterns, direct add).
 
 ### `sources/<name>/index.html` layout
 

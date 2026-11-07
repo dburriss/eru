@@ -284,8 +284,9 @@ body.theme-dark .sidebar-section h3 { opacity: 0.6; }
   gap: 0.75rem;
 }
 .badge-manifest { background: #d1fae5; color: #065f46; }
-.badge-no-manifest { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+.badge-okf { background: #dbeafe; color: #1e40af; }
 body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
+body.theme-dark .badge-okf { background: #1e3a8a; color: #93c5fd; }
 
 /* page header */
 .page-header { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; margin-bottom: 1.5rem; }
@@ -1817,9 +1818,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     // sources/<name>/index.html
     if isLive "sources" then
         for source in model.Sources do
-            let manifestBadge =
-                if source.HasManifest then """<span class="badge badge-manifest">manifest</span>"""
-                else """<span class="badge badge-no-manifest">no manifest</span>"""
+            let manifestBadge = HtmlTemplates.sourceBadges source
             let addRef = source.Url |> Option.defaultValue source.Name
             let titleHtml = $"{Views.escapeHtml source.Name} {manifestBadge}"
             add $"sources/{Uri.EscapeDataString source.Name}/index.html"

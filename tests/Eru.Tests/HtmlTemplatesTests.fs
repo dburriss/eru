@@ -85,3 +85,32 @@ let ``document page heading and title use the document title, not the filename``
     let html = HtmlTemplates.filePage doc "<p>body</p>" noRelated
     Assert.Contains("Customer Orders", html)
     Assert.DoesNotContain("<title>orders.md", html)
+
+let private baseSource : SiteSource = {
+    Name        = "src"
+    Url         = None
+    Description = None
+    HasManifest = false
+    HasOkf      = false
+    FileCount   = 1
+    Files       = []
+}
+
+[<Fact>]
+let ``sources list shows okf badge for an okf source and never no manifest`` () =
+    let html = HtmlTemplates.sourcesListHtml "" [ { baseSource with HasOkf = true } ]
+    Assert.Contains("badge-okf", html)
+    Assert.DoesNotContain("no manifest", html)
+
+[<Fact>]
+let ``sources list shows manifest badge for a manifest source`` () =
+    let html = HtmlTemplates.sourcesListHtml "" [ { baseSource with HasManifest = true } ]
+    Assert.Contains("badge-manifest", html)
+    Assert.DoesNotContain("badge-okf", html)
+
+[<Fact>]
+let ``sources list shows no badge for a plain source`` () =
+    let html = HtmlTemplates.sourcesListHtml "" [ baseSource ]
+    Assert.DoesNotContain("badge-manifest", html)
+    Assert.DoesNotContain("badge-okf", html)
+    Assert.DoesNotContain("no manifest", html)

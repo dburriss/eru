@@ -27,6 +27,7 @@ type SiteSource = {
     Url         : string option
     Description : string option
     HasManifest : bool
+    HasOkf      : bool
     FileCount   : int
     Files       : SiteDocument list
 }

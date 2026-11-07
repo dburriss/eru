@@ -95,6 +95,7 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
                     Url         = src.Url
                     Description = manifestDescription
                     HasManifest = cachedManifest.IsSome
+                    HasOkf      = src.Bundles |> List.exists (fun b -> b.Kind = BundleKind.Okf)
                     FileCount   = docs.Length
                     Files       = docs
                 })
