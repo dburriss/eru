@@ -1,0 +1,74 @@
+{
+  "version": 3,
+  "site": {
+    "ignorePatterns": [
+      "index.md",
+      "log.md",
+      "README.md"
+    ],
+    "hideEmptyBundles": null,
+    "showSyncStatus": true,
+    "theme": null,
+    "home": null,
+    "defaultView": null,
+    "cards": null,
+    "layout": null,
+    "pages": null,
+    "document": null
+  },
+  "okf": {
+    "ignorePatterns": [
+      "apm_modules/**",
+      "inbox/**",
+      "node_modules/**"
+    ],
+    "fixTypes": null,
+    "defaultType": null
+  },
+  "mcp": null,
+  "search": {
+    "mode": null,
+    "ignorePatterns": [
+      "index.md",
+      "log.md"
+    ]
+  },
+  "sync": {
+    "branch": null,
+    "commitOnPull": null,
+    "stateFile": null
+  },
+  "files": {
+    "blockPatterns": null,
+    "allowPatterns": null,
+    "allowBinaries": null
+  },
+  "inbox": {
+    "default": null,
+    "watchIntervalSeconds": null,
+    "items": {}
+  },
+  "source": {
+    "items": [
+      {
+        "name": "platform-docs",
+        "url": "./source",
+        "branch": null,
+        "bundles": [
+          {
+            "path": "",
+            "kind": "okf"
+          }
+        ],
+        "files": null,
+        "search": null,
+        "okf": null,
+        "site": null,
+        "enabled": null
+      }
+    ]
+  },
+  "collection": {
+    "items": []
+  }
+}

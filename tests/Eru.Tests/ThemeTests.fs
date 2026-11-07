@@ -150,6 +150,39 @@ let ``smiley keeps the terminal layout defaults`` () =
     | Error e -> failwith e
 
 [<Fact>]
+let ``cyberpunk css follows the base stylesheet and precedes custom css`` () =
+    generate (depsWith []) """{ "theme": "cyberpunk" }""" (fun out ->
+        let css = readOut out "assets/css/style.css"
+        let base' = css.IndexOf ":root:where(.theme-dark)"
+        let cyberpunk = css.IndexOf "/* cyberpunk theme */"
+        Assert.True(base' >= 0 && cyberpunk > base', "cyberpunk css must come after the base stylesheet")
+        Assert.True(css.LastIndexOf ":root:where(.theme-dark)" > cyberpunk)
+        Assert.Contains("#ff2a6d", css)
+        Assert.Contains("#05d9e8", css)
+        Assert.DoesNotContain("cyberpunk theme", readOut out "assets/css/custom.css"))
+
+[<Fact>]
+let ``cyberpunk keeps the terminal layout defaults`` () =
+    match Themes.resolve (depsWith []) "cyberpunk" with
+    | Ok t ->
+        Assert.Equal(Themes.BuiltIn, t.Origin)
+        Assert.Equal(Themes.resolve (depsWith []) "terminal" |> Result.map (fun x -> x.Defaults), Ok t.Defaults)
+    | Error e -> failwith e
+
+[<Fact>]
+let ``cyberpunk glow and grid are scoped to dark mode`` () =
+    generate (depsWith []) """{ "theme": "cyberpunk" }""" (fun out ->
+        let css = readOut out "assets/css/style.css"
+        let theme = css.Substring(css.IndexOf "/* cyberpunk theme */")
+        let lightPalette = theme.Substring(0, theme.IndexOf "@media (prefers-color-scheme: dark)")
+        Assert.DoesNotContain("text-shadow", lightPalette)
+        Assert.DoesNotContain("linear-gradient", lightPalette)
+        Assert.Contains(":root:not(.theme-light) body", theme)
+        Assert.Contains(":root.theme-dark body", theme)
+        Assert.Contains(":root.theme-dark .nav-brand", theme)
+        Assert.Contains("kbd, input, button, .q-opt.q-on { text-shadow: none; }", theme))
+
+[<Fact>]
 let ``a built-in theme cannot be shadowed by an installed one`` () =
     let files = [ ".eru/themes/ledger/theme.css", "/* impostor */" ]
     generate (depsWith files) """{ "theme": "ledger" }""" (fun out ->
@@ -161,7 +194,7 @@ let ``discover lists built-in and installed themes once each`` () =
         { depsWith (fooTheme @ [ ".eru/themes/ledger/theme.css", "x" ]) with
             ListLocalDirectories = fun dir -> if dir.EndsWith ".eru/themes" then Ok [ dir + "/foo"; dir + "/ledger" ] else Ok [] }
     let found = Themes.discover d
-    Assert.Equal<string list>([ "terminal"; "ledger"; "matrix"; "smiley"; "foo" ], found |> List.map fst)
+    Assert.Equal<string list>([ "terminal"; "ledger"; "matrix"; "smiley"; "cyberpunk"; "foo" ], found |> List.map fst)
     match found |> List.find (fun (n, _) -> n = "foo") |> snd with
     | Ok t ->
         Assert.Equal(Some "Foo", t.Description)

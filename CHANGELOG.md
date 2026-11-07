@@ -27,6 +27,7 @@
 - `eru theme list` shows the built-in and installed themes and which one is active.
 - A `matrix` site theme: the terminal layout in phosphor green, with a faint glow and scanlines in dark mode. Select it with `eru config set site.theme matrix`.
 - A `smiley` site theme: the terminal layout in Coolblue blue and orange, with a blue header, sans-serif type and rounded pills. Select it with `eru config set site.theme smiley`.
+- A `cyberpunk` site theme: the terminal layout in neon magenta, cyan and yellow, with a grid and glow in dark mode (pale lavender in light), angular display type and clipped corners. Select it with `eru config set site.theme cyberpunk`.
 - A `rows` view: one bordered row per document with its description, source, tags and sync state. It is the `ledger` theme's default.
 - New layout slots `top`, `toolbar` and `footer`: full-width bands above and below the columns. Every page footer links to the eru docs by default; set `footer` to replace it or `"footer": false` to remove it. Widgets are valid in more slots (`breadcrumbs`, `title`, `stale` in `top`; `meta`, `verified`, `generated`, `description`, `tags`, `cli`, `links` in `top` and `footer`).
 - The query line can be moved: `query` is valid in `toolbar`, `left` and `right` (once per page), and any page can opt in.

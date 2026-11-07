@@ -63,6 +63,10 @@ dotnet fsi scripts/publish.fsx --fsproj src/Eru.Cli/Eru.Cli.fsproj --solution er
 
 `src/` holds `Eru.Domain` (pure logic), `Eru.Adapters` (git/filesystem), `Eru.Cli` (Argu entry point, packed as the `Eru.Tool` NuGet package with command `eru`), `Eru.Mcp`, `Eru.Search`, `Eru.Site`, `Eru.Serve` and `Eru.Tui` (Terminal.Gui browser behind `eru browse`). Design notes live in `plans/`, user docs in `docs/` (Diataxis), agent skills in `skills/`, and the built-in ingestor template in `agents/`.
 
+## Sample site
+
+`samples/theme-site/` is a stable, fictional eru project (five markdown files and a config) for generating a site when working on themes, CSS or docs screenshots. Reuse and edit it instead of building new throwaway data, and never put real internal documents in it. Run eru through its `run.sh`, which isolates the config and cache so your global sources do not leak in. See its README.
+
 ## CI and releases
 
 - `.github/workflows/build.yml` — restore, build and test (Release) on Ubuntu for every push and PR. It does not run on Windows or macOS, so OS-specific bugs (e.g. path separators) only surface in the publish workflows.

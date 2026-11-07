@@ -241,11 +241,119 @@ body.theme-dark .badge-human-reviewed, body.theme-dark .badge-machine-confirmed 
 .doc-stale-warning { background: none; color: var(--color-warn); border: 1px solid var(--color-warn); }
 """
 
+let private cyberpunkJson =
+    """{ "description": "The terminal layout in neon magenta, cyan and yellow: deep violet with a grid and glow in dark mode, pale lavender in light mode, angular display type and clipped corners." }"""
+
+// --cyberpunk-cy marks focus and sync state, --cyberpunk-yl the prompt and cursor, --cyberpunk-wn the stale
+// warning, --cyberpunk-sel the selected row and --cyberpunk-on-primary the text on a magenta fill. The glow
+// variables are real glows in dark mode and nothing in light mode. Light cyan, yellow, warn and magenta are
+// deeper than the mock's so that text on the lavender surfaces keeps 4.5:1.
+let private cyberpunkLight =
+    "--color-bg: #f4f1fb; --color-surface: #e9e3f7; --color-border: #cfc4ea; --color-text: #1b0f33; "
+    + "--color-muted: #6a5a8c; --color-primary: #c4004f; --color-accent-soft: #fbe0ec; "
+    + "--color-ok: #006d82; --color-warn: #6f6200; --color-badge-bg: #e9e3f7; --color-badge-text: #1b0f33; "
+    + "--color-graph-incoming: #006d82; --color-graph-outgoing: #c4004f; --color-graph-external: #6a5a8c; "
+    + "--cyberpunk-cy: #006d82; --cyberpunk-yl: #6f6200; --cyberpunk-wn: #9a4f00; --cyberpunk-sel: #efe6fa; "
+    + "--cyberpunk-on-primary: #ffffff; --cyberpunk-bar-glow: rgba(0, 109, 130, 0.08); --cyberpunk-row-glow: transparent;"
+
+let private cyberpunkDark =
+    "--color-bg: #0b0716; --color-surface: #140d26; --color-border: #2a1d4a; --color-text: #e6f7ff; "
+    + "--color-muted: #8b7fb3; --color-primary: #ff2a6d; --color-accent-soft: #2a0a1f; "
+    + "--color-ok: #05d9e8; --color-warn: #f5e400; --color-badge-bg: #140d26; --color-badge-text: #e6f7ff; "
+    + "--color-graph-incoming: #05d9e8; --color-graph-outgoing: #ff2a6d; --color-graph-external: #8b7fb3; "
+    + "--cyberpunk-cy: #05d9e8; --cyberpunk-yl: #f5e400; --cyberpunk-wn: #f5e400; --cyberpunk-sel: #1a0f30; "
+    + "--cyberpunk-on-primary: #0b0716; --cyberpunk-bar-glow: rgba(5, 217, 232, 0.18); --cyberpunk-row-glow: rgba(255, 42, 109, 0.5);"
+
+// The grid, header glow, chromatic brand and glyph/prompt glows belong to dark mode only: the OS preference
+// unless the toggle forces light, or the toggle forced dark.
+let private cyberpunkDarkEffects (root: string) (indent: string) =
+    rule (indent + root + " body")
+         "background-image: linear-gradient(rgba(5, 217, 232, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(5, 217, 232, 0.04) 1px, transparent 1px); background-size: 28px 28px;"
+    + rule (indent + root + " .site-nav") "box-shadow: 0 1px 12px -2px rgba(255, 42, 109, 0.55);"
+    + rule (indent + root + " .nav-brand") "text-shadow: -2px 0 var(--color-primary), 2px 0 var(--cyberpunk-cy);"
+    + rule (indent + root + " .q-prompt") "text-shadow: 0 0 8px var(--cyberpunk-yl);"
+    + rule (indent + root + " .gl-pulled") "text-shadow: 0 0 6px var(--cyberpunk-cy);"
+
+// There is no web-font loading, so the display stack names Chakra Petch first and falls back to angular
+// system faces: Eurostile on macOS, Bank Gothic or Segoe UI Semibold on Windows, the system sans elsewhere.
+let private cyberpunkCss =
+    "/* cyberpunk theme */\n"
+    + rule ":root" (cyberpunkLight
+                    + " --font-display: \"Chakra Petch\", \"Bank Gothic\", \"Eurostile\", \"Rajdhani\", \"Segoe UI Semibold\", ui-sans-serif, system-ui, sans-serif;")
+    + "@media (prefers-color-scheme: dark) {\n" + rule "  :root" cyberpunkDark + "}\n"
+    + rule ":root:where(.theme-light)" cyberpunkLight
+    + rule ":root:where(.theme-dark)" cyberpunkDark
+    + "@media (prefers-color-scheme: dark) {\n" + cyberpunkDarkEffects ":root:not(.theme-light)" "  " + "}\n"
+    + cyberpunkDarkEffects ":root.theme-dark" ""
+    + """
+/* angular display type for the brand, nav, headings and popup heads */
+.nav-brand, .site-nav a, h3, .doc-table th, .q-pop-head {
+  font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.nav-brand { font-size: 1.25rem; font-weight: 700; }
+.nav-brand::after { color: var(--cyberpunk-yl); text-shadow: none; }
+.site-nav { border-bottom-color: var(--color-primary); }
+.site-nav a:hover { color: var(--cyberpunk-cy); }
+#theme-toggle { color: var(--cyberpunk-yl); border-color: var(--cyberpunk-yl); }
+
+/* query line: clipped corners. clip-path also clips outlines and outer shadows, so focus is an inset ring */
+.q-bar {
+  border: 1px solid var(--cyberpunk-cy);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  box-shadow: inset 0 0 0 1px var(--cyberpunk-cy), inset 0 0 18px var(--cyberpunk-bar-glow);
+}
+.q-bar:focus-within {
+  border-color: var(--cyberpunk-cy);
+  box-shadow: inset 0 0 0 2px var(--cyberpunk-cy), inset 0 0 18px var(--cyberpunk-bar-glow);
+}
+.q-prompt { color: var(--cyberpunk-yl); }
+.q-input { caret-color: var(--cyberpunk-yl); }
+.q-tok {
+  border-color: var(--color-primary); color: var(--color-primary); background: var(--color-accent-soft);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.q-key, .add-filter { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%); }
+.q-key.q-on { background: var(--cyberpunk-cy); border-color: var(--cyberpunk-cy); color: var(--color-bg); }
+.q-key.q-on i { color: var(--color-bg); }
+.q-key:focus-visible, .add-filter:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--cyberpunk-cy); }
+.add-filter:hover { border-color: var(--cyberpunk-cy); color: var(--cyberpunk-cy); }
+.q-pop { border-color: var(--color-primary); box-shadow: 6px 6px 0 var(--color-accent-soft); }
+.q-opt.q-on { background: var(--color-primary); color: var(--cyberpunk-on-primary); }
+.q-opt.q-on u, .q-opt.q-on em, .q-opt.q-on .gl { color: var(--cyberpunk-on-primary); }
+
+/* listings: magenta marks the selected row */
+.doc-table tr.q-sel td { background: var(--cyberpunk-sel); }
+.doc-row.q-sel, .doc-list-item.q-sel, .file-card.q-sel { background: var(--cyberpunk-sel); }
+.doc-table tr.q-sel td:first-child, .file-card.q-sel, .doc-list-item.q-sel, .doc-row.q-sel {
+  box-shadow: inset 3px 0 0 var(--color-primary), inset 12px 0 16px -12px var(--cyberpunk-row-glow);
+}
+
+/* cyan is synced, yellow is cached; the glyph shapes carry the state too */
+.gl-pulled { color: var(--cyberpunk-cy); }
+.gl-cached { color: var(--cyberpunk-yl); }
+
+/* the glow stays off controls and the selected option */
+kbd, input, button, .q-opt.q-on { text-shadow: none; }
+
+/* badges and the stale warning keep to the neon palette in both modes */
+.badge-manifest, .badge-okf, .badge-human-reviewed,
+body.theme-dark .badge-manifest, body.theme-dark .badge-okf, body.theme-dark .badge-human-reviewed {
+  background: var(--color-surface); color: var(--cyberpunk-cy); border: 1px solid var(--cyberpunk-cy);
+}
+.badge-machine-confirmed, body.theme-dark .badge-machine-confirmed {
+  background: var(--color-surface); color: var(--cyberpunk-yl); border: 1px solid var(--cyberpunk-yl);
+}
+.doc-stale-warning, body.theme-dark .doc-stale-warning {
+  background: var(--color-surface); color: var(--cyberpunk-wn); border: 1px solid var(--cyberpunk-wn);
+}
+"""
+
 let private builtIns : (string * string * string) list =
     [ "terminal", terminalJson, ""
       "ledger", ledgerJson, ledgerCss
       "matrix", matrixJson, matrixCss
-      "smiley", smileyJson, smileyCss ]
+      "smiley", smileyJson, smileyCss
+      "cyberpunk", cyberpunkJson, cyberpunkCss ]
 
 let builtInNames = builtIns |> List.map (fun (n, _, _) -> n)
 

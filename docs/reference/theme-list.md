@@ -24,6 +24,7 @@ The screenshots show the same five files from one source, so the differences are
 | [`ledger`](#ledger) | Sans-serif | Rows | Facets (source, extension, tag, bundle) | Indigo |
 | [`matrix`](#matrix) | Monospace | Table | None; filters live in the query line | Phosphor green |
 | [`smiley`](#smiley) | Sans-serif | Table | None; filters live in the query line | Blue and orange |
+| [`cyberpunk`](#cyberpunk) | Monospace, angular display headings | Table | None; filters live in the query line | Magenta, cyan and yellow |
 
 ## terminal
 
@@ -81,9 +82,30 @@ terminal's table, query line and glyphs.
 
 Settings: none (`defaultView` falls back to the Browse table). Select it with `eru config set site.theme smiley`.
 
+## cyberpunk
+
+The terminal layout in neon magenta, cyan and yellow. Dark mode is deep violet with a faint cyan grid, a magenta glow
+under the header and a magenta/cyan split on the name; light mode is pale lavender with none of those effects.
+Magenta marks active things (tags, the selected row and option), cyan marks focus and sync state (`●` pulled), and
+yellow marks the prompt and the `◐` cached glyph. The query box, tokens and filter buttons have clipped corners. It keeps
+the terminal's table, query line and glyphs.
+
+Navigation, table headers, popup headings and the name use an angular display face in capitals: Chakra Petch if it is
+installed, otherwise Eurostile (macOS), Bank Gothic or Segoe UI Semibold (Windows) or the system sans. Body text stays
+monospace. No font is shipped with the site. Light-mode cyan, yellow, orange and magenta are deeper than a pure neon
+palette so that text keeps at least 4.5:1 contrast on the lavender backgrounds.
+
+| Light | Dark |
+|---|---|
+| ![cyberpunk theme, light mode](images/themes/cyberpunk-light.png) | ![cyberpunk theme, dark mode](images/themes/cyberpunk-dark.png) |
+
+Settings: none (`defaultView` falls back to the Browse table). Select it with `eru config set site.theme cyberpunk`.
+
 ## Regenerating the screenshots
 
 The images are 1280 × 720 captures of `index.html` from a site generated with each theme. Set `site.theme` and `site.showSyncStatus: true` (the glyphs are off by default), run
 `eru site generate`, and capture the page in a browser at that size. For a mode that does not depend on the
 system setting, add `class="theme-light"` or `class="theme-dark"` to the `<html>` element of a copy of the page
 and remove its `js/theme.js` script tag before capturing.
+
+The repo has a ready-made sample project for this in [`samples/theme-site`](../../samples/theme-site/README.md); use it so the screenshots stay comparable and never contain real documents.
