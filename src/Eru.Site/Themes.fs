@@ -175,7 +175,7 @@ body.theme-dark .doc-stale-warning { background: var(--color-surface); color: va
 
 let private smileyJson =
     """{
-  "description": "Coolblue blue and orange: a blue header, friendly sans-serif type, rounded pills, a facet sidebar and a card per file.",
+  "description": "blue and orange: a blue header, friendly sans-serif type, rounded pills, a facet sidebar and a card per file.",
   "site": { "defaultView": "cards", "layout": { "left": [ "facets" ] } }
 }"""
 

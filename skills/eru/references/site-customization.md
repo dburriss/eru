@@ -40,7 +40,7 @@ Built-ins and the `site` defaults they ship:
 - `terminal`: the base stylesheet; query line over a table, no sidebar. Ships nothing.
 - `ledger`: sans-serif, indigo; `defaultView: rows`, `layout.left: ["facets"]`, `layout.toolbar: false` (facets replace the query line, so rows show plain tag links, not filter buttons).
 - `matrix`: terminal layout in phosphor green with glow and scanlines in dark mode. Ships nothing.
-- `smiley`: Coolblue blue and orange; `defaultView: cards`, `layout.left: ["facets"]`. Its CSS shows only the source, type and tag facets, in that order.
+- `smiley`: blue and orange; `defaultView: cards`, `layout.left: ["facets"]`. Its CSS shows only the source, type and tag facets, in that order.
 - `cyberpunk`: terminal layout in neon magenta, cyan and yellow, angular display type. Ships nothing.
 
 A theme's `theme.json` can set any `site` key, including `layout` slots such as `brand`. To change what a theme ships, set the same key in your own `site` config.

@@ -86,7 +86,7 @@ Settings: none (`defaultView` falls back to the Browse table). Select it with `e
 
 ## smiley
 
-Coolblue blue and orange, with the terminal's query line and a facet sidebar (source, type and tag) beside a grid of cards (one per file, with
+blue and orange, with the terminal's query line and a facet sidebar (source, type and tag) beside a grid of cards (one per file, with
 its description and tags). A solid blue header band (navy in dark mode) carries white navigation
 text and a round orange smiley mark beside the name (no cursor). Orange marks the selected row and active tags, blue
 marks the query line and the active filter key. Text is sans-serif, with monospace kept for paths, tokens and keys,

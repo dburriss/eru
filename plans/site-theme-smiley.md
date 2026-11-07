@@ -7,8 +7,8 @@ status: done
 ## Context
 `eru site` ships three built-in themes: `terminal` (base stylesheet), `ledger` and `matrix`
 (commit 443d5dc). The "Eru Site Mocks" artifact has direction H · Hot & Cold: the terminal layout
-(F) in Coolblue blue (#0090e3) and orange (#ff6600), with friendlier sans type and rounded pills.
-The user named it **`smiley`** (the Coolblue smile) and wants it as a built-in selectable with
+(F) in blue (#0090e3) and orange (#ff6600), with friendlier sans type and rounded pills.
+The user named it **`smiley`** (the smile) and wants it as a built-in selectable with
 `site.theme: smiley`. It is CSS-only, like `matrix`: no domain, CLI or config changes.
 
 ## Approach (copy the pattern of commit 443d5dc)
