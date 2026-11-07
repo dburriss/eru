@@ -541,8 +541,12 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
   text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--color-border); vertical-align: top;
 }
 .doc-table th { background: var(--color-surface); font-weight: 600; white-space: nowrap; user-select: none; }
-.doc-table th[data-dir="asc"]::after { content: " \25B2"; font-size: 0.7em; }
-.doc-table th[data-dir="desc"]::after { content: " \25BC"; font-size: 0.7em; }
+.sort-btn { font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.sort-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.sort-ind::after { content: " \21C5"; font-size: 0.8em; opacity: 0.4; }
+.sort-btn:hover .sort-ind::after { opacity: 0.8; }
+.doc-table th[aria-sort="ascending"] .sort-ind::after { content: " \25B2"; font-size: 0.7em; opacity: 1; }
+.doc-table th[aria-sort="descending"] .sort-ind::after { content: " \25BC"; font-size: 0.7em; opacity: 1; }
 .stale-date.is-stale { color: #b45309; font-weight: 600; }
 
 /* widgets */
@@ -1155,22 +1159,29 @@ let private appJs = """
     }
   });
 
-  // Click-to-sort headers for table views.
+  // Click-to-sort headers for table views. Cells may carry data-sort (a comparable key);
+  // otherwise the cell text is used. Rows without a key sort last in either direction.
   function enableTableSort(table) {
-    table.querySelectorAll('th[data-sortable]').forEach(function (th, idx) {
-      th.style.cursor = 'pointer';
-      th.addEventListener('click', function () {
-        var asc = th.getAttribute('data-dir') !== 'asc';
-        table.querySelectorAll('th').forEach(function (o) { o.removeAttribute('data-dir'); });
-        th.setAttribute('data-dir', asc ? 'asc' : 'desc');
+    var ths = Array.prototype.slice.call(table.querySelectorAll('thead th'));
+    ths.forEach(function (th, idx) {
+      var btn = th.querySelector('.sort-btn');
+      if (!th.hasAttribute('data-sortable') || !btn) return;
+      btn.addEventListener('click', function () {
+        var asc = th.getAttribute('aria-sort') !== 'ascending';
+        ths.forEach(function (o) { o.setAttribute('aria-sort', 'none'); });
+        th.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
         var body = table.tBodies[0];
-        var rows = Array.prototype.slice.call(body.rows);
-        rows.sort(function (r1, r2) {
-          var a = r1.cells[idx].textContent.trim(), b = r2.cells[idx].textContent.trim();
-          var c = a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-          return asc ? c : -c;
+        var rows = Array.prototype.slice.call(body.rows).map(function (r, i) {
+          var c = r.cells[idx], k = c.hasAttribute('data-sort') ? c.getAttribute('data-sort') : c.textContent.trim();
+          return { row: r, key: k, i: i, missing: k === '' };
         });
-        rows.forEach(function (r) { body.appendChild(r); });
+        var anyKeyed = rows.some(function (x) { return !x.missing; });
+        rows.sort(function (x, y) {
+          if (anyKeyed && x.missing !== y.missing) return x.missing ? 1 : -1;
+          var c = x.key.localeCompare(y.key, undefined, { numeric: true, sensitivity: 'base' });
+          return (asc ? c : -c) || (x.i - y.i);
+        });
+        rows.forEach(function (x) { body.appendChild(x.row); });
       });
     });
   }

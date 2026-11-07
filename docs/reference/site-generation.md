@@ -64,7 +64,7 @@ sync. Set `site.hideEmptyBundles` to `true` in the config to omit those (see the
 Tags and Types. Register nested bundles with `eru source add --scan --nested` or `eru source bundle add`.
 
 Every page is fully navigable as plain HTML with no JavaScript. JS is loaded as an optional enhancement that adds
-in-place search, checkbox facet filtering and sortable table headers. Dark/light theming works via CSS `prefers-color-scheme` even without
+in-place search, checkbox facet filtering and sortable table headers (visible sort indicators, keyboard operable, sorted by real values such as dates rather than display text). Dark/light theming works via CSS `prefers-color-scheme` even without
 JS; the theme toggle button is JS-only.
 
 ## Pages

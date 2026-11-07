@@ -120,3 +120,15 @@ let ``listings hide the sync state unless showSyncStatus is on`` (view: string) 
 let ``hiding the sync state keeps the data-sync filter attribute`` () =
     let html = renderDocs vc { spec "table" with TableColumns = [ "title" ] } docs
     Assert.Contains("data-sync=", html)
+
+[<Fact>]
+let ``table headers are sort buttons with aria-sort`` () =
+    let html = renderDocs vc { spec "table" with TableColumns = [ "title"; "type" ] } docs
+    Assert.Equal(2, html.Split("aria-sort=\"none\"").Length - 1)
+    Assert.Equal(2, html.Split("class=\"sort-btn\"").Length - 1)
+
+[<Fact>]
+let ``table cells carry sort keys and omit them when missing`` () =
+    let html = renderDocs vc { spec "table" with TableColumns = [ "title"; "type" ] } docs
+    Assert.Contains("<td data-col=\"type\" data-sort=\"runbook\">", html)
+    Assert.Contains("<td data-col=\"type\"></td>", html)

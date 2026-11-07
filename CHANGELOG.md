@@ -4,6 +4,7 @@
 
 ### Added
 
+- Table views on the generated site have visible sort controls on every column header. Headers are keyboard-operable buttons that expose `aria-sort`, and sorting uses the same keys as the `sort` page option (dates, trust tiers, sync status) instead of the displayed text, with blank cells last
 - Search can be limited to specific sources: `eru search <terms> --source <name>` (repeatable, `-s`) and a `sources` parameter on the `search_knowledge` MCP tool. Names match case-insensitively and any of them may match; `local` selects local `knowledge/` files. An unknown source name is an error that lists the valid ones
 - `mcp.idleTimeoutMinutes` (and `ERU__MCP__IDLETIMEOUTMINUTES`) pauses an `eru mcp` server's background refresh after that many minutes without a request. The server keeps answering and the next request resumes it. `0`, the default, never pauses
 - A plain local folder (not a git repo) can be a source: `eru source add ~/second-brain --scan`. The folder is read in place — nothing is cloned or copied into the cache, so `eru cache prune` and `eru cache clear` never touch it. Folder sources are OKF-only: markdown files under registered `okf` bundles are indexed, skipping dot-directories and `okf.ignorePatterns` directories. Sync stats the tree and re-reads only files whose modified time or size changed, and drops entries for files that were removed or renamed. A missing or unmounted folder keeps the old index and reports an error. `--branch`, `--basepath`, manifests and collections do not apply to folder sources

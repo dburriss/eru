@@ -263,14 +263,19 @@ let private rowsView (vc: ViewContext) (_spec: ViewSpec) (docs: SiteDocument lis
 let private tableView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument list) : string =
     let head =
         spec.TableColumns
-        |> List.map (fun c -> $"""<th scope="col" data-col="{c}" data-sortable>{columnLabel c}</th>""")
+        |> List.map (fun c ->
+            $"""<th scope="col" data-col="{c}" data-sortable aria-sort="none"><button type="button" class="sort-btn">{columnLabel c}<span class="sort-ind" aria-hidden="true"></span></button></th>""")
         |> String.concat ""
     let row (d: SiteDocument) =
         let cells =
             spec.TableColumns
             |> List.map (fun c ->
                 let inner = if c = "title" then titleCell vc d else fieldHtml vc c d
-                $"""<td data-col="{c}">{inner}</td>""")
+                let sortAttr =
+                    match FilterEngine.sortKey c d with
+                    | Some k -> $""" data-sort="{escapeHtml k}" """.TrimEnd()
+                    | None -> ""
+                $"""<td data-col="{c}"{sortAttr}>{inner}</td>""")
             |> String.concat ""
         $"""<tr {docAttrs d}>{cells}</tr>"""
     $"""<table class="doc-table">
