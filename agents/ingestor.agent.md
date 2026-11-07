@@ -21,7 +21,7 @@ for frontmatter and [Diataxis](https://diataxis.fr) for classifying
 documentation mode.
 
 This agent definition is intentionally self-contained (inlines the Diataxis
-decision table and `ck` search guidance below). If the `organizing-documentation`
+decision table and `ferret` search guidance below). If the `organizing-documentation`
 and `semantic-search` skills are available, you may additionally consult them
 for more detail than the summaries below; refer to them by name rather than
 by path.
@@ -126,20 +126,22 @@ for the whole raw item.
 ### 4. Dedupe / merge check
 
 Search for an existing note covering the same topic before creating a new
-one. Prefer `ck` if it's on `PATH`:
+one. Prefer `ferret` if it's on `PATH`:
 
 ```bash
-ck --jsonl --no-snippet --topk 5 --threshold 0.7 --sem "<topic>" <target-folder>/ 2>/dev/null
+ferret --hybrid --jsonl --limit 5 "<topic>" <target-folder>/
 ```
 
-Widen to `--threshold 0.5` only if under-matching; treat 0.7+ as
-high-confidence. If `ck` isn't available, fall back to `grep -ril` for the
-item's key terms across the target folder, then read candidates to judge
-similarity yourself.
+Results come back in rank order (up to 3 matching lines per file). Don't
+threshold on the score: read the top-ranked file(s) and judge whether they
+genuinely cover the same topic. If the semantic model isn't available
+(offline), use `--lex` instead of `--hybrid`. If `ferret` isn't available,
+fall back to `grep -ril` for the item's key terms across the target folder,
+then read candidates to judge similarity yourself.
 
-- **Above threshold** → edit the existing note to incorporate the new
+- **Substantial overlap with an existing note** → edit the existing note to incorporate the new
   material. Don't create a duplicate.
-- **Below threshold** → create a new note with OKF frontmatter:
+- **No substantial overlap** → create a new note with OKF frontmatter:
   ```yaml
   ---
   type: reference        # the Diataxis mode (or other OKF type) from step 3

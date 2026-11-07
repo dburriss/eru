@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The `semantic-search` skill and the `ingestor` agent use the `ferret` CLI instead of `ck`, matching eru's own search. Searches rank by relevance with `--limit` instead of score thresholds, and indexes live in Ferret's cache (`~/.cache/ferret`) instead of a `.ck/` directory in the searched folder. Install `github:dburriss/ferret` (mise) in place of `github:BeaconBay/ck`
+
 ## [0.16.0] - 2026-11-07
 
 ### Added

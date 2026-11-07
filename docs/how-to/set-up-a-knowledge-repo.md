@@ -30,12 +30,12 @@ dotnet = "latest"
 
 Otherwise follow the install instructions at [microsoft.github.io/apm](https://microsoft.github.io/apm/).
 
-The `semantic-search` skill (below) shells out to [`ck`](https://github.com/BeaconBay/ck), a local semantic/lexical
-search tool — install it too, e.g. via mise:
+The `semantic-search` skill (below) shells out to [`ferret`](https://github.com/dburriss/ferret), a local ranked
+lexical/semantic search tool (the same engine eru's own search uses) — install it too, e.g. via mise:
 
 ```toml
 [tools]
-"github:BeaconBay/ck" = "latest"
+"github:dburriss/ferret" = "latest"
 ```
 
 ## 2. Initialise the repo
@@ -55,7 +55,7 @@ projects pull from (`eru add`), and can also declare itself as a manifest with `
 ```yaml
 name: knowledge-tools
 version: 0.1.0
-description: Skills and MCP servers for extracting, searching, and organizing knowledge — document extraction (LiteParse), semantic search (ck), knowledge-file sync (eru), and Diataxis-based documentation organization.
+description: Skills and MCP servers for extracting, searching, and organizing knowledge — document extraction (LiteParse), semantic search (Ferret), knowledge-file sync (eru), and Diataxis-based documentation organization.
 includes: auto
 targets:
   - claude
@@ -75,7 +75,7 @@ dependencies:
 ```
 
 All five are published `apm` packages, so `apm install` resolves and fetches them automatically.
-`semantic-search` (semantic search over the repo, via the `ck` CLI installed above),
+`semantic-search` (semantic search over the repo, via the `ferret` CLI installed above),
 `organizing-documentation` (the Diataxis classification skill), and `ingestor` (the curation agent —
 see [step 4](#4-wire-up-the-ingestor-agent)) all live in
 [eru's own `skills/`/`agents/`](https://github.com/dburriss/eru), alongside `skills/eru` itself,
