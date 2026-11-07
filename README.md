@@ -1,32 +1,33 @@
-# eru
+<p align="center">
+  <img src="docs/images/eru-logo.svg" alt="eru" width="280">
+</p>
 
-`eru` is a CLI tool for sharing knowledge files between projects. Declare where your shared files live (a git repo), pull them in with a single command, and track everything in a lock file so they stay in sync.
+<h3 align="center">Targeted context for AI agents, from any git repo.</h3>
 
-- **Manifests** — knowledge-source repos publish `.eru/manifest.json` to declare available files; consumers pull from it automatically
-- **Collections** — group related files into a named set and pull them all with one command
-- **Tag-based pulls** — `--tag devops` fetches everything tagged `devops` across all collections
-- **Glob patterns** — collection entries can use globs to pull multiple files in one reference (e.g. `docs/*.md`)
-- **Lock file** (`.eru/eru.lock`) records every pulled file: its origin, path, and content hash
-- **Static site** — `eru site generate` builds a self-contained HTML site for browsing and searching the local knowledge cache; `eru site serve` adds live reload and a search API
-- **Dry-run mode** on every write command
-- **Global config** (`~/.config/eru/config.json`) for sources and collections shared across all your repos
+<p align="center">
+  <code>eru</code> pulls just the knowledge an agent needs from local or remote git sources, makes it searchable,
+  gives humans a themed site to read it, and lets agents turn a pile of raw notes into a curated knowledge source.
+</p>
 
-## Requirements
+<p align="center">
+  <a href="https://github.com/dburriss/eru/actions/workflows/build.yml"><img src="https://github.com/dburriss/eru/actions/workflows/build.yml/badge.svg" alt="Build and test"></a>
+  <a href="https://www.nuget.org/packages/Eru.Tool"><img src="https://img.shields.io/nuget/v/Eru.Tool?logo=nuget" alt="NuGet"></a>
+  <a href="https://github.com/dburriss/eru/releases"><img src="https://img.shields.io/github/v/release/dburriss/eru?logo=github" alt="GitHub release"></a>
+</p>
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) or later
-- [git](https://git-scm.com/)
+<p align="center">
+  <img src="docs/reference/images/themes/terminal-dark.png" alt="The eru generated site in the terminal theme, dark mode" width="900">
+  <br>
+  <sub>The generated site in the <code>terminal</code> theme. See all <a href="docs/reference/theme-list.md">themes</a>.</sub>
+</p>
 
-## Install
+## Get started
 
-Install the `Eru.Tool` tool:
+Install the tool ([.NET 10](https://dotnet.microsoft.com/download) and [git](https://git-scm.com/) required; self-contained binaries are on the [releases page](https://github.com/dburriss/eru/releases)):
 
 ```bash
 dotnet tool install --global Eru.Tool
 ```
-
-Leave off `--global` to install locally in a repo instead.
-
-Prebuilt self-contained binaries (`linux-x64`, `win-x64`, `osx-x64`) are also attached to each [GitHub release](https://github.com/dburriss/eru/releases) if you'd rather not install the .NET SDK.
 
 Install the skill with [skills.sh](https://www.skills.sh/):
 
@@ -34,110 +35,69 @@ Install the skill with [skills.sh](https://www.skills.sh/):
 npx skills add dburriss/eru
 ```
 
-The skill tells agents how to use the CLI.
+Then ask your agent to set eru up. The skill knows how to add sources, pull files, build a site and run an inbox, so you don't need to learn the commands.
 
-## Quick start
+## What it does
 
-### 1. Initialise your repo
+### Targeted context for agents
 
-```bash
-eru init
+Point eru at one or more git repos, local or remote, and pull only what a project needs: single files, named collections, or everything with a tag. Every pulled file is recorded in a lock file, so it stays in sync and you can see where it came from.
+
+Search is powered by [Ferret](https://github.com/dburriss/ferret): ranked lexical (BM25), semantic and hybrid search, running locally over your knowledge. `eru mcp` exposes that search and retrieval to Claude, Copilot, Cursor and any other MCP client, so agents ask for context instead of reading whole repos.
+
+- [Getting started](docs/tutorials/getting-started.md)
+- [Pull files and collections](docs/how-to/pull-files-and-collections.md)
+- [Search reference](docs/reference/inspecting-state-and-search.md)
+- [Set up the MCP server](docs/how-to/set-up-the-mcp-server.md)
+
+### OKF or an eru manifest
+
+A knowledge source can be an [OKF](https://github.com/GoogleCloudPlatform/open-knowledge-format) bundle, or any repo with an eru `.eru/manifest.json` that declares the files it offers. eru can validate and repair OKF trees, and check that a manifest resolves.
+
+- [Set up a knowledge repo](docs/how-to/set-up-a-knowledge-repo.md)
+- [Publish a manifest](docs/how-to/publish-a-manifest.md)
+- [Concepts](docs/explanation/concepts.md)
+
+### A site for humans
+
+`eru site generate` builds a self-contained, searchable site from your knowledge, with five built-in themes and room for your own. `eru site serve` adds live reload, and the output publishes straight to GitHub Pages.
+
+- [Site generation reference](docs/reference/site-generation.md)
+- [Theme list](docs/reference/theme-list.md)
+- [Customize the generated site](docs/how-to/customize-the-generated-site.md)
+- [Publish to GitHub Pages](docs/how-to/publish-the-site-to-github-pages.md)
+
+### Agent workflows: from inbox to curated knowledge
+
+Drop raw text into an inbox, which can be a local folder or a remote git repo. An ingestor agent processes each item into well-formed, linked, validated notes in your knowledge source. Run it locally while you work, or in CI so that pushing a raw capture is enough.
+
+- [Use send and watch locally](docs/how-to/use-send-and-watch-locally.md)
+- [Process the inbox with a GitHub Agentic Workflow](docs/how-to/generate-docs-from-inbox-with-gh-aw.md)
+- [Process the inbox with a plain GitHub Action](docs/how-to/generate-docs-from-inbox-with-a-plain-action.md)
+
+## How it fits together
+
+```
+ git repos (local / remote)         inbox (raw text)
+   OKF bundle or eru manifest             │
+            │                             ▼
+            │                     ingestor agent ──▶ curated knowledge
+            ▼                                              │
+   eru cache + lock file ◀─────────────────────────────────┘
+            │
+      ┌─────┴───────────────┐
+      ▼                     ▼
+ agents (search, MCP)   humans (generated site)
 ```
 
-Creates `.eru/config.json` in the current directory.
+## Documentation
 
-### 2. Pull a file
-
-Paste a GitHub or GitLab file URL directly:
-
-```bash
-eru add https://github.com/my-org/knowledge/blob/main/docs/adr-template.md
-```
-
-eru registers the source automatically, downloads the file, and records it in `.eru/eru.lock`.
-
-Or pull by source name and path once a source is configured:
-
-```bash
-eru add knowledge:docs/adr-template.md
-```
-
-Or pull an entire curated collection:
-
-```bash
-eru add --collection onboarding-docs
-```
-
-### 3. Keep files up to date
-
-```bash
-eru sync
-```
-
-Fetches every file in `.eru/eru.lock`, compares content hashes, and overwrites anything that has drifted.
-
----
-
-## Commands
-
-| Command | What it does |
-|---|---|
-| `eru init` | Scaffold `.eru/config.json` in the current directory |
-| `eru init --global` | Create the global config at `~/.config/eru/config.json` |
-| `eru add <path>` | Pull a file by `source:path`, bare filename, or full URL |
-| `eru add --collection <name>` | Pull all files in a named collection |
-| `eru add --tag <tag>` | Pull all files matching a tag |
-| `eru add --dryrun <path>` | Preview what would be pulled |
-| `eru search <terms>` | Ranked search of sources, the lock file and local knowledge (`--mode lex\|sem\|hybrid`) |
-| `eru sync` | Re-fetch all tracked files and update drifted ones |
-| `eru sync --dryrun` | Preview what sync would change |
-| `eru source add <url>` | Register a git repo as a knowledge source |
-| `eru source list` | List configured knowledge sources |
-| `eru source view <name>` | Show details and files for a source |
-| `eru source files <name>` | List the files a source exposes |
-| `eru source bundle add` | Register a knowledge bundle (manifest or OKF) on a source |
-| `eru source remove <name>` | Remove a source |
-| `eru collection create <name>` | Create a new collection |
-| `eru collection add <name> -f <source:path>` | Add a file reference to a collection |
-| `eru print <source:path\|hash>` | Print a document's contents to stdout |
-| `eru config list\|view\|get\|set\|migrate` | Inspect, edit and migrate configuration |
-| `eru remove <path>` | Delete a pulled file and drop it from the lock file |
-| `eru disconnect <path>` | Stop tracking a file but keep it on disk |
-| `eru browse` | Browse the knowledge cache in an interactive terminal UI |
-| `eru cache prune` / `eru cache clear` | Manage the local knowledge cache |
-| `eru inbox add/list/remove/default` | Manage inboxes (local, or remote git repos) |
-| `eru inbox channel add/list/remove` | Manage channels and their ACP agents |
-| `eru inbox send` | Send an item to an inbox |
-| `eru inbox process` / `eru inbox watch` | Run inbox items through the channel's agent, once or continuously |
-| `eru manifest init` | Create `.eru/manifest.json` in a knowledge-source repo |
-| `eru manifest add <path>` | Add a file/glob entry to the manifest |
-| `eru manifest remove <path>` | Remove an entry from the manifest |
-| `eru manifest validate` | Check all manifest entries resolve to local files (alias: `verify`) |
-| `eru site generate [-o <dir>]` | Generate a static HTML site for browsing the local knowledge cache |
-| `eru site serve [-p <port>]` | Serve the site locally with live reload and a search API |
-| `eru okf validate <path>` | Check a directory tree for OKF §11 conformance, and warn on broken links (`--strict-links` to fail) |
-| `eru okf init <path>` | Create missing OKF `index.md` files; `--update` refreshes existing catalogs |
-| `eru okf fix <path>` | Repair a directory tree so it passes OKF validation |
-| `eru okf verify <file>` | Record a human/machine verification on a concept file |
-| `eru version` | Print the version and git commit |
-| `eru mcp` | Start an MCP stdio server for AI agent use |
-
-For full argument details see [docs/reference/cli.md](docs/reference/cli.md).
-
-## Static site
-
-`eru site generate` builds a self-contained HTML site from the local knowledge cache — browse and search all source files offline.
-
-`eru site serve` does the same but also starts a local HTTP server with a live-reload SSE feed and a `/api/search` endpoint. The browser reconnects and reloads automatically whenever the cache is synced. See [docs/reference/site-generation.md](docs/reference/site-generation.md) and [docs/how-to/customize-the-generated-site.md](docs/how-to/customize-the-generated-site.md).
-
-## MCP server
-
-`eru mcp` exposes knowledge search and retrieval to AI agents (Claude, Copilot, Cursor, etc.) over the Model Context Protocol. See [docs/how-to/set-up-the-mcp-server.md](docs/how-to/set-up-the-mcp-server.md).
+Full documentation lives under [docs/](docs/README.md), organised by [Diataxis](https://diataxis.fr/): [tutorials](docs/tutorials/README.md), [how-to guides](docs/how-to/README.md), [reference](docs/reference/README.md) and [explanation](docs/explanation/README.md). The complete command list is in the [CLI reference](docs/reference/cli.md).
 
 ## Contributing
 
 Run `mise install` for the toolchain, then `dotnet build` and `dotnet test --solution eru.slnx`. CI builds and tests every push and PR; pushing a `v*` tag publishes the NuGet package and GitHub release binaries. See [AGENTS.md](AGENTS.md) for the project layout, conventions and release flow.
 
-## Documentation
+## License
 
-Full documentation lives under [docs/](docs/README.md), organised by [Diataxis](https://diataxis.fr/): tutorials, how-to guides, reference, and explanation.
+[MIT](LICENSE)

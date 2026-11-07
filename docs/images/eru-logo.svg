@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120" role="img" aria-labelledby="t">
+  <title id="t">eru</title>
+  <rect x="4" y="4" width="352" height="112" rx="22" fill="#14161a"/>
+  <!-- mark: three sources converging into one page -->
+  <g fill="none" stroke="#f08a24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 36 H44 Q56 36 56 48 V54 Q56 60 64 60"/>
+    <path d="M30 60 H64"/>
+    <path d="M30 84 H44 Q56 84 56 72 V66 Q56 60 64 60"/>
+  </g>
+  <g fill="#14161a" stroke="#f08a24" stroke-width="5">
+    <circle cx="30" cy="36" r="6"/>
+    <circle cx="30" cy="60" r="6"/>
+    <circle cx="30" cy="84" r="6"/>
+  </g>
+  <path d="M70 34 H92 L102 44 V86 H70 Z" fill="#f08a24"/>
+  <path d="M92 34 V44 H102" fill="#14161a" fill-opacity=".35"/>
+  <g stroke="#14161a" stroke-width="4" stroke-linecap="round">
+    <path d="M77 55 H95"/><path d="M77 65 H95"/><path d="M77 75 H88"/>
+  </g>
+  <!-- wordmark -->
+  <text x="122" y="82" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="56" font-weight="700" fill="#f2f2f2">eru</text>
+  <rect x="268" y="48" width="26" height="36" rx="3" fill="#f08a24"/>
+</svg>
