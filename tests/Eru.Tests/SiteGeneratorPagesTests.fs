@@ -499,3 +499,36 @@ let ``relative body links resolve to the flattened page of the right folder`` ()
         Assert.Contains("src=\"img.png\"", html)
         Assert.Contains("[code](explanation.md)", html)
         Assert.Contains("[fence](explanation.md)", html))
+
+[<Fact>]
+let ``the default brand is markup with a mark, a name and a cursor, linking to the site root`` () =
+    run "{}" (fun out ->
+        let html = readOut out "index.html"
+        Assert.Contains("""<a class="nav-brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">eru</span><span class="brand-cursor" aria-hidden="true">_</span></a>""", html)
+        Assert.DoesNotContain("{{root}}", html)
+        // pages below the root point back up
+        Assert.Contains("""<a class="nav-brand" href="../index.html">""", readOut out "tags/index.html"))
+
+[<Fact>]
+let ``a brand html item replaces the default brand and brand false removes it`` () =
+    run """{ "layout": { "brand": [{ "html": "<a class=\"nav-brand\" href=\"{{root}}index.html\"><img src=\"logo.svg\" alt=\"Acme\"></a>" }] } }""" (fun out ->
+        let html = readOut out "index.html"
+        Assert.Contains("""<img src="logo.svg" alt="Acme">""", html)
+        Assert.DoesNotContain("brand-name", html))
+    run """{ "layout": { "brand": false } }""" (fun out ->
+        Assert.DoesNotContain("nav-brand", readOut out "index.html"))
+
+[<Fact>]
+let ``a brand text item is escaped markdown`` () =
+    run """{ "layout": { "brand": [{ "text": "**Acme** <script>x</script>" }] } }""" (fun out ->
+        let html = readOut out "index.html"
+        Assert.Contains("<strong>Acme</strong>", html)
+        Assert.DoesNotContain("<script>x</script>", html))
+
+[<Fact>]
+let ``the script marks filter buttons and the typed key as on`` () =
+    run "{}" (fun out ->
+        let js = readOut out "js/app.js"
+        Assert.Contains("function markActive()", js)
+        Assert.Contains("classList.toggle('q-on'", js)
+        Assert.Contains("aria-pressed", js))

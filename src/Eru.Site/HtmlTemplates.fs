@@ -27,7 +27,7 @@ let private navLinks (env: SiteEnv) (p: string) (items: LayoutItem list) : strin
 /// and `right` regions, then a full-width `footer` band. An empty region or band is left out so it
 /// leaves no gap.
 let private frame
-    (depth: int) (title: string) (nav: string) (top: string) (toolbar: string)
+    (depth: int) (title: string) (brand: string) (nav: string) (top: string) (toolbar: string)
     (left: string) (main: string) (right: string) (footer: string) : string =
     let p = prefixFor depth
     let present (html: string) = not (String.IsNullOrWhiteSpace html)
@@ -51,7 +51,7 @@ let private frame
 </head>
 <body>
   <nav class="site-nav">
-    <a class="nav-brand" href="{p}index.html">eru</a>
+    {brand}
     {nav}
     <button id="theme-toggle" aria-label="Toggle theme" style="display:none"></button>
   </nav>
@@ -77,7 +77,7 @@ let private frame
 let render (env: SiteEnv) (depth: int) (slots: ResolvedSlots) (page: PageData) : string =
     let p = prefixFor depth
     let ctx = { Env = env; Prefix = p; Slots = slots; Page = page }
-    frame depth page.Title (navLinks env p slots.Nav) (renderMain ctx slots.Top) (renderMain ctx slots.Toolbar)
+    frame depth page.Title (renderBrand ctx slots.Brand) (navLinks env p slots.Nav) (renderMain ctx slots.Top) (renderMain ctx slots.Toolbar)
         (renderSide ctx slots.Left) (renderMain ctx slots.Main) (renderSide ctx slots.Right) (renderSide ctx slots.Footer)
 
 // ── environment ──────────────────────────────────────────────────────────────

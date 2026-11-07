@@ -187,6 +187,18 @@ For formatted text, use a `text` item (Markdown, with raw HTML escaped) and keep
 
 Long text can live in a file: `{ "text": { "file": "docs/footer.md" } }`. When you need markup Markdown cannot express, use `{ "html": "<b>…</b>" }` or `{ "html": { "file": "docs/footer.html" } }`. `html` is emitted unescaped, so only use content you trust.
 
+## Replace the logo
+
+The brand at the left of the nav is real markup, so you can replace it. The default is a link holding `brand-mark`, `brand-name` and `brand-cursor` spans, which each theme styles (the smiley face in `smiley`, the `>` prompt in `matrix`). Swap it with an `html` item, using `{{root}}` for the path back to the site root:
+
+```json
+{ "site": { "layout": { "brand": [
+  { "html": "<a class=\"nav-brand\" href=\"{{root}}index.html\"><img src=\"{{root}}assets/logo.svg\" alt=\"Acme\" height=\"22\"></a>" }
+] } } }
+```
+
+`{ "html": { "file": "docs/brand.html" } }` reads it from a file, `{ "text": "**Acme**" }` renders escaped Markdown, and `"brand": false` removes it. To keep the default but hide a part, use `custom.css`: `.brand-cursor { display: none; }`.
+
 ## Drop or reorder built-in pages
 
 ```json

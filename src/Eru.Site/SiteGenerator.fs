@@ -138,8 +138,9 @@ h3 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase;
   border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
-.nav-brand { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; color: var(--color-text); }
-.nav-brand::after { content: "_"; color: var(--color-primary); }
+.nav-brand { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; color: var(--color-text); display: inline-flex; align-items: center; }
+.brand-mark { display: none; }
+.brand-cursor { color: var(--color-primary); }
 #theme-toggle {
   margin-left: auto;
   background: transparent;
@@ -657,13 +658,18 @@ kbd {
 tr:hover .cell-path, tr.q-sel .cell-path, .doc-row:hover .cell-path { opacity: 0.9; }
 .cell-desc { color: var(--color-muted); font-size: 0.9em; padding-left: 2ch; }
 .doc-table [data-col="source"] { width: 1%; white-space: nowrap; }
-.doc-table [data-col="tags"] { width: 22ch; }
+.doc-table [data-col="tags"] { width: 28ch; }
 .add-filter {
-  font: inherit; color: var(--color-primary); background: none; border: 1px solid transparent;
-  padding: 0 0.3rem; margin: 0 0.1rem 0 -0.3rem; cursor: pointer;
+  font: inherit; color: var(--color-muted); background: none; border: 1px solid var(--color-border);
+  padding: 0 0.3rem; margin: 0 0.1rem 0.1rem 0; cursor: pointer;
 }
 .add-filter:hover { border-color: var(--color-text); color: var(--color-text); }
 .add-filter:hover::after { content: " +"; }
+/* on: the value is already in the query line */
+.add-filter.q-on, .add-filter.q-on:hover { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-bg); }
+.add-filter.q-on:hover::after { content: none; }
+.q-key.q-on, .q-key.q-on:hover { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-bg); }
+.q-key.q-on i { color: var(--color-bg); }
 .doc-table th { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-muted); }
 .doc-table th + th, .doc-table td + td { border-left: 1px solid var(--color-border); }
 .doc-table tbody tr:hover td { background: var(--color-surface); }
@@ -969,6 +975,7 @@ let private appJs = """
       s.appendChild(b);
       qTokens.appendChild(s);
     });
+    markActive();
   }
 
   function changed() {
@@ -1017,9 +1024,26 @@ let private appJs = """
     return m && KEYS[m[2].toLowerCase()] ? { key: m[2].toLowerCase(), neg: m[1] === '-', part: m[3].replace(/^"/, '').toLowerCase() } : null;
   }
 
-  function hidePop() { qPop.hidden = true; popItems = []; popIdx = 0; }
+  // Fill the buttons for what the query already holds: row values whose token is present, and the key being typed.
+  function markActive() {
+    if (!qEl) return;
+    var w = document.activeElement === qInput ? typingWord() : null;
+    document.querySelectorAll('[data-add]').forEach(function (b) {
+      var spec = b.getAttribute('data-add');
+      var i = spec.indexOf(':');
+      var key = spec.slice(0, i), value = spec.slice(i + 1).toLowerCase();
+      var on = tokens.some(function (t) { return !t.neg && t.key === key && String(t.value).toLowerCase() === value; });
+      b.classList.toggle('q-on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    qEl.querySelectorAll('.q-key').forEach(function (b) {
+      b.classList.toggle('q-on', !!w && b.firstChild.nodeValue === w.key);
+    });
+  }
+  function hidePop() { qPop.hidden = true; popItems = []; popIdx = 0; markActive(); }
 
   function refreshPop() {
+    markActive();
     var w = typingWord();
     if (!w || document.activeElement !== qInput) { hidePop(); return; }
     var f = KEYS[w.key];
@@ -1706,9 +1730,9 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
             |> Option.filter (fun u -> not (deps.IsPlainFolder u))   // a local folder has no web URL
             |> Option.bind (fun u -> Views.sourceFileUrl u s.Branch d.RemotePath))
 
-    let viewContext (browse: bool) (prefix: string) (def: PageDef option) : Views.ViewContext =
+    let viewContext (filterable: bool) (prefix: string) (def: PageDef option) : Views.ViewContext =
         { Prefix = prefix; TagsLive = isLive "tags"; Open = PageLayout.openTarget settings def; SourceUrl = sourceUrlFor
-          Filterable = browse; ShowSyncStatus = cfg.SiteShowSyncStatus }
+          Filterable = filterable; ShowSyncStatus = cfg.SiteShowSyncStatus }
 
     // link targets for rewriting links inside content pages
     let docUrls =
@@ -1770,12 +1794,16 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     let pages = ResizeArray<string * string>()
     let add (path: string) (html: string) = pages.Add((path, html))
 
-    let docList (browse: bool) (prefix: string) (def: PageDef option) (docs: SiteDocument list) : string =
-        let vc = viewContext browse prefix def
+    let docList (browse: bool) (filterable: bool) (prefix: string) (def: PageDef option) (docs: SiteDocument list) : string =
+        let vc = viewContext filterable prefix def
         let spec = if browse then PageLayout.browseViewSpec settings def else PageLayout.viewSpec settings def
         match def |> Option.bind (fun d -> d.Group) with
         | Some g -> Views.renderGroups vc spec (FilterEngine.group g docs)
         | None -> Views.renderDocs vc spec docs
+
+    // Row tags and sources are filter buttons only where the page has a query line to add them to.
+    let filterable (isBrowse: bool) (kind: PageKind) (pageLayout: Layout) =
+        isBrowse && ResolvedSlots.hasQuery (PageLayout.forPage settings kind pageLayout)
 
     for spec in specs do
         let depth = PageSpecs.depthOf spec.Url
@@ -1802,7 +1830,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     ContentHtml = content |> Option.map fst
                     Doc = contentDoc
                     Related = contentDoc |> Option.map relatedFor
-                    ListHtml = docs |> Option.map (docList (spec.Id = "browse") p (Some def))
+                    ListHtml = docs |> Option.map (docList (spec.Id = "browse") (filterable (spec.Id = "browse") kind def.Layout) p (Some def))
                     DocCount = docs |> Option.map List.length
                     Searchable = docs.IsSome
                     FacetMode = if spec.Id = "browse" then Widgets.FacetFilter else Widgets.FacetLinks },
@@ -1814,7 +1842,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     match spec.Id with
                     | "browse" ->
                         { basePage with
-                            ListHtml = Some (docList true p None model.Documents)
+                            ListHtml = Some (docList true (filterable true BrowsePage Layout.empty) p None model.Documents)
                             DocCount = Some model.Documents.Length
                             Searchable = true
                             FacetMode = Widgets.FacetFilter }
@@ -1829,7 +1857,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     let detailPage (parentId: string) (parentLabel: string) (depth: int) (title: string) (titleHtml: string option)
                    (cli: (string * string) list) (docs: SiteDocument list) : string =
         let p = prefixFor depth
-        let data = HtmlTemplates.detailPageData env depth parentId parentLabel title titleHtml cli (docList false p None docs) docs.Length
+        let data = HtmlTemplates.detailPageData env depth parentId parentLabel title titleHtml cli (docList false false p None docs) docs.Length
         HtmlTemplates.render env depth (PageLayout.forPage settings DetailPage Layout.empty) data
 
     // sources/<name>/index.html

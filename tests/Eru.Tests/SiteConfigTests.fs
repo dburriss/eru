@@ -320,3 +320,10 @@ let ``widget placement follows the registry for the bands`` () =
     assertRejected "widget 'title' is not valid in footer" """{ "layout": { "footer": ["title"] } }"""
     assertRejected "widget 'toc' is not valid in toolbar" """{ "layout": { "toolbar": ["toc"] } }"""
     assertRejected "toolbar takes widget names only" """{ "layout": { "toolbar": [{ "label": "x", "url": "https://x" }] } }"""
+
+[<Fact>]
+let ``brand accepts html and text items only`` () =
+    assertRejected "brand takes 'text' or 'html' items only" """{ "layout": { "brand": ["title"] } }"""
+    assertRejected "brand takes 'text' or 'html' items only" """{ "layout": { "brand": [{ "label": "x", "url": "https://x.example" }] } }"""
+    assertRejected "only valid in footer and brand" """{ "layout": { "top": [{ "html": "<b>x</b>" }] } }"""
+    assertRejected "inside the repository" """{ "layout": { "brand": [{ "html": { "file": "../x.html" } }] } }"""

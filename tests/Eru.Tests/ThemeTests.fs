@@ -54,6 +54,9 @@ let ``ledger defaults to the rows view with a facet sidebar`` () =
         Assert.Contains("doc-rows", index)
         Assert.Contains("doc-row-side", index)
         Assert.Contains("data-facet-mode=\"filter\"", index)
+        // the facets replace the query line; the plain search box stays
+        Assert.DoesNotContain("q-bar", index)
+        Assert.Contains("id=\"search-input\"", index)
         // the row carries the filter contract and the description under the name
         Assert.Contains("data-doc ", index)
         Assert.Contains("cell-desc", index))
@@ -142,12 +145,21 @@ let ``smiley css follows the base stylesheet and precedes custom css`` () =
         Assert.DoesNotContain("smiley theme", readOut out "assets/css/custom.css"))
 
 [<Fact>]
-let ``smiley keeps the terminal layout defaults`` () =
+let ``smiley defaults to the cards view and otherwise keeps the terminal layout`` () =
     match Themes.resolve (depsWith []) "smiley" with
     | Ok t ->
         Assert.Equal(Themes.BuiltIn, t.Origin)
-        Assert.Equal(Themes.resolve (depsWith []) "terminal" |> Result.map (fun x -> x.Defaults), Ok t.Defaults)
+        Assert.Equal(Some "cards", t.Defaults.DefaultView)
+        Assert.Equal(Layout.empty, t.Defaults.Layout)
     | Error e -> failwith e
+
+[<Fact>]
+let ``smiley browse shows cards and the query line`` () =
+    generate (depsWith []) """{ "theme": "smiley" }""" (fun out ->
+        let index = readOut out "index.html"
+        Assert.Contains("card-grid", index)
+        Assert.DoesNotContain("<table", index)
+        Assert.Contains("q-bar", index))
 
 [<Fact>]
 let ``cyberpunk css follows the base stylesheet and precedes custom css`` () =
@@ -179,7 +191,8 @@ let ``cyberpunk glow and grid are scoped to dark mode`` () =
         Assert.DoesNotContain("linear-gradient", lightPalette)
         Assert.Contains(":root:not(.theme-light) body", theme)
         Assert.Contains(":root.theme-dark body", theme)
-        Assert.Contains(":root.theme-dark .nav-brand", theme)
+        Assert.Contains(":root.theme-dark .brand-name", theme)
+        Assert.DoesNotContain("::before", theme.Substring(theme.IndexOf ".nav-brand"))
         Assert.Contains("kbd, input, button, .q-opt.q-on { text-shadow: none; }", theme))
 
 [<Fact>]
@@ -221,3 +234,34 @@ let ``theme names are validated and parsed from config`` () =
     Assert.Equal(Some "ledger", (siteSettings """{ "theme": "ledger" }""").Theme)
     Assert.Equal(None, (siteSettings "{}").Theme)
     Assert.Contains("theme names may only contain", siteError """{ "theme": "../escape" }""")
+
+[<Fact>]
+let ``every theme styles the filled on state of filter buttons and key buttons`` () =
+    for name in [ "terminal"; "ledger"; "matrix"; "smiley"; "cyberpunk" ] do
+        generate (depsWith []) $"""{{ "theme": "{name}" }}""" (fun out ->
+            let css = readOut out "assets/css/style.css"
+            // the base supplies the fill; the themes recolour it
+            Assert.Contains(".add-filter.q-on", css)
+            Assert.Contains(".q-key.q-on", css)
+            // the brand is markup, so no theme draws it with pseudo-elements
+            Assert.DoesNotContain(".nav-brand::before", css)
+            Assert.DoesNotContain(".nav-brand::after", css))
+
+[<Fact>]
+let ``themes recolour the on state to match the mocks`` () =
+    let themeCss (name: string) =
+        let mutable result = ""
+        generate (depsWith []) $"""{{ "theme": "{name}" }}""" (fun out ->
+            let css = readOut out "assets/css/style.css"
+            result <- css.Substring(css.IndexOf $"/* {name} theme */"))
+        result
+    Assert.Contains(".add-filter.q-on, .add-filter.q-on:hover { background: var(--smiley-hot)", themeCss "smiley")
+    Assert.Contains("color: var(--cyberpunk-on-primary)", (themeCss "cyberpunk").Substring((themeCss "cyberpunk").IndexOf ".add-filter.q-on"))
+    Assert.Contains(".brand-mark::before { content: \">\"", themeCss "matrix")
+
+[<Fact>]
+let ``filter buttons only appear where the page has a query line`` () =
+    generate (depsWith []) """{ "theme": "ledger" }""" (fun out ->
+        Assert.DoesNotContain("data-add=", readOut out "index.html"))
+    generate (depsWith []) """{ "theme": "terminal" }""" (fun out ->
+        Assert.Contains("data-add=", readOut out "index.html"))

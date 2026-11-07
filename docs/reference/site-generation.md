@@ -155,7 +155,11 @@ footer     full-width widget band
 | `right` | Widget names, page ids, links | `toc` (none on Browse) |
 | `footer` | Widget names, page ids, links, `text`, `html` | An `html` item with `docs | changelog` links to eru (centered) and the eru version (right), on every page. `"footer": false` removes it |
 
-Footer-only items:
+| `brand` | `text`, `html` | An `html` item with the logo link: `<a class="nav-brand">` holding `brand-mark`, `brand-name` and `brand-cursor` spans. `"brand": false` removes it |
+
+`text` and `html` items are valid in `footer` and `brand` only. In `brand` they are placed bare at the left of the nav, so your markup supplies its own link; `{{root}}` stands for the relative path back to the site root (`{{root}}index.html`). Themes draw the mark and cursor by styling the `brand-mark`, `brand-name` and `brand-cursor` spans.
+
+Text and html items:
 
 | Item | Content | Notes |
 |---|---|---|
@@ -260,7 +264,7 @@ and a `theme.css`; both are optional, but a folder with neither is not a theme.
 | `terminal` (default) | Monospace, square corners, hairline grid, query-line Browse. This is the base stylesheet itself |
 | `ledger` | Dense and quiet: sans-serif, rounded corners, an indigo accent, a facet sidebar and one row per file (`defaultView: rows`, `layout.left: ["facets"]`) |
 | `matrix` | The terminal layout in phosphor green: pale mint in light mode, black with a faint glow and scanlines in dark mode. Adds no `site` settings |
-| `smiley` | The terminal layout in Coolblue blue and orange: a blue header, sans-serif type and rounded pills. Adds no `site` settings |
+| `smiley` | Coolblue blue and orange: a blue header, sans-serif type, rounded pills and a card per file (`defaultView: cards`) |
 | `cyberpunk` | The terminal layout in neon magenta, cyan and yellow: deep violet with a grid and glow in dark mode (pale lavender in light), angular display type and clipped corners. Adds no `site` settings |
 
 A name is looked up in this order: built-in, `.eru/themes/<name>/` in the project, then `themes/<name>/` next to the

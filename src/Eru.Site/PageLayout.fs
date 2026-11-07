@@ -16,17 +16,23 @@ type ResolvedSlots = {
     Right   : LayoutItem list
     Main    : string list
     Footer  : LayoutItem list
+    Brand   : LayoutItem list
 }
 
 module ResolvedSlots =
     let empty : ResolvedSlots =
-        { Nav = []; Top = []; Toolbar = []; Left = []; Right = []; Main = []; Footer = [] }
+        { Nav = []; Top = []; Toolbar = []; Left = []; Right = []; Main = []; Footer = []; Brand = [] }
 
     /// True when any slot places the query line, so the list should not add its plain search box.
     let hasQuery (s: ResolvedSlots) : bool =
         let widget (items: LayoutItem list) = items |> List.exists (function WidgetRef "query" -> true | _ -> false)
         let named (names: string list) = List.contains "query" names
         named s.Top || named s.Toolbar || named s.Main || widget s.Left || widget s.Right || widget s.Footer
+
+/// The default brand: a mark (themes decide whether it shows), the name and the prompt cursor.
+/// Override it with `site.layout.brand` (`html` or `text` items).
+let defaultBrandHtml =
+    """<a class="nav-brand" href="{{root}}index.html"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">eru</span><span class="brand-cursor" aria-hidden="true">_</span></a>"""
 
 /// Where the footer points by default, on every page.
 let defaultFooterHtml =
@@ -57,7 +63,8 @@ let baseLayout (settings: SiteSettings) (kind: PageKind) : Layout =
       Left = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "facets" ]))
       Right = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "toc" ]))
       Main = Some (Items (widgets (defaultMain kind)))
-      Footer = Some (Items [ TextRef (Html, TextInline defaultFooterHtml); WidgetRef "version" ]) }
+      Footer = Some (Items [ TextRef (Html, TextInline defaultFooterHtml); WidgetRef "version" ])
+      Brand = Some (Items [ TextRef (Html, TextInline defaultBrandHtml) ]) }
 
 let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
     let l = overlays |> List.fold Layout.overlay baseL
@@ -73,7 +80,8 @@ let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
       Left = items l.Left
       Right = items l.Right
       Main = widgets l.Main
-      Footer = items l.Footer }
+      Footer = items l.Footer
+      Brand = items l.Brand }
 
 let forPage (settings: SiteSettings) (kind: PageKind) (pageLayout: Layout) : ResolvedSlots =
     resolve (baseLayout settings kind) [ settings.Layout; pageLayout ]

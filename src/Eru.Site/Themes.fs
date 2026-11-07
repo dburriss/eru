@@ -39,10 +39,10 @@ let private terminalJson = """{ "description": "Monospace, square corners, hairl
 
 let private ledgerJson =
     """{
-  "description": "Dense and quiet: sans-serif, rounded corners, a facet sidebar and one row per file.",
+  "description": "Dense and quiet: sans-serif, rounded corners, a facet sidebar instead of the query line, and one row per file.",
   "site": {
     "defaultView": "rows",
-    "layout": { "left": [ "facets" ] }
+    "layout": { "left": [ "facets" ], "toolbar": false }
   }
 }"""
 
@@ -74,12 +74,9 @@ h3 { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.08em; opacity: 1; c
 
 /* nav */
 .site-nav { gap: 0.25rem; padding: 0 1.25rem; min-height: 48px; }
-.nav-brand { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; margin-right: 1rem; }
-.nav-brand::before {
-  content: ""; display: inline-block; width: 18px; height: 18px; border-radius: 5px;
-  background: var(--color-primary); margin-right: 0.5rem; vertical-align: -3px;
-}
-.nav-brand::after { content: none; }
+.nav-brand { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; margin-right: 1rem; gap: 0.5rem; }
+.brand-mark { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: var(--color-primary); }
+.brand-cursor { display: none; }
 .site-nav a:not(.nav-brand) { padding: 0.3rem 0.65rem; border-radius: 6px; color: var(--color-muted); }
 .site-nav a:not(.nav-brand):hover { background: var(--color-surface); color: var(--color-text); text-decoration: none; }
 #theme-toggle { border-radius: 6px; font-size: 0.9rem; }
@@ -113,7 +110,8 @@ kbd { border-radius: 4px; }
 .card-path { font-family: var(--font-mono); margin: -0.15rem 0 0.4rem; }
 .doc-row .cell-desc { padding-left: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doc-row-side { font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-muted); }
-.doc-row .add-filter { padding: 0 0.2rem; margin: 0; border-radius: 4px; }
+.doc-row .add-filter { padding: 0 0.2rem; margin: 0; border-radius: 4px; border-color: transparent; color: var(--color-primary); }
+.doc-row .add-filter:hover { border-color: var(--color-border); }
 .doc-row .badge { border-radius: 999px; background: none; padding: 0; }
 
 /* sync state as a dot */
@@ -123,6 +121,11 @@ kbd { border-radius: 4px; }
 .doc-table th { background: none; text-transform: none; letter-spacing: 0; font-size: 0.8rem; font-weight: 500; }
 .doc-table th + th, .doc-table td + td { border-left: 0; }
 .badge, .add-filter { border-radius: 4px; }
+/* on: a soft tint rather than a solid fill, to stay quiet */
+.add-filter.q-on, .add-filter.q-on:hover, .q-key.q-on, .q-key.q-on:hover {
+  background: var(--color-accent-soft); border-color: var(--color-primary); color: var(--color-primary);
+}
+.q-key.q-on i { color: var(--color-primary); }
 .region-footer { border-top-color: var(--color-border); }
 """
 
@@ -158,7 +161,11 @@ let private matrixCss =
     + matrixDarkEffects ":root.theme-dark" ""
     + """
 /* the status glyphs and selection carry meaning, so keep the glow off the controls */
-kbd, input, button, .q-opt.q-on { text-shadow: none; }
+kbd, input, button, .q-opt.q-on, .add-filter.q-on { text-shadow: none; }
+
+/* the prompt before the name */
+.brand-mark::before { content: ">"; color: var(--color-primary); margin-right: 0.5rem; }
+.brand-mark { display: inline; }
 
 /* badges stay green-on-green in dark mode */
 body.theme-dark .badge-manifest, body.theme-dark .badge-okf,
@@ -167,7 +174,10 @@ body.theme-dark .doc-stale-warning { background: var(--color-surface); color: va
 """
 
 let private smileyJson =
-    """{ "description": "The terminal layout in Coolblue blue and orange: a blue header, friendly sans-serif type and rounded pills." }"""
+    """{
+  "description": "Coolblue blue and orange: a blue header, friendly sans-serif type, rounded pills and a card per file.",
+  "site": { "defaultView": "cards" }
+}"""
 
 // --smiley-nav is the header band, --smiley-hot the orange that marks whatever is active.
 let private smileyLight =
@@ -200,11 +210,11 @@ body { font-size: 14px; }
 .site-nav a:hover { color: #fff; }
 .nav-brand { font-size: 1.1rem; font-weight: 700; color: #fff; display: inline-flex; align-items: center; gap: 0.6rem; }
 .site-nav .nav-brand { color: #fff; }
-.nav-brand::before {
-  content: ""; width: 20px; height: 20px; border-radius: 50%; background: var(--smiley-hot);
-  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.35);
+.brand-mark {
+  display: inline-block; width: 22px; height: 22px; border-radius: 50%; flex: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Ccircle cx='7.6' cy='8.6' r='1.5' fill='%23fff'/%3E%3Ccircle cx='14.4' cy='8.6' r='1.5' fill='%23fff'/%3E%3Cpath d='M6.4 12.6q4.6 4.6 9.2 0' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") center / 100% no-repeat, var(--smiley-hot);
 }
-.nav-brand::after { content: none; }
+.brand-cursor { display: none; }
 #theme-toggle { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
 .site-nav kbd { color: #fff; border-color: rgba(255, 255, 255, 0.5); }
 body.theme-dark .site-nav { border-bottom-color: var(--color-border); }
@@ -229,6 +239,7 @@ kbd { border-radius: 4px; }
 .doc-table tr.q-sel td:first-child, .file-card.q-sel, .doc-list-item.q-sel, .doc-row.q-sel { box-shadow: inset 3px 0 0 var(--smiley-hot); }
 .add-filter { border-radius: 999px; font-family: var(--font-family); }
 .add-filter:hover { border-color: var(--smiley-hot); color: var(--smiley-hot); }
+.add-filter.q-on, .add-filter.q-on:hover { background: var(--smiley-hot); border-color: var(--smiley-hot); color: #fff; }
 .doc-table th { letter-spacing: 0.06em; }
 .badge { border-radius: 999px; }
 
@@ -270,7 +281,7 @@ let private cyberpunkDarkEffects (root: string) (indent: string) =
     rule (indent + root + " body")
          "background-image: linear-gradient(rgba(5, 217, 232, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(5, 217, 232, 0.04) 1px, transparent 1px); background-size: 28px 28px;"
     + rule (indent + root + " .site-nav") "box-shadow: 0 1px 12px -2px rgba(255, 42, 109, 0.55);"
-    + rule (indent + root + " .nav-brand") "text-shadow: -2px 0 var(--color-primary), 2px 0 var(--cyberpunk-cy);"
+    + rule (indent + root + " .brand-name") "text-shadow: -2px 0 var(--color-primary), 2px 0 var(--cyberpunk-cy);"
     + rule (indent + root + " .q-prompt") "text-shadow: 0 0 8px var(--cyberpunk-yl);"
     + rule (indent + root + " .gl-pulled") "text-shadow: 0 0 6px var(--cyberpunk-cy);"
 
@@ -291,7 +302,7 @@ let private cyberpunkCss =
   font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.08em;
 }
 .nav-brand { font-size: 1.25rem; font-weight: 700; }
-.nav-brand::after { color: var(--cyberpunk-yl); text-shadow: none; }
+.brand-cursor { color: var(--cyberpunk-yl); text-shadow: none; }
 .site-nav { border-bottom-color: var(--color-primary); }
 .site-nav a:hover { color: var(--cyberpunk-cy); }
 #theme-toggle { color: var(--cyberpunk-yl); border-color: var(--cyberpunk-yl); }
@@ -315,6 +326,7 @@ let private cyberpunkCss =
 .q-key, .add-filter { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%); }
 .q-key.q-on { background: var(--cyberpunk-cy); border-color: var(--cyberpunk-cy); color: var(--color-bg); }
 .q-key.q-on i { color: var(--color-bg); }
+.add-filter.q-on, .add-filter.q-on:hover { background: var(--color-primary); border-color: var(--color-primary); color: var(--cyberpunk-on-primary); }
 .q-key:focus-visible, .add-filter:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--cyberpunk-cy); }
 .add-filter:hover { border-color: var(--cyberpunk-cy); color: var(--cyberpunk-cy); }
 .q-pop { border-color: var(--color-primary); box-shadow: 6px 6px 0 var(--color-accent-soft); }

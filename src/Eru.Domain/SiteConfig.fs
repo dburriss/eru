@@ -8,7 +8,7 @@ open System.Text.Json
 // `string | object`), which System.Text.Json cannot map, so SiteSection keeps those
 // keys as raw JsonElements and this module parses them into the types below.
 
-type SlotName = Nav | Top | Toolbar | Left | Main | Right | Footer
+type SlotName = Nav | Top | Toolbar | Left | Main | Right | Footer | Brand
 
 /// Footer text: Markdown (HTML escaped) or raw HTML, written inline or read from a repo-relative file.
 type TextKind = Markdown | Html
@@ -36,11 +36,12 @@ type Layout = {
     Right   : Slot option
     Main    : Slot option
     Footer  : Slot option
+    Brand   : Slot option
 }
 
 module Layout =
     let empty : Layout =
-        { Nav = None; Top = None; Toolbar = None; Left = None; Right = None; Main = None; Footer = None }
+        { Nav = None; Top = None; Toolbar = None; Left = None; Right = None; Main = None; Footer = None; Brand = None }
 
     let get (name: SlotName) (l: Layout) : Slot option =
         match name with
@@ -51,6 +52,7 @@ module Layout =
         | Right -> l.Right
         | Main -> l.Main
         | Footer -> l.Footer
+        | Brand -> l.Brand
 
     let set (name: SlotName) (slot: Slot option) (l: Layout) : Layout =
         match name with
@@ -61,6 +63,7 @@ module Layout =
         | Right -> { l with Right = slot }
         | Main -> { l with Main = slot }
         | Footer -> { l with Footer = slot }
+        | Brand -> { l with Brand = slot }
 
     /// Slots set in `over` replace the ones in `under`, each as a whole.
     let overlay (under: Layout) (over: Layout) : Layout =
@@ -70,9 +73,10 @@ module Layout =
           Left    = over.Left    |> Option.orElse under.Left
           Right   = over.Right   |> Option.orElse under.Right
           Main    = over.Main    |> Option.orElse under.Main
-          Footer  = over.Footer  |> Option.orElse under.Footer }
+          Footer  = over.Footer  |> Option.orElse under.Footer
+          Brand   = over.Brand   |> Option.orElse under.Brand }
 
-    let slotNames = [ Nav; Top; Toolbar; Left; Main; Right; Footer ]
+    let slotNames = [ Nav; Top; Toolbar; Left; Main; Right; Footer; Brand ]
 
 // AND across fields, OR within a field's list. Empty lists and None mean "no constraint".
 type FilterSpec = {
@@ -227,6 +231,7 @@ module SiteSettings =
         | Right -> "right"
         | Main -> "main"
         | Footer -> "footer"
+        | Brand -> "brand"
 
     /// Normalises a repo-relative path to `/` separators. None when it is empty, rooted or
     /// escapes the repo root via `..`.
@@ -262,12 +267,13 @@ module SiteSettings =
                   | Dropped -> () ]
         layouts
         |> List.collect (fun l ->
-            match l.Footer with
-            | Some (Items items) ->
-                items |> List.choose (function
-                    | TextRef (_, TextFile f) -> normalizeRelPath f
-                    | _ -> None)
-            | _ -> [])
+            [ l.Footer; l.Brand ]
+            |> List.collect (function
+                | Some (Items items) ->
+                    items |> List.choose (function
+                        | TextRef (_, TextFile f) -> normalizeRelPath f
+                        | _ -> None)
+                | _ -> []))
         |> List.distinct
 
     // ── parsing ──────────────────────────────────────────────────────────────
@@ -329,6 +335,7 @@ module SiteSettings =
             | Nav -> PageRef (s, None)
             | Top | Toolbar | Main -> WidgetRef s
             | Left | Right | Footer -> if SiteVocabulary.isWidget s then WidgetRef s else PageRef (s, None)
+            | Brand -> WidgetRef s
         | JsonValueKind.Object ->
             expectKeys path [ "page"; "label"; "url"; "text"; "html" ] el
             let get (k: string) = match el.TryGetProperty k with | true, v -> Some v | _ -> None
@@ -359,14 +366,14 @@ module SiteSettings =
 
     let private parseLayout (path: string) (el: JsonElement) : Layout =
         expectObject path el
-        expectKeys path [ "nav"; "top"; "toolbar"; "left"; "right"; "main"; "footer" ] el
+        expectKeys path [ "nav"; "top"; "toolbar"; "left"; "right"; "main"; "footer"; "brand" ] el
         let slot name (key: string) =
             match el.TryGetProperty key with
             | true, v -> Some (parseSlot $"{path}.{key}" name v)
             | _ -> None
         { Nav = slot Nav "nav"; Top = slot Top "top"; Toolbar = slot Toolbar "toolbar"
           Left = slot Left "left"; Right = slot Right "right"; Main = slot Main "main"
-          Footer = slot Footer "footer" }
+          Footer = slot Footer "footer"; Brand = slot Brand "brand" }
 
     let rec private parseFilter (path: string) (el: JsonElement) : FilterSpec =
         expectObject path el
@@ -577,12 +584,14 @@ module SiteSettings =
                     | Nav, LinkRef _ -> ()
                     | (Nav | Top | Toolbar | Left | Main | Right), TextRef (kind, _) ->
                         let key = match kind with Markdown -> "text" | Html -> "html"
-                        fail $"{ip}: '{key}' items are only valid in footer"
-                    | Footer, TextRef (kind, TextFile f) ->
+                        fail $"{ip}: '{key}' items are only valid in footer and brand"
+                    | Brand, (WidgetRef _ | PageRef _ | LinkRef _) ->
+                        fail $"{ip}: brand takes 'text' or 'html' items only"
+                    | (Footer | Brand), TextRef (kind, TextFile f) ->
                         if (normalizeRelPath f).IsNone then
                             let key = match kind with Markdown -> "text" | Html -> "html"
                             fail $"{ip}.{key}.file '{f}' must be a path inside the repository (no '..' escape, not absolute)"
-                    | Footer, TextRef _ -> ()
+                    | (Footer | Brand), TextRef _ -> ()
                     | Top, (PageRef _ | LinkRef _) -> movedToNav ip
                     | Top, WidgetRef w when not (SiteVocabulary.isWidget w) && known.Contains w -> movedToNav ip
                     | (Top | Toolbar | Main), WidgetRef w -> widgetIn ip w

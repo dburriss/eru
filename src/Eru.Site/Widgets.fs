@@ -331,6 +331,29 @@ let renderWidget (ctx: WidgetContext) (name: string) : string =
 let renderMain (ctx: WidgetContext) (names: string list) : string =
     names |> List.map (renderWidget ctx) |> List.filter (fun h -> h <> "") |> String.concat "\n"
 
+/// The body of a `text` (Markdown, escaped) or `html` (raw) layout item, read inline or from a pre-loaded file.
+let private textBody (ctx: WidgetContext) (kind: TextKind) (source: TextSource) : string =
+    let raw =
+        match source with
+        | TextInline t -> t
+        | TextFile f ->
+            SiteSettings.normalizeRelPath f
+            |> Option.bind ctx.Env.TextFiles.TryFind
+            |> Option.defaultValue ""
+    match kind with
+    | Markdown -> MarkdownRenderer.renderEscaped raw
+    | Html -> raw
+
+/// The brand slot: `text`/`html` items placed bare in the nav, so a custom brand supplies its own markup.
+/// `{{root}}` in the markup stands for the relative path back to the site root.
+let renderBrand (ctx: WidgetContext) (items: LayoutItem list) : string =
+    items
+    |> List.choose (function
+        | TextRef (kind, source) -> Some ((textBody ctx kind source).Trim().Replace("{{root}}", ctx.Prefix))
+        | _ -> None)
+    |> List.filter (fun h -> h <> "")
+    |> String.concat ""
+
 /// Side slots and the footer hold widgets plus page links and custom links; runs of links share a list.
 let renderSide (ctx: WidgetContext) (items: LayoutItem list) : string =
     let linkHtml =
@@ -343,17 +366,6 @@ let renderSide (ctx: WidgetContext) (items: LayoutItem list) : string =
         | LinkRef (label, url) ->
             Some $"""<li><a href="{escapeHtml url}" target="_blank" rel="noopener">{escapeHtml label}</a></li>"""
         | WidgetRef _ | TextRef _ -> None
-    let textHtml (kind: TextKind) (source: TextSource) : string =
-        let raw =
-            match source with
-            | TextInline t -> t
-            | TextFile f ->
-                SiteSettings.normalizeRelPath f
-                |> Option.bind ctx.Env.TextFiles.TryFind
-                |> Option.defaultValue ""
-        match kind with
-        | Markdown -> MarkdownRenderer.renderEscaped raw
-        | Html -> raw
     let flush (run: string list) =
         if run.IsEmpty then []
         else [ $"""<div class="widget widget-page-links"><ul class="side-links">{String.concat "" (List.rev run)}</ul></div>""" ]
@@ -365,7 +377,7 @@ let renderSide (ctx: WidgetContext) (items: LayoutItem list) : string =
                 let html = renderWidget ctx w
                 (chunks @ flush run @ (if html = "" then [] else [ html ])), []
             | TextRef (kind, source) ->
-                let body = (textHtml kind source).Trim()
+                let body = (textBody ctx kind source).Trim()
                 let cls = match kind with Markdown -> "widget-text" | Html -> "widget-html"
                 let html = if body = "" then "" else $"""<div class="widget {cls}">{body}</div>"""
                 (chunks @ flush run @ (if html = "" then [] else [ html ])), []
