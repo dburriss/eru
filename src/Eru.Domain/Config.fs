@@ -129,6 +129,9 @@ type OkfSection = {
 
 type McpSection = {
     RefreshIntervalMinutes: int option
+    // Minutes without an MCP request after which the server pauses its background sync and index
+    // refresh (it keeps answering requests, and the next request resumes them). 0 = never pause.
+    IdleTimeoutMinutes: int option
 }
 
 // How `eru search` and the MCP `search_knowledge` tool rank files: BM25 keywords (`lex`),
@@ -240,6 +243,7 @@ type EffectiveConfig = {
     StateFile                 : string
     Collections               : CollectionFileRef list   // merged from user config + cached manifests
     McpRefreshIntervalMinutes : int
+    McpIdleTimeoutMinutes     : int
     BlockPatterns             : string list
     AllowPatterns             : string list
     AllowBinaries             : bool
@@ -284,7 +288,7 @@ module OkfSection =
     let empty : OkfSection = { IgnorePatterns = None; FixTypes = None; DefaultType = None }
 
 module McpSection =
-    let empty : McpSection = { RefreshIntervalMinutes = None }
+    let empty : McpSection = { RefreshIntervalMinutes = None; IdleTimeoutMinutes = None }
 
 module SearchSection =
     let empty : SearchSection = { Mode = None; IgnorePatterns = None }
@@ -405,6 +409,9 @@ type SourceIndex = {
     SourceHeadSha               : string option
     ConsecutiveShaCheckFailures : int
     Entries                     : Map<string, IndexEntry>
+    // The eru version that last wrote this file. A write from an older eru is refused so a stale
+    // long-running process can't overwrite newer state. None = written before the stamp existed.
+    WrittenBy                   : string option
 }
 
 // Version-1 shapes, kept only to migrate old on-disk config.json files (BasePath -> Bundles).
@@ -865,6 +872,8 @@ module Config =
                     globalCols @ localCols
                 McpRefreshIntervalMinutes =
                     first3 eMcp lMcp gMcp (fun (s: McpSection) -> s.RefreshIntervalMinutes) |> Option.defaultValue 60
+                McpIdleTimeoutMinutes =
+                    first3 eMcp lMcp gMcp (fun (s: McpSection) -> s.IdleTimeoutMinutes) |> Option.defaultValue 0
                 BlockPatterns = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.BlockPatterns) |> Option.defaultValue defaultBlockPatterns
                 AllowPatterns = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.AllowPatterns) |> Option.defaultValue defaultAllowPatterns
                 AllowBinaries = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.AllowBinaries) |> Option.defaultValue defaultAllowBinaries
@@ -1064,7 +1073,8 @@ module Config =
                 { OkfSection.empty with IgnorePatterns = get (fun d -> d.OkfIgnorePatterns) }
           Mcp =
             section (fun (s: McpSection) -> s = McpSection.empty)
-                { RefreshIntervalMinutes = get (fun d -> d.McpRefreshIntervalMinutes) }
+                { RefreshIntervalMinutes = get (fun d -> d.McpRefreshIntervalMinutes)
+                  IdleTimeoutMinutes     = None }   // new in v3; not part of the v2 defaults shape
           Search = None
           Sync =
             section (fun (s: SyncSection) -> s = SyncSection.empty)
@@ -1204,6 +1214,7 @@ module EffectiveConfig =
         StateFile                 = "eru.lock"
         Collections               = []
         McpRefreshIntervalMinutes = 60
+        McpIdleTimeoutMinutes     = 0
         BlockPatterns             = Config.defaultBlockPatterns
         AllowPatterns             = Config.defaultAllowPatterns
         AllowBinaries             = Config.defaultAllowBinaries

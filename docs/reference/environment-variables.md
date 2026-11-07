@@ -21,6 +21,7 @@ written, and what happens on a bad value are described in
 | `sync.commitOnPull` | `ERU__SYNC__COMMITONPULL` | `true` or `false` (reserved, currently unused) |
 | `sync.stateFile` | `ERU__SYNC__STATEFILE` | string |
 | `mcp.refreshIntervalMinutes` | `ERU__MCP__REFRESHINTERVALMINUTES` | whole number |
+| `mcp.idleTimeoutMinutes` | `ERU__MCP__IDLETIMEOUTMINUTES` | whole number (`0` = never pause) |
 | `files.blockPatterns` | `ERU__FILES__BLOCKPATTERNS__0`, `__1`, … | list of globs |
 | `files.allowPatterns` | `ERU__FILES__ALLOWPATTERNS__0`, `__1`, … | list of globs |
 | `files.allowBinaries` | `ERU__FILES__ALLOWBINARIES` | `true` or `false` |

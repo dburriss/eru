@@ -91,3 +91,16 @@ module Paths =
                 if xdgCache <> null && xdgCache <> "" then xdgCache
                 else IO.Path.Combine(Environment.GetFolderPath Environment.SpecialFolder.UserProfile, ".cache")
             IO.Path.Combine(cacheHome, "eru", "mcp.log")
+
+    // Root of eru's per-user cache: %LOCALAPPDATA%\eru, or $XDG_CACHE_HOME/eru (default ~/.cache/eru).
+    let eruCacheDir () =
+        IO.Path.GetDirectoryName(mcpLogPath ())
+
+    // Held (exclusively, by the OS) while one process runs a background sync, so only one runs at a time.
+    let syncLockPath () = IO.Path.Combine(eruCacheDir (), "sync.lock")
+
+    // Touched after each successful background sync; its mtime throttles the other servers' timers.
+    let lastSyncPath () = IO.Path.Combine(eruCacheDir (), "last-sync")
+
+    // One <pid>.json per running `eru mcp`, so an older server can see that a newer eru is running.
+    let mcpRegistryDir () = IO.Path.Combine(eruCacheDir (), "mcp")

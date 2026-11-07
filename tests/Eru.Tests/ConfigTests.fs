@@ -53,6 +53,17 @@ let ``merge defaults McpRefreshIntervalMinutes to 60`` () =
     Assert.Equal(60, result.McpRefreshIntervalMinutes)
 
 [<Fact>]
+let ``merge defaults McpIdleTimeoutMinutes to 0 (never pause)`` () =
+    let result = Config.merge None None |> unwrapOk "defaults"
+    Assert.Equal(0, result.McpIdleTimeoutMinutes)
+
+[<Fact>]
+let ``merge uses McpIdleTimeoutMinutes from global defaults`` () =
+    let g = { makeGlobal [] [] with Mcp = Some { McpSection.empty with IdleTimeoutMinutes = Some 480 } }
+    let result = Config.merge (Some g) None |> unwrapOk "idle"
+    Assert.Equal(480, result.McpIdleTimeoutMinutes)
+
+[<Fact>]
 let ``merge uses McpRefreshIntervalMinutes from global defaults`` () =
     let g = { makeGlobal [] [] with Mcp = Some { McpSection.empty with RefreshIntervalMinutes = Some 30 } }
     let result = Config.merge (Some g) None |> unwrapOk "mcp refresh custom"
@@ -642,20 +653,21 @@ let ``merge resolves every section key local-over-global`` () =
         { GlobalConfig.empty with
             Site  = Some { SiteSection.empty with IgnorePatterns = Some [ "g.md" ]; HideEmptyBundles = Some false }
             Okf   = Some { OkfSection.empty with IgnorePatterns = Some [ "g/**" ] }
-            Mcp   = Some { RefreshIntervalMinutes = Some 10 }
+            Mcp   = Some { McpSection.empty with RefreshIntervalMinutes = Some 10; IdleTimeoutMinutes = Some 30 }
             Sync  = Some { Branch = Some "main"; CommitOnPull = Some false; StateFile = Some "g.lock" }
             Files = Some { BlockPatterns = Some [ "*.g" ]; AllowPatterns = Some [ "g" ]; AllowBinaries = Some false }
             Inbox = Some { Default = Some "g"; WatchIntervalSeconds = Some 10; Items = None } }
     let l : LocalConfig =
         { LocalConfig.empty with
             Site  = Some { SiteSection.empty with HideEmptyBundles = Some true }
-            Mcp   = Some { RefreshIntervalMinutes = Some 5 }
+            Mcp   = Some { McpSection.empty with RefreshIntervalMinutes = Some 5 }
             Sync  = Some { Branch = None; CommitOnPull = Some true; StateFile = None }
             Inbox = Some { Default = None; WatchIntervalSeconds = Some 3; Items = None } }
     let r = Config.merge (Some g) (Some l) |> unwrapOk "per-key merge"
     // local wins where set
     Assert.True r.SiteHideEmptyBundles
     Assert.Equal(5, r.McpRefreshIntervalMinutes)
+    Assert.Equal(30, r.McpIdleTimeoutMinutes)   // only set globally, so it still applies
     Assert.True r.CommitOnPull
     Assert.Equal(3, r.InboxWatchIntervalSeconds)
     // global fills the keys local leaves unset

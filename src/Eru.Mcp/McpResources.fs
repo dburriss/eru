@@ -13,6 +13,7 @@ type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
     [<McpServerResource(UriTemplate = "eru://sources", Name = "sources", MimeType = "text/plain")>]
     [<Description("List all configured knowledge sources with name, URL, branch, and collection doc count.")>]
     member _.ListSources() : string =
+        syncService.NoteActivity()
         let eff = syncService.CurrentEff
         if eff.Sources.IsEmpty then "No sources configured."
         else
@@ -28,6 +29,7 @@ type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
     [<Description("Config details and known collection docs for a specific source.")>]
     member _.GetSource(
         [<Description("Source name.")>] name: string) : string =
+        syncService.NoteActivity()
         let eff = syncService.CurrentEff
         match eff.Sources |> List.tryFind (fun s -> s.Name = name) with
         | None -> $"Source '{name}' not found."
@@ -50,6 +52,7 @@ type SourceResources(syncService: KnowledgeSyncService, deps: Deps) =
     [<McpServerResource(UriTemplate = "eru://installed", Name = "installed", MimeType = "text/plain")>]
     [<Description("All locally pulled artifacts from the lock file, grouped by source.")>]
     member _.ListInstalled() : string =
+        syncService.NoteActivity()
         let eff = syncService.CurrentEff
         match deps.ReadLockEntries eff.StateFile with
         | Error e -> $"Error reading lock file: {e}"

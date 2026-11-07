@@ -35,7 +35,7 @@ module EnvConfig =
             "site",   keys [ "ignorePatterns"; "hideEmptyBundles"; "showSyncStatus"; "theme"; "home"; "defaultView"; "cards"; "layout"; "pages"; "document" ]
             "okf",    keys [ "ignorePatterns"; "fixTypes"; "defaultType" ]
             "search", keys [ "mode"; "ignorePatterns" ]
-            "mcp",    keys [ "refreshIntervalMinutes" ]
+            "mcp",    keys [ "refreshIntervalMinutes"; "idleTimeoutMinutes" ]
             "sync",   keys [ "branch"; "commitOnPull"; "stateFile" ]
             "files",  keys [ "blockPatterns"; "allowPatterns"; "allowBinaries" ]
             "inbox",  keys [ "default"; "watchIntervalSeconds" ]
@@ -71,7 +71,7 @@ module EnvConfig =
               "okf.fixtypes.*.pattern"; "okf.fixtypes.*.type" ]
 
     // Settings that are whole numbers or booleans, checked up front so the error names the variable.
-    let private intPaths = set [ "mcp.refreshintervalminutes"; "inbox.watchintervalseconds"; "site.cards.columns" ]
+    let private intPaths = set [ "mcp.refreshintervalminutes"; "mcp.idletimeoutminutes"; "inbox.watchintervalseconds"; "site.cards.columns" ]
     let private boolPaths = set [ "sync.commitonpull"; "files.allowbinaries"; "site.hideemptybundles"; "enabled" ]
 
     let private isIndex (seg: string) = seg <> "" && seg |> Seq.forall Char.IsAsciiDigit

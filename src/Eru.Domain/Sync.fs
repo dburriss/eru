@@ -80,6 +80,7 @@ module Sync =
         SourceHeadSha               = None
         ConsecutiveShaCheckFailures = 0
         Entries                     = Map.empty
+        WrittenBy                   = None
     }
 
     let private isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
@@ -196,9 +197,31 @@ module Sync =
                     | Error e -> errors.Add($"source '{src.Name}': reading '{abs}' failed: {e}")
             deps.WriteSourceIndex src.Name { existingIdx with Entries = entries; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0 } |> ignore
 
+    /// True when `populateIndex` reported that this process is stale (a newer eru wrote the index).
+    let hasStaleWriter (errors: string list) : bool =
+        errors |> List.exists (fun e -> e.Contains StaleWriter.prefix)
+
     // Populate sources/<name>/index.json and sources/<name>/files/ cache.
     // Called by execute and by KnowledgeSyncService. Non-fatal errors are returned in the result list.
     let populateIndex (deps: Deps) : string list =
+        let errors = System.Collections.Generic.List<string>()
+
+        // A write refused because the index on disk came from a newer eru means this process is stale.
+        // Report it once per source and drop that source's remaining writes for the run, instead of
+        // ignoring every refusal.
+        let staleSources = System.Collections.Generic.HashSet<string>()
+        let deps =
+            { deps with
+                WriteSourceIndex = fun name idx ->
+                    if staleSources.Contains name then Ok ()
+                    else
+                        match deps.WriteSourceIndex name idx with
+                        | Error e when StaleWriter.isStale e ->
+                            staleSources.Add name |> ignore
+                            errors.Add($"source '{name}': {e}")
+                            Ok ()
+                        | r -> r }
+
         let globalCfg = match deps.ReadGlobalConfig() with Ok o -> o | _ -> None
         let localCfg  = match deps.ReadLocalConfig()  with Ok o -> o | _ -> None
 
@@ -206,8 +229,6 @@ module Sync =
             match DepsConfig.merge deps globalCfg localCfg with
             | Ok e  -> e
             | Error _ -> EffectiveConfig.empty
-
-        let errors = System.Collections.Generic.List<string>()
 
         // Step 1a: Fetch and cache manifests — the shared root manifest, plus each
         // non-root Manifest bundle's own .eru/manifest.json (decision #1).

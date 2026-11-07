@@ -39,7 +39,7 @@ module SourceBundleAdd =
             let existingIdx =
                 match deps.ReadSourceIndex sourceName with
                 | Ok (Some idx) -> idx
-                | _ -> { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = Map.empty }
+                | _ -> { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = Map.empty; WrittenBy = None }
             let mutable entries = existingIdx.Entries
             for d in discovered do
                 let contentHash = deps.HashContent d.Content

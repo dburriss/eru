@@ -108,6 +108,7 @@ module ConfigCmd =
         "sync.stateFile",                 Some (defaultOf "eru.lock")
         "sync.branch",                    None
         "mcp.refreshIntervalMinutes",     Some (defaultOf 60)
+        "mcp.idleTimeoutMinutes",         Some (defaultOf 0)
         "files.blockPatterns",            Some (defaultOf Config.defaultBlockPatterns)
         "files.allowPatterns",            Some (defaultOf Config.defaultAllowPatterns)
         "files.allowBinaries",            Some (defaultOf Config.defaultAllowBinaries)

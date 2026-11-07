@@ -19,6 +19,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="*" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SemVerTests.fs" />
     <Compile Include="FrontmatterTests.fs" />
     <Compile Include="PatternsTests.fs" />
     <Compile Include="EntryIdTests.fs" />
@@ -44,6 +45,9 @@
     <Compile Include="DisconnectTests.fs" />
     <Compile Include="ReadTests.fs" />
     <Compile Include="GitAdapterTests.fs" />
+    <Compile Include="SourceIndexAdapterTests.fs" />
+    <Compile Include="SyncLockTests.fs" />
+    <Compile Include="McpRegistryTests.fs" />
     <Compile Include="IndexBuilderTests.fs" />
     <Compile Include="SiteTestSupport.fs" />
     <Compile Include="RankedSearchTests.fs" />

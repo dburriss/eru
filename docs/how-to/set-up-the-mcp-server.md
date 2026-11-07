@@ -138,6 +138,34 @@ the rest of eru. One field controls how often it re-fetches collection files:
 }
 ```
 
-Default is 60 minutes. On startup the server always runs a full index population regardless of this setting — it
+Default is 60 minutes. Several servers share one sync, so the interval is per machine, not per server. On startup the server always runs a full index population regardless of this setting — it
 fetches manifests for all configured sources, rebuilds the source index, and caches collection/lock file content
 so `search_knowledge` and `read_artifact` are fast without a live git fetch.
+
+## Pause the refresh when a server is idle
+
+An `eru mcp` server that nobody calls still refreshes the cache every interval. To pause that after a quiet
+spell, set an idle timeout in minutes (`0`, the default, never pauses):
+
+```json
+{
+  "mcp": { "idleTimeoutMinutes": 480 }
+}
+```
+
+The server stays connected; the next request resumes the refresh.
+
+## Fix "N entries indexed" dropping back to 0
+
+If `eru sync` reports `710 entries indexed` and a later run reports `0`, an `eru mcp` server from an older install
+is probably still running and overwriting the index. List and stop them, then sync again:
+
+```bash
+ps -eo pid,ppid,lstart,command | grep '[e]ru mcp'
+pkill -f 'eru mcp'
+eru sync
+```
+
+Current versions refuse to overwrite an index written by a newer version and exit when a newer eru starts, so this
+only applies to servers started before that. `pkill` also stops the server your current client is using; reconnect
+the client afterwards.

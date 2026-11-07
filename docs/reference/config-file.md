@@ -217,6 +217,7 @@ independently, so setting `site.hideEmptyBundles` locally does not hide a `site.
 | `sync` | `commitOnPull` | `false` | Currently unused (reserved): eru does not auto-commit after `eru add`/`sync`, whatever this is set to. |
 | `sync` | `stateFile` | `"eru.lock"` | Filename for the lock file, under `.eru/`. |
 | `mcp` | `refreshIntervalMinutes` | `60` | How often `eru mcp` refreshes cached manifests/index in the background. |
+| `mcp` | `idleTimeoutMinutes` | `0` | Minutes without an MCP request after which `eru mcp` pauses its background refresh (it keeps answering, and the next request resumes it). `0` never pauses. |
 | `files` | `blockPatterns` | `["*.exe", "*.dll", "*.so", "*.dylib", "*.bin", "*.out", "*.app"]` | Gitignore-style globs; matching paths are refused unless also matched by `allowPatterns`. |
 | `files` | `allowPatterns` | `[]` | Gitignore-style globs that override `blockPatterns` for matching paths. |
 | `files` | `allowBinaries` | `false` | When `false`, files whose content is detected as binary are refused (unless allow-listed). |
@@ -291,6 +292,7 @@ by `__`. Names are case-insensitive. The full list of variables is in
 |---|---|
 | `search.mode` | `ERU__SEARCH__MODE` |
 | `mcp.refreshIntervalMinutes` | `ERU__MCP__REFRESHINTERVALMINUTES` |
+| `mcp.idleTimeoutMinutes` | `ERU__MCP__IDLETIMEOUTMINUTES` |
 | `files.allowBinaries` | `ERU__FILES__ALLOWBINARIES` |
 | `site.cards.columns` | `ERU__SITE__CARDS__COLUMNS` |
 

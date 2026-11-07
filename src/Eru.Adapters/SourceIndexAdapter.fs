@@ -1,5 +1,6 @@
 namespace Eru.Adapters
 
+open System
 open Eru
 open System.IO
 
@@ -29,11 +30,39 @@ module SourceIndexAdapter =
                 | Error _ -> Ok None // malformed JSON — index.json is fully disposable
             with ex -> Error ex.Message
 
-    let writeIndex (sourceName: string) (index: SourceIndex) : Result<unit, string> =
-        let path = Paths.sourceIndexPath sourceName
+    /// Writes `index` stamped with `version` (the running eru), atomically: a temp file in the same
+    /// directory is renamed over the target, so a reader never sees a half-written file. Refuses, leaving
+    /// the file untouched, when the index on disk was written by a newer eru (see StaleWriter). The
+    /// check-then-write is not atomic across processes; the sync lock narrows that window.
+    // The WrittenBy stamp of the index.json on disk, if there is a readable one.
+    let private readStamp (path: string) : string option =
         try
-            let dir = Path.GetDirectoryName path
-            if dir <> null && dir <> "" then Directory.CreateDirectory dir |> ignore
-            File.WriteAllText(path, Serialization.serialize { index with Version = currentVersion })
-            Ok ()
-        with ex -> Error ex.Message
+            if not (File.Exists path) then None
+            else
+                match File.ReadAllText path |> Serialization.deserialize<SourceIndex> with
+                | Ok idx -> idx.WrittenBy
+                | Error _ -> None
+        with _ -> None
+
+    let writeIndexToPath (version: string option) (path: string) (index: SourceIndex) : Result<unit, string> =
+        let stale =
+            match version, readStamp path with
+            | Some self, Some onDisk when SemVer.isNewer onDisk self -> Some (StaleWriter.message onDisk self)
+            | _ -> None
+        match stale with
+        | Some msg -> Error msg
+        | None ->
+            let tmp = $"{path}.{Environment.ProcessId}.tmp"
+            try
+                try
+                    let dir = Path.GetDirectoryName path
+                    if dir <> null && dir <> "" then Directory.CreateDirectory dir |> ignore
+                    File.WriteAllText(tmp, Serialization.serialize { index with Version = currentVersion; WrittenBy = version })
+                    File.Move(tmp, path, true)
+                    Ok ()
+                with ex -> Error ex.Message
+            finally
+                try if File.Exists tmp then File.Delete tmp with _ -> ()
+
+    let writeIndex (sourceName: string) (index: SourceIndex) : Result<unit, string> =
+        writeIndexToPath EruVersion.current (Paths.sourceIndexPath sourceName) index

@@ -34,6 +34,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService, searcher: Ran
         [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string,
         [<Optional; DefaultParameterValue(15)>] [<Description("Maximum number of files to return (default 15).")>] limit: int,
         [<Optional; DefaultParameterValue(null: string)>] [<Description("Ranking mode: 'lex' (keywords, default), 'sem' (meaning) or 'hybrid' (both). Semantic modes fall back to 'lex' with a warning when the embedding model is not installed.")>] mode: string) : CallToolResult =
+        syncService.NoteActivity()
 
         let eff = syncService.CurrentEff
         let cwd = deps.GetCwd()
@@ -99,6 +100,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService, searcher: Ran
     [<Description("Read the full content of a knowledge artifact by local path, lock-file path, cached collection path, 'sourceName:remotePath' reference, or path short hash.")>]
     member _.Read(
         [<Description("Artifact path: a local file path (relative or absolute), 'sourceName:remotePath', or a path from search_knowledge results.")>] path: string) : string =
+        syncService.NoteActivity()
 
         let eff  = syncService.CurrentEff
         let cwd  = deps.GetCwd()
@@ -148,7 +150,8 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService, searcher: Ran
     [<McpServerTool(Name = "refresh_knowledge")>]
     [<Description("Trigger a background refresh of the knowledge cache. Returns immediately; sync runs in the background and errors are written to the eru log file.")>]
     member _.Refresh() : string =
-        if syncService.TriggerBackgroundSync() then
+        syncService.NoteActivity()
+        if syncService.TriggerBackgroundSync(true) then
             "Knowledge refresh started in the background."
         else
-            "A knowledge refresh is already in progress."
+            "A knowledge refresh is already in progress (in this or another eru process)."

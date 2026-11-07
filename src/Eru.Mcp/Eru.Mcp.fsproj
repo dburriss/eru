@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IndexService.fs" />
+    <Compile Include="SupersedeService.fs" />
     <Compile Include="CollectionCacheService.fs" />
     <Compile Include="McpResources.fs" />
     <Compile Include="McpTools.fs" />

@@ -7,7 +7,10 @@
 // installs it as a global dotnet tool — useful for dog-fooding in-progress work.
 //
 // Version logic: reads <Version> from Eru.Cli.fsproj, strips any existing suffix,
-// increments the patch segment, and appends "-alpha"  (e.g. 0.7.1 -> 0.7.2-alpha).
+// increments the patch segment, and appends "-alpha.<UTC timestamp>"
+// (e.g. 0.7.1 -> 0.7.2-alpha.20261107143005). The timestamp makes every install a strictly newer
+// version than the last, which running `eru mcp` servers rely on to tell a stale build from the
+// current one (an older server stops syncing and exits when it sees a newer eru).
 //
 // Arguments:
 //   --dry-run    Print what would happen without building or installing.
@@ -82,7 +85,7 @@ let numericPart =
 
 let currentVersion = Version.Parse(numericPart)
 let nextPatch = Version(currentVersion.Major, currentVersion.Minor, currentVersion.Build + 1)
-let alphaVersion = sprintf "%O-alpha" nextPatch
+let alphaVersion = sprintf "%O-alpha.%s" nextPatch (DateTime.UtcNow.ToString "yyyyMMddHHmmss")
 
 printfn "fsproj version : %s" versionString
 printfn "alpha version  : %s" alphaVersion

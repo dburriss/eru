@@ -53,10 +53,12 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
         builder.Services
             .AddSingleton<Deps>(deps)
             .AddSingleton<EffectiveConfig>(eff)
+            .AddSingleton<SyncGate>(SyncGate.files)
             .AddSingleton<KnowledgeSyncService>()
             .AddSingleton<RankedSearch.Searcher>(fun _ -> new RankedSearch.Searcher(Paths.ferretCacheDir()))
             .AddHostedService<IndexService>()
             .AddHostedService<CollectionCacheService>()
+            .AddHostedService<SupersedeService>()
             .AddMcpServer()
             .WithStdioServerTransport()
             .WithToolsFromAssembly(typeof<KnowledgeTools>.Assembly)

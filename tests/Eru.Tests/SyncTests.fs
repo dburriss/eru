@@ -410,7 +410,7 @@ let ``populateIndex re-walks an Okf bundle when the SHA is unchanged but the ind
     let listFiles _ _ _ = listCalls.Value <- listCalls.Value + 1; Ok [ "adr.md" ]
     let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: note\n---\n"))
     let store = PersistentIndexStore()
-    store.Write "kb" { Version = 1; SourceHeadSha = Some "sha-1"; ConsecutiveShaCheckFailures = 0; Entries = Map.empty } |> ignore
+    store.Write "kb" { Version = 1; SourceHeadSha = Some "sha-1"; ConsecutiveShaCheckFailures = 0; Entries = Map.empty; WrittenBy = None } |> ignore
     let deps = makePopulateDeps (Some g) fetch listFiles (fun _ _ -> Ok "sha-1") store
 
     Sync.populateIndex deps |> ignore
@@ -815,3 +815,204 @@ let ``FolderAdapter scan is stat-only, md-only, skips dot-dirs and ignored direc
         Assert.False(Eru.Adapters.FolderAdapter.isPlainFolder root)
     finally
         try System.IO.Directory.Delete(root, true) with _ -> ()
+
+[<Fact>]
+let ``populateIndex reports a stale writer once per source and stops writing that source`` () =
+    let sources =
+        [ makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+          makeSourceWithBundles "other" "https://example.com/other.git" [ { Path = ""; Kind = Okf } ] ]
+    let g : GlobalConfig = { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some sources } }
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: note\n---\n"))
+    let store = PersistentIndexStore()
+    let attempts = System.Collections.Generic.Dictionary<string, int>()
+    let refusing =
+        { makePopulateDeps (Some g) fetch (fun _ _ _ -> Ok [ "adr.md" ]) (fun _ _ -> Ok "sha-1") store with
+            WriteSourceIndex = fun name _ ->
+                attempts[name] <- (match attempts.TryGetValue name with | true, n -> n + 1 | _ -> 1)
+                Error (StaleWriter.message "0.99.0" "0.15.1") }
+
+    let errors = Sync.populateIndex refusing
+
+    Assert.True(Sync.hasStaleWriter errors)
+    Assert.Equal(1, errors |> List.filter (fun e -> e.Contains "source 'kb'" && e.Contains StaleWriter.prefix) |> List.length)
+    Assert.Equal(1, errors |> List.filter (fun e -> e.Contains "source 'other'" && e.Contains StaleWriter.prefix) |> List.length)
+    Assert.Equal(1, attempts["kb"])      // later writes in the same run are skipped
+    Assert.Equal(1, attempts["other"])
+
+[<Fact>]
+let ``a stale writer cannot replace a newer populated index with an empty one`` () =
+    // Real-adapter shape of the 710 -> 0 incident, using the same refusal rule the adapter applies.
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let g : GlobalConfig = { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some [ source ] } }
+    let fetch _ _ (paths: string list) = Ok (paths |> List.map (fun p -> p, "---\ntype: note\n---\n"))
+    let store = PersistentIndexStore()
+    let populated =
+        { Version = 1; SourceHeadSha = Some "sha-1"; ConsecutiveShaCheckFailures = 0; WrittenBy = Some "0.99.0"
+          Entries = Map.ofList [ "adr.md", IndexEntry.empty ] }
+    store.Write "kb" populated |> ignore
+    let guarded =
+        let baseDeps = makePopulateDeps (Some g) fetch (fun _ _ _ -> Error "network down") (fun _ _ -> Error "network down") store
+        { baseDeps with
+            WriteSourceIndex = fun name idx ->
+                match store.TryGet name with
+                | Some onDisk when onDisk.WrittenBy.IsSome && SemVer.isNewer onDisk.WrittenBy.Value "0.15.1" ->
+                    Error (StaleWriter.message onDisk.WrittenBy.Value "0.15.1")
+                | _ -> store.Write name idx }
+
+    Sync.populateIndex guarded |> ignore
+
+    Assert.Equal(populated, store.TryGet "kb" |> Option.get)
+
+// ── KnowledgeSyncService: one background sync across processes ──────────────────
+
+open Eru.Search
+
+type private FakeGate(lastSync: System.DateTimeOffset option, canAcquire: bool) =
+    let mutable disposed = 0
+    let mutable marked = 0
+    let now = System.DateTimeOffset(2026, 11, 7, 12, 0, 0, System.TimeSpan.Zero)
+    member _.Disposed = System.Threading.Volatile.Read(&disposed)
+    member _.Marked = System.Threading.Volatile.Read(&marked)
+    member _.Now = now
+    member this.Gate : SyncGate =
+        { TryAcquire = fun () ->
+            if canAcquire then
+                Some { new System.IDisposable with member _.Dispose() = System.Threading.Interlocked.Increment(&disposed) |> ignore }
+            else None
+          LastSync   = fun () -> lastSync
+          MarkSynced = fun () -> System.Threading.Interlocked.Increment(&marked) |> ignore
+          Now        = fun () -> now }
+
+let private syncService (deps: Deps) (gate: SyncGate) =
+    KnowledgeSyncService(deps, EffectiveConfig.empty, gate, Microsoft.Extensions.Logging.Abstractions.NullLogger<KnowledgeSyncService>.Instance)
+
+let private plainDeps () =
+    makePopulateDeps None (fun _ _ _ -> Ok []) (fun _ _ _ -> Ok []) (fun _ _ -> Ok "sha") (PersistentIndexStore())
+
+let private waitFor (cond: unit -> bool) =
+    let deadline = System.DateTime.UtcNow.AddSeconds 5.0
+    while not (cond ()) && System.DateTime.UtcNow < deadline do System.Threading.Thread.Sleep 10
+
+[<Fact>]
+let ``a background sync runs, marks the sync time and releases the lock`` () =
+    let g = FakeGate(None, true)
+    let svc = syncService (plainDeps ()) g.Gate
+    Assert.True(svc.TriggerBackgroundSync false)
+    waitFor (fun () -> g.Disposed = 1)
+    Assert.Equal(1, g.Marked)
+    Assert.Equal(1, g.Disposed)
+
+[<Fact>]
+let ``a background sync is skipped while another process holds the lock`` () =
+    let g = FakeGate(None, false)
+    let svc = syncService (plainDeps ()) g.Gate
+    Assert.False(svc.TriggerBackgroundSync true)    // even a forced refresh waits for the holder
+    Assert.Equal(0, g.Marked)
+    // The in-process flag was released, so a later attempt can still run.
+    let g2 = FakeGate(None, true)
+    Assert.True((syncService (plainDeps ()) g2.Gate).TriggerBackgroundSync false)
+
+[<Fact>]
+let ``a timer sync is skipped when another process synced less than half an interval ago`` () =
+    let probe = FakeGate(None, true)
+    let g = FakeGate(Some (probe.Now - System.TimeSpan.FromMinutes 10.0), true)   // default interval 60 -> window 30
+    let svc = syncService (plainDeps ()) g.Gate
+    Assert.False(svc.TriggerBackgroundSync false)
+    Assert.Equal(1, g.Disposed)                      // the lock is handed back, not leaked
+    Assert.Equal(0, g.Marked)
+
+[<Fact>]
+let ``a forced refresh ignores the throttle`` () =
+    let probe = FakeGate(None, true)
+    let g = FakeGate(Some (probe.Now - System.TimeSpan.FromMinutes 1.0), true)
+    let svc = syncService (plainDeps ()) g.Gate
+    Assert.True(svc.TriggerBackgroundSync true)
+    waitFor (fun () -> g.Marked = 1)
+    Assert.Equal(1, g.Marked)
+
+[<Fact>]
+let ``a timer sync runs once the last sync is older than half an interval`` () =
+    let probe = FakeGate(None, true)
+    let g = FakeGate(Some (probe.Now - System.TimeSpan.FromMinutes 45.0), true)
+    let svc = syncService (plainDeps ()) g.Gate
+    Assert.True(svc.TriggerBackgroundSync false)
+    waitFor (fun () -> g.Marked = 1)
+
+[<Fact>]
+let ``a service that finds a newer index becomes stale and stops syncing`` () =
+    let source = makeSourceWithBundles "kb" "https://example.com/kb.git" [ { Path = ""; Kind = Okf } ]
+    let cfg : GlobalConfig = { GlobalConfig.empty with Source = Some { SourceSection.empty with Items = Some [ source ] } }
+    let baseDeps = makePopulateDeps (Some cfg) (fun _ _ _ -> Ok []) (fun _ _ _ -> Ok []) (fun _ _ -> Ok "sha") (PersistentIndexStore())
+    let refusing = { baseDeps with WriteSourceIndex = fun _ _ -> Error (StaleWriter.message "0.99.0" "0.15.1") }
+    let g = FakeGate(None, true)
+    let svc = syncService refusing g.Gate
+    Assert.True(svc.TriggerBackgroundSync true)
+    waitFor (fun () -> svc.IsStale)
+    Assert.True svc.IsStale
+    waitFor (fun () -> g.Disposed = 1)
+    Assert.Equal(0, g.Marked)                        // a stale sync is not recorded as done
+    Assert.False(svc.TriggerBackgroundSync true)     // and no further sync starts
+
+// ── Idle pause ───────────────────────────────────────────────────────────────
+
+type private Clock(start: System.DateTimeOffset) =
+    let mutable now = start
+    member _.Now with get () = now and set v = now <- v
+    member this.Advance (m: float) = now <- now + System.TimeSpan.FromMinutes m
+
+let private idleService (idleMinutes: int) (clock: Clock) (marked: int ref) =
+    let gate : SyncGate =
+        { TryAcquire = fun () -> Some { new System.IDisposable with member _.Dispose() = () }
+          LastSync   = fun () -> None
+          MarkSynced = fun () -> System.Threading.Interlocked.Increment(&marked.contents) |> ignore
+          Now        = fun () -> clock.Now }
+    let eff = { EffectiveConfig.empty with McpIdleTimeoutMinutes = idleMinutes }
+    KnowledgeSyncService(plainDeps (), eff, gate, Microsoft.Extensions.Logging.Abstractions.NullLogger<KnowledgeSyncService>.Instance)
+
+[<Fact>]
+let ``a server is idle only after the timeout with no requests`` () =
+    let clock = Clock(System.DateTimeOffset(2026, 11, 7, 8, 0, 0, System.TimeSpan.Zero))
+    let svc = idleService 30 clock (ref 0)
+    Assert.False svc.IsIdle
+    clock.Advance 29.0
+    Assert.False svc.IsIdle
+    clock.Advance 2.0
+    Assert.True svc.IsIdle
+
+[<Fact>]
+let ``a request resets the idle clock`` () =
+    let clock = Clock(System.DateTimeOffset(2026, 11, 7, 8, 0, 0, System.TimeSpan.Zero))
+    let svc = idleService 30 clock (ref 0)
+    clock.Advance 29.0
+    svc.NoteActivity()
+    clock.Advance 29.0
+    Assert.False svc.IsIdle
+
+[<Fact>]
+let ``an idle timeout of 0 never pauses`` () =
+    let clock = Clock(System.DateTimeOffset(2026, 11, 7, 8, 0, 0, System.TimeSpan.Zero))
+    let svc = idleService 0 clock (ref 0)
+    clock.Advance (60.0 * 24.0 * 30.0)
+    Assert.False svc.IsIdle
+
+[<Fact>]
+let ``the first request after an idle spell resumes syncing`` () =
+    let clock = Clock(System.DateTimeOffset(2026, 11, 7, 8, 0, 0, System.TimeSpan.Zero))
+    let marked = ref 0
+    let svc = idleService 30 clock marked
+    clock.Advance 120.0
+    Assert.True svc.IsIdle
+    svc.NoteActivity()
+    waitFor (fun () -> marked.Value = 1)
+    Assert.Equal(1, marked.Value)
+    Assert.False svc.IsIdle
+
+[<Fact>]
+let ``a request while active does not trigger a sync`` () =
+    let clock = Clock(System.DateTimeOffset(2026, 11, 7, 8, 0, 0, System.TimeSpan.Zero))
+    let marked = ref 0
+    let svc = idleService 30 clock marked
+    clock.Advance 5.0
+    svc.NoteActivity()
+    System.Threading.Thread.Sleep 100
+    Assert.Equal(0, marked.Value)

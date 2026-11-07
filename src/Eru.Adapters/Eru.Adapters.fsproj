@@ -16,6 +16,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Paths.fs" />
+    <Compile Include="EruVersion.fs" />
+    <Compile Include="SyncLock.fs" />
+    <Compile Include="McpRegistry.fs" />
     <Compile Include="Serialization.fs" />
     <Compile Include="ConfigAdapter.fs" />
     <Compile Include="LockFileAdapter.fs" />

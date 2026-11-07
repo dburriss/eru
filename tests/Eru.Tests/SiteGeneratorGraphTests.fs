@@ -50,7 +50,7 @@ let private makeDeps
         ReadLocalManifest       = fun () -> Ok None
         WriteLocalManifest      = fun _ -> Ok ()
         ResolveLocalGlob        = fun _ -> []
-        ReadSourceIndex         = fun _ -> Ok (Some { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = sourceIndex })
+        ReadSourceIndex         = fun _ -> Ok (Some { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = sourceIndex; WrittenBy = None })
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ relPath -> Ok (content |> Map.tryFind relPath)

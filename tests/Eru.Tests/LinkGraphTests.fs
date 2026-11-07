@@ -65,7 +65,7 @@ let private makeDeps
         ResolveLocalGlob        = fun _ -> []
         ReadSourceIndex         = fun name ->
             Ok (sourceIndex |> Map.tryFind name |> Option.map (fun entries ->
-                { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = entries }))
+                { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = entries; WrittenBy = None }))
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun sourceName cacheRelPath -> Ok (content |> Map.tryFind (sourceName, cacheRelPath))

@@ -84,6 +84,12 @@ let private renderTable (result: Sync.SyncResult) =
     renderIndexes result
 
 let run (deps: Eru.Deps) (cmd: Cmd) : int =
+    // Share the background-sync lock: wait out a sync that an `eru mcp` server is running rather than
+    // racing it on the same index.json.
+    match Eru.Adapters.SyncLock.acquireWaiting (System.TimeSpan.FromSeconds 60.0) with
+    | None -> renderError "another eru sync is running (an eru mcp server or another `eru sync`); try again shortly"; 1
+    | Some held ->
+    use _held = held
     let syncResult =
         match cmd.Format with
         | Table ->

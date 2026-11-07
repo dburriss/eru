@@ -44,7 +44,7 @@ let private makeDeps (index: Map<string, IndexEntry>) : Deps =
         ReadLocalManifest       = fun () -> Ok None
         WriteLocalManifest      = fun _ -> Ok ()
         ResolveLocalGlob        = fun _ -> []
-        ReadSourceIndex         = fun _ -> Ok (Some { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = index })
+        ReadSourceIndex         = fun _ -> Ok (Some { Version = 1; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0; Entries = index; WrittenBy = None })
         WriteSourceIndex        = fun _ _ -> Ok ()
         CacheSourceContent      = fun _ _ _ -> Ok "files/fakehex"
         ReadCachedSourceContent = fun _ _ -> Ok None

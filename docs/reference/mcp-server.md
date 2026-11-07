@@ -17,6 +17,35 @@ caches the content of collection and lock file entries under `~/.cache/eru/sourc
 `search_knowledge` and `read_artifact` fast — no live git fetch is needed for cached files. The cache refreshes
 automatically at the interval set by `mcp.refreshIntervalMinutes`.
 
+### Several servers, one sync
+
+Every agent session can start its own `eru mcp`, but only one background sync runs at a time across all of
+them (and `eru sync`). A server takes an exclusive lock on `~/.cache/eru/sync.lock` before it syncs and skips the
+tick when another process holds it. A timer sync is also skipped when any process finished one less than half a
+refresh interval ago (`~/.cache/eru/last-sync`), so several servers add up to about one sync per interval.
+`refresh_knowledge` ignores that throttle but still waits for the lock, and `eru sync` waits up to a minute for it.
+The lock belongs to the process, so a crashed server never leaves it stuck.
+
+### Restarting after an upgrade
+
+An upgrade replaces the `eru` binary on disk, not the servers already running it. Two safeguards keep an old
+server from undoing newer state:
+
+- `index.json` records the eru version that wrote it. A server older than that version refuses to overwrite it,
+  logs once to `mcp.log` that it is stale, and stops its background sync. Writes are atomic (temp file, then rename).
+- Each server registers itself in `~/.cache/eru/mcp/`. A server exits when it finds a newer eru running there
+  (checked at startup and every minute). Servers of the same version never stop each other. Your client starts a
+  fresh server the next time it needs one; some clients need a reconnect (for example `/mcp` in Claude Code).
+
+Servers started before these safeguards existed have neither. After upgrading from such a version, stop them once:
+`pkill -f 'eru mcp'`, then `eru sync`.
+
+### Pausing when idle
+
+Set `mcp.idleTimeoutMinutes` to pause the background refresh and index warm-up while no client has called
+the server for that long. The process stays up and keeps answering; the next request resumes the refresh straight
+away. The default, `0`, never pauses.
+
 ## Available resources
 
 MCP Resources are URI-addressable data sources that clients can enumerate and read directly. They appear in

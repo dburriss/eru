@@ -111,10 +111,10 @@ let ``a value of the wrong type is an error naming the variable`` () =
 // ── precedence ──────────────────────────────────────────────────────────────
 
 let private globalMcp minutes : GlobalConfig option =
-    Some { GlobalConfig.empty with Mcp = Some { RefreshIntervalMinutes = Some minutes } }
+    Some { GlobalConfig.empty with Mcp = Some { McpSection.empty with RefreshIntervalMinutes = Some minutes } }
 
 let private localMcp minutes : LocalConfig option =
-    localWith (fun l -> { l with Mcp = Some { RefreshIntervalMinutes = Some minutes } })
+    localWith (fun l -> { l with Mcp = Some { McpSection.empty with RefreshIntervalMinutes = Some minutes } })
 
 [<Fact>]
 let ``env beats local beats global beats the default`` () =
@@ -295,3 +295,9 @@ let ``a non-boolean ENABLED is an error`` () =
     match EnvConfig.read [ "ERU__SOURCE__KB__ENABLED", "maybe" ] with
     | Error e -> Assert.Contains("must be true or false", e)
     | Ok _ -> failwith "expected an error"
+
+[<Fact>]
+let ``ERU__MCP__IDLETIMEOUTMINUTES overrides the idle timeout and must be a whole number`` () =
+    Assert.Equal(480, (effective [ "ERU__MCP__IDLETIMEOUTMINUTES", "480" ] None None).McpIdleTimeoutMinutes)
+    Assert.Equal(0, (effective [] None None).McpIdleTimeoutMinutes)
+    EnvConfig.read [ "ERU__MCP__IDLETIMEOUTMINUTES", "later" ] |> assertError "ERU__MCP__IDLETIMEOUTMINUTES must be a whole number"

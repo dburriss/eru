@@ -32,5 +32,6 @@ type IndexService(deps: Deps, syncService: KnowledgeSyncService, searcher: Ranke
             do! warm ct
             use timer = new PeriodicTimer(TimeSpan.FromMinutes(float syncService.CurrentEff.McpRefreshIntervalMinutes))
             while! timer.WaitForNextTickAsync(ct) do
-                do! warm ct
+                // Paused while idle (mcp.idleTimeoutMinutes); a request or the next tick after it resumes.
+                if not syncService.IsIdle then do! warm ct
         }
