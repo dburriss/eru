@@ -175,8 +175,8 @@ body.theme-dark .doc-stale-warning { background: var(--color-surface); color: va
 
 let private smileyJson =
     """{
-  "description": "Coolblue blue and orange: a blue header, friendly sans-serif type, rounded pills and a card per file.",
-  "site": { "defaultView": "cards" }
+  "description": "Coolblue blue and orange: a blue header, friendly sans-serif type, rounded pills, a facet sidebar and a card per file.",
+  "site": { "defaultView": "cards", "layout": { "left": [ "facets" ] } }
 }"""
 
 // --smiley-nav is the header band, --smiley-hot the orange that marks whatever is active.
@@ -221,6 +221,13 @@ body.theme-dark .site-nav { border-bottom-color: var(--color-border); }
 @media (prefers-color-scheme: dark) { body:not(.theme-light) .site-nav { border-bottom-color: var(--color-border); } }
 
 h3 { font-size: 0.8rem; letter-spacing: 0.06em; }
+
+/* the sidebar filters by source, type and tag, in that order; the extension and bundle facets stay out of it */
+.facets { display: flex; flex-direction: column; }
+.sidebar-section:has([data-facet="source"]) { order: 1; }
+.sidebar-section:has([data-facet="type"]) { order: 2; }
+.sidebar-section:has([data-facet="tags"]) { order: 3; }
+.sidebar-section:has([data-facet="ext"]), .sidebar-section:has([data-facet="bundle"]) { display: none; }
 
 /* query line */
 .q-bar { border: 2px solid var(--color-primary); border-radius: 8px; padding: 0.3rem 0.8rem; }

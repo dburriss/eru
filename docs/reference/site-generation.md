@@ -264,7 +264,7 @@ and a `theme.css`; both are optional, but a folder with neither is not a theme.
 | `terminal` (default) | Monospace, square corners, hairline grid, query-line Browse. This is the base stylesheet itself |
 | `ledger` | Dense and quiet: sans-serif, rounded corners, an indigo accent, a facet sidebar and one row per file (`defaultView: rows`, `layout.left: ["facets"]`) |
 | `matrix` | The terminal layout in phosphor green: pale mint in light mode, black with a faint glow and scanlines in dark mode. Adds no `site` settings |
-| `smiley` | Coolblue blue and orange: a blue header, sans-serif type, rounded pills and a card per file (`defaultView: cards`) |
+| `smiley` | Coolblue blue and orange: a blue header, sans-serif type, rounded pills and a facet sidebar (source, type, tag) and a card per file (`defaultView: cards`, `layout.left: ["facets"]`) |
 | `cyberpunk` | The terminal layout in neon magenta, cyan and yellow: deep violet with a grid and glow in dark mode (pale lavender in light), angular display type and clipped corners. Adds no `site` settings |
 
 A name is looked up in this order: built-in, `.eru/themes/<name>/` in the project, then `themes/<name>/` next to the

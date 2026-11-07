@@ -66,7 +66,7 @@ Per your idea, the brand becomes markup instead of CSS pseudo-elements (`::befor
 
 - Follow-up: `ledger` sets `layout.toolbar: false` (facets replace the query line; the plain search box stays), and `Filterable` is now true only on a Browse page that places `query`, so row tags and sources are not dead buttons without it.
 
-- Follow-up: `smiley` ships `defaultView: "cards"`, so Browse is a card grid under the query line.
+- Follow-up: `smiley` ships `defaultView: "cards"`, so Browse is a card grid under the query line, with the `facets` sidebar on the left.
 
 ## Notes
 - Per AGENTS.md and the user's memory: no code until you say "implement", and no branch changes. Work stays on `main`. Commits carry no attribution trailers.

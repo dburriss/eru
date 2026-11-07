@@ -145,20 +145,22 @@ let ``smiley css follows the base stylesheet and precedes custom css`` () =
         Assert.DoesNotContain("smiley theme", readOut out "assets/css/custom.css"))
 
 [<Fact>]
-let ``smiley defaults to the cards view and otherwise keeps the terminal layout`` () =
+let ``smiley defaults to the cards view with a facet sidebar`` () =
     match Themes.resolve (depsWith []) "smiley" with
     | Ok t ->
         Assert.Equal(Themes.BuiltIn, t.Origin)
         Assert.Equal(Some "cards", t.Defaults.DefaultView)
-        Assert.Equal(Layout.empty, t.Defaults.Layout)
+        Assert.Equal(Some (Items [ WidgetRef "facets" ]), t.Defaults.Layout.Left)
+        Assert.Equal(None, t.Defaults.Layout.Toolbar)
     | Error e -> failwith e
 
 [<Fact>]
-let ``smiley browse shows cards and the query line`` () =
+let ``smiley browse shows cards, the facets and the query line`` () =
     generate (depsWith []) """{ "theme": "smiley" }""" (fun out ->
         let index = readOut out "index.html"
         Assert.Contains("card-grid", index)
         Assert.DoesNotContain("<table", index)
+        Assert.Contains("data-facet-mode=\"filter\"", index)
         Assert.Contains("q-bar", index))
 
 [<Fact>]
@@ -258,6 +260,11 @@ let ``themes recolour the on state to match the mocks`` () =
     Assert.Contains(".add-filter.q-on, .add-filter.q-on:hover { background: var(--smiley-hot)", themeCss "smiley")
     Assert.Contains("color: var(--cyberpunk-on-primary)", (themeCss "cyberpunk").Substring((themeCss "cyberpunk").IndexOf ".add-filter.q-on"))
     Assert.Contains(".brand-mark::before { content: \">\"", themeCss "matrix")
+    let smiley = themeCss "smiley"
+    Assert.Contains(".sidebar-section:has([data-facet=\"ext\"])", smiley)
+    // source, then type, then tag
+    let order (facet: string) = smiley.IndexOf $".sidebar-section:has([data-facet=\"{facet}\"]) {{ order:"
+    Assert.True(order "source" >= 0 && order "source" < order "type" && order "type" < order "tags")
 
 [<Fact>]
 let ``filter buttons only appear where the page has a query line`` () =

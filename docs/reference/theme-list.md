@@ -33,7 +33,7 @@ Every theme shares two behaviours, and each recolours them:
 | [`terminal`](#terminal) (default) | Monospace | Table | None; filters live in the query line | Orange |
 | [`ledger`](#ledger) | Sans-serif | Rows | Facets (source, extension, tag, bundle) | Indigo |
 | [`matrix`](#matrix) | Monospace | Table | None; filters live in the query line | Phosphor green |
-| [`smiley`](#smiley) | Sans-serif | Cards | None; filters live in the query line | Blue and orange |
+| [`smiley`](#smiley) | Sans-serif | Cards | Facets (source, type, tag) beside the query line | Blue and orange |
 | [`cyberpunk`](#cyberpunk) | Monospace, angular display headings | Table | None; filters live in the query line | Magenta, cyan and yellow |
 
 ## terminal
@@ -86,8 +86,8 @@ Settings: none (`defaultView` falls back to the Browse table). Select it with `e
 
 ## smiley
 
-Coolblue blue and orange, with the terminal's query line over a grid of cards (one per file, with its description and
-tags). A solid blue header band (navy in dark mode) carries white navigation
+Coolblue blue and orange, with the terminal's query line and a facet sidebar (source, type and tag) beside a grid of cards (one per file, with
+its description and tags). A solid blue header band (navy in dark mode) carries white navigation
 text and a round orange smiley mark beside the name (no cursor). Orange marks the selected row and active tags, blue
 marks the query line and the active filter key. Text is sans-serif, with monospace kept for paths, tokens and keys,
 and pills replace square boxes. Cards link their tags to the tag pages rather than adding filters; set
@@ -100,8 +100,16 @@ and pills replace square boxes. Cards link their tags to the tag pages rather th
 Settings it ships (override it in your own `site` config):
 
 ```json
-{ "defaultView": "cards" }
+{
+  "defaultView": "cards",
+  "layout": { "left": ["facets"] }
+}
 ```
+
+The `facets` widget has no option to pick facets, so the theme's CSS shows only source, type and tag, in that order,
+and hides the file extension and bundle sections. To bring one back or reorder them, override the
+`.sidebar-section:has([data-facet="ext"])` rules in `custom.css`; the sections are `source`, `ext`, `tags`, `type`
+and `bundle`.
 
 ## cyberpunk
 
