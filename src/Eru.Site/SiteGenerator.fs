@@ -1711,7 +1711,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
         SiteSettings.referencedTextFiles settings
         |> List.fold (fun acc rel ->
             acc |> Result.bind (fun (m: Map<string, string>) ->
-                match deps.ReadLocalFile (Path.Combine(deps.GetCwd(), rel)) with
+                match deps.ReadLocalFile (PathJoin.Combine(deps.GetCwd(), rel)) with
                 | Error e -> Error $"site.layout.footer file '{rel}' could not be read: {e}"
                 | Ok None -> Error $"site.layout.footer file '{rel}' does not exist"
                 | Ok (Some text) -> Ok (Map.add rel text m))) (Ok Map.empty)
@@ -1763,7 +1763,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
             match SiteSettings.normalizeRelPath f with
             | None -> Error $"{path}.file '{f}' must be a path inside the repository"
             | Some rel ->
-                match deps.ReadLocalFile (Path.Combine(deps.GetCwd(), rel)) with
+                match deps.ReadLocalFile (PathJoin.Combine(deps.GetCwd(), rel)) with
                 | Error e -> Error $"{path}.file '{f}' could not be read: {e}"
                 | Ok None -> Error $"{path}.file '{f}' does not exist"
                 | Ok (Some text) ->

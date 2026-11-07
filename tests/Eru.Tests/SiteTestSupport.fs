@@ -73,11 +73,8 @@ let makeDeps (sourceIndex: Map<string, IndexEntry>) (content: Map<string, string
         ListRemoteFiles         = fun _ _ _ -> Ok []
         WriteLocalFile          = fun _ _ -> Ok ()
         ReadLocalFile           = fun path ->
-            // Production builds some paths with Path.Combine ('\\' on Windows) and some with
-            // PathJoin ('/'), so compare with separators normalised.
-            let norm (p: string) = p.Replace('\\', '/')
             localFiles
-            |> Map.tryPick (fun rel text -> if norm path = norm (PathJoin.Combine("/repo", rel)) then Some text else None)
+            |> Map.tryPick (fun rel text -> if path = PathJoin.Combine("/repo", rel) then Some text else None)
             |> Ok
         DeleteLocalFile         = fun _ -> Ok ()
         HashContent             = fun s -> $"hash:{s}"
