@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-07
+
 ### Added
 
 - GitHub releases include a native `eru-osx-arm64` binary for Apple Silicon, so `mise use github:dburriss/eru` and similar installers find a matching asset instead of falling back to the Rosetta-only `eru-osx-x64`
