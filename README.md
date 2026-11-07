@@ -29,6 +29,12 @@ Install the tool ([.NET 10](https://dotnet.microsoft.com/download) and [git](htt
 dotnet tool install --global Eru.Tool
 ```
 
+Or install a self-contained binary with [mise](https://mise.jdx.dev/), which needs neither .NET nor a separate download:
+
+```bash
+mise use --global github:dburriss/eru
+```
+
 Install the skill with [skills.sh](https://www.skills.sh/):
 
 ```bash
