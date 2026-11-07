@@ -236,7 +236,9 @@ Look and content are controlled by CSS plus the `site` key in `.eru/config.json`
 | User wants | Change |
 |---|---|
 | Colours, fonts, badges | `assets/css/custom.css` (created once, never overwritten) or `--custom-css <path>`; override CSS variables like `--color-primary`, `--color-bg`, `--radius` |
+| A different overall look | `site.theme`: `terminal` (default), `ledger`, `matrix`, `smiley`, `cyberpunk` or an installed one (`eru theme list`) |
 | Hide or move the left/right columns, edit the nav, add an external link | `site.layout.nav` / `top` / `toolbar` / `left` / `right` / `footer` (arrays of widgets, page ids or `{ "label", "url" }`; `false` disables a slot) |
+| Replace the logo, or add footer text or raw HTML | `site.layout.brand` (nav logo) and `footer` take `{ "html": "..." }` or `{ "text": "markdown" }`, or `{ "file": "path" }` for either; `"brand": false` removes the logo |
 | A page listing certain documents (runbooks, stale docs, one bundle) | `site.pages.<id>` with `filter`, plus `view` (`cards`/`list`/`table`), `sort`, `group`, `limit`, `open` |
 | A landing/about page from Markdown | `site.pages.<id>.content` = `{ "file": "docs/x.md" }` or `{ "doc": "source:path" }`; set `site.home` to make it `index.html` |
 | Remove or rename a built-in page | `"types": false` to drop; a page with a built-in id (`browse`, `sources`, `tags`, `types`, `bundles`) overrides its index |

@@ -25,7 +25,7 @@ the links are for extra detail only.
 CSS variables: `--color-primary`, `--color-text`, `--color-bg`, `--color-surface`, `--color-border`,
 `--color-badge-bg`, `--color-badge-text`, `--font-family`, `--font-mono`, `--radius`. A `:root` override applies in both modes;
 set per-mode colours under `body.theme-light` and `body.theme-dark`. Status badges: `.badge-pulled`, `.badge-cached`,
-`.badge-index-only`. Components: `.file-card`, `.tag`, `.site-nav`.
+`.badge-index-only`. Components: `.file-card`, `.tag`, `.site-nav`, `.add-filter` (row filter buttons, `.q-on` while their value is in the query), `.q-key` (key buttons under the query line), `.brand-mark`, `.brand-name`, `.brand-cursor`.
 
 ## Themes
 
@@ -35,6 +35,16 @@ settings. Custom themes are folders with `theme.json` (`{ "description", "site":
 `custom.css` override the theme. `eru theme list` shows what is available. Set it with
 `eru config set site.theme ledger`.
 
+Built-ins and the `site` defaults they ship:
+
+- `terminal`: the base stylesheet; query line over a table, no sidebar. Ships nothing.
+- `ledger`: sans-serif, indigo; `defaultView: rows`, `layout.left: ["facets"]`, `layout.toolbar: false` (facets replace the query line, so rows show plain tag links, not filter buttons).
+- `matrix`: terminal layout in phosphor green with glow and scanlines in dark mode. Ships nothing.
+- `smiley`: Coolblue blue and orange; `defaultView: cards`, `layout.left: ["facets"]`. Its CSS shows only the source, type and tag facets, in that order.
+- `cyberpunk`: terminal layout in neon magenta, cyan and yellow, angular display type. Ships nothing.
+
+A theme's `theme.json` can set any `site` key, including `layout` slots such as `brand`. To change what a theme ships, set the same key in your own `site` config.
+
 ## Site-wide keys
 
 | Key | Meaning |
@@ -43,7 +53,7 @@ settings. Custom themes are folders with `theme.json` (`{ "description", "site":
 | `site.theme` | `terminal` (default), `ledger`, `matrix`, `smiley`, `cyberpunk`, or an installed theme |
 | `site.defaultView` | `cards` (default), `list`, `table`, `rows` |
 | `site.cards.columns` | Max columns 1-6 (default 3) |
-| `site.layout` | `nav`, `top`, `toolbar`, `left`, `right`, `footer` slots for every page |
+| `site.layout` | `nav`, `top`, `toolbar`, `left`, `right`, `footer`, `brand` slots for every page |
 | `site.pages` | Map of page id to definition, or `false` to drop a built-in |
 | `site.document` | `layout`, `open`, `rules` for document pages |
 | `site.ignorePatterns`, `site.hideEmptyBundles` | Exclude files / empty bundles |
@@ -51,7 +61,7 @@ settings. Custom themes are folders with `theme.json` (`{ "description", "site":
 
 ## Layout slots
 
-Slots, from the top of the page: `nav`, `top` (widget band), `toolbar` (the query line), `left` | `main` | `right`,
+Slots, from the top of the page: `brand` (the logo, left of `nav`), `nav`, `top` (widget band), `toolbar` (the query line), `left` | `main` | `right`,
 `footer` (widget band). Each is an ordered array, or `false` to disable. Precedence, last wins, whole-slot
 replacement: built-in defaults, `site.layout`, the page's `layout`. `site.layout` takes every slot but `main`;
 `main` is per page or in `site.document`.
@@ -66,7 +76,7 @@ replacement: built-in defaults, `site.layout`, the page's `layout`. `site.layout
 Default `main` by page kind: browse `list` (`title` in `top`, `query` in `toolbar`); list `title, list`; detail (`tags/<tag>/`) `breadcrumbs, title, cli, list`; content
 `title, content`; document `graph, breadcrumbs, title, meta, verified, generated, description, tags, stale, cli, content, related`.
 
-Widgets: `breadcrumbs`, `title`, `stale`, `content`, `list`, `query` (main only; `query` is the filter line on Browse: `tag:x`, `source:x`, `status:pulled`, `-tag:x`); `meta`, `verified`, `generated`,
+Widgets: `breadcrumbs`, `title`, `stale`, `content`, `list`; `query` (`toolbar`, `left` or `right`, once per page; the filter line on Browse: `tag:x`, `source:x`, `status:pulled`, `-tag:x`); `meta`, `verified`, `generated`,
 `description`, `tags`, `cli`, `related`, `graph` (main + sides); `toc`, `facets`, `links` (sides only). Widgets
 with no data render nothing and leave no gap.
 
