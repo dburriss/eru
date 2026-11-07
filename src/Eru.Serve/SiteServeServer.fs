@@ -44,6 +44,7 @@ let private rd (f: HttpContext -> Task<unit>) : RequestDelegate =
 
 let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
     task {
+        printfn "[eru serve] eru %s" (Eru.Adapters.EruVersion.current |> Option.defaultValue "unknown version")
         use searcher = new RankedSearch.Searcher(Paths.ferretCacheDir())
         let absOutputDir = Path.GetFullPath opts.OutputDir
         let genOpts = { SiteGenerator.GenerateOptions.defaults with OutputDir = opts.OutputDir }
