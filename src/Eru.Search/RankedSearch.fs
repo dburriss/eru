@@ -28,6 +28,9 @@ type Request = {
     Query : string
     /// All must be present on a file (case-insensitive).
     Tags  : string list
+    /// Restrict to files from these sources (any of them, case-insensitive). `local` selects the
+    /// local `knowledge/` files. Empty means every source.
+    Sources : string list
     /// None uses the configured mode.
     Mode  : SearchMode option
     /// Maximum hits returned, at least 1.
@@ -68,6 +71,27 @@ let parseTags (tags: string) : string list =
         tags.Split(',', StringSplitOptions.RemoveEmptyEntries ||| StringSplitOptions.TrimEntries)
         |> Array.toList
         |> List.map (fun t -> t.ToLowerInvariant())
+
+/// Reserved source name that selects local `knowledge/` files, which belong to no configured source.
+let localSourceName = "local"
+
+let parseSources (sources: string) : string list = parseTags sources
+
+let hasSource (required: string list) (c: CandidateFile) : bool =
+    required.IsEmpty ||
+    (match c.SourceName with
+     | Some n -> required |> List.exists (fun r -> String.Equals(r, n, StringComparison.OrdinalIgnoreCase))
+     | None   -> required |> List.exists (fun r -> String.Equals(r, localSourceName, StringComparison.OrdinalIgnoreCase)))
+
+/// Fails with the valid names when a requested source is neither configured nor `local`.
+let validateSources (eff: EffectiveConfig) (required: string list) : Result<unit, string> =
+    let valid = (eff.Sources |> List.map (fun s -> s.Name)) @ [ localSourceName ]
+    let unknown =
+        required |> List.filter (fun r -> not (valid |> List.exists (fun v -> String.Equals(v, r, StringComparison.OrdinalIgnoreCase))))
+    if unknown.IsEmpty then Ok ()
+    else
+        let names (xs: string list) = String.concat ", " xs
+        Error $"unknown source(s): {names unknown}. Valid sources: {names valid}"
 
 let private terms (query: string) : string list =
     if String.IsNullOrWhiteSpace query then []
@@ -206,15 +230,19 @@ type Searcher(cacheDir: string, progress: Action<string>) =
 let readableCandidates (deps: Deps) (eff: EffectiveConfig) (cwd: string) : CandidateFile list =
     CandidateBuilder.build deps eff cwd |> applyIgnoreFor eff
 
+let private inSources (sources: string list) (candidates: CandidateFile list) =
+    if sources.IsEmpty then candidates else candidates |> List.filter (hasSource sources)
+
 /// Ranked search over everything eru knows about: files are ranked by content (path, headings
 /// and front matter count extra), tag-filtered and bounded by `limit`; entries with no local
 /// content are matched on path and description and listed after the ranked files.
 let execute (searcher: Searcher) (deps: Deps) (eff: EffectiveConfig) (cwd: string) (req: Request) (ct: CancellationToken) : Result<RankedResult, string> =
-    resolveMode req.Mode eff
+    validateSources eff req.Sources
+    |> Result.bind (fun () -> resolveMode req.Mode eff)
     |> Result.map (fun mode ->
         let limit = max 1 req.Limit
         let queryTerms = terms req.Query
-        let candidates = readableCandidates deps eff cwd
+        let candidates = readableCandidates deps eff cwd |> inSources req.Sources
 
         let ranked =
             if queryTerms.IsEmpty then
@@ -232,6 +260,7 @@ let execute (searcher: Searcher) (deps: Deps) (eff: EffectiveConfig) (cwd: strin
         let metadataHits =
             CandidateBuilder.buildMetadataOnly deps eff
             |> applyIgnoreFor eff
+            |> inSources req.Sources
             |> List.filter (fun c -> hasTags req.Tags c.Tags && matchesMetadata queryTerms c)
             |> List.sortWith (fun a b -> String.CompareOrdinal(a.RelPath, b.RelPath))
 

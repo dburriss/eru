@@ -91,9 +91,9 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
         else
             let query =
                 if filter.StartsWith("#") then
-                    { LocalSearch.Terms = []; LocalSearch.Tags = [ filter.Substring(1).Trim() ] }
+                    { LocalSearch.Terms = []; LocalSearch.Tags = [ filter.Substring(1).Trim() ]; LocalSearch.Sources = [] }
                 else
-                    { LocalSearch.Terms = [ filter ]; LocalSearch.Tags = [] }
+                    { LocalSearch.Terms = [ filter ]; LocalSearch.Tags = []; LocalSearch.Sources = [] }
             match LocalSearch.execute deps query with
             | Ok results ->
                 searchHits <- Some (results |> List.map (fun r -> r.SourceName, r.RemotePath) |> Set.ofList)
@@ -301,7 +301,7 @@ type FilesPane(deps: Deps, initialSources: SourceList.SourceRow list, initialLoc
                     | Ok g, Ok l -> DepsConfig.merge deps g l |> Result.map (Config.withManifests deps.ReadCachedManifest)
                     | Error e, _ | _, Error e -> Error e
                 let request: RankedSearch.Request =
-                    { Query = text; Tags = []; Mode = None; Limit = 100 }
+                    { Query = text; Tags = []; Sources = []; Mode = None; Limit = 100 }
                 let result =
                     eff |> Result.bind (fun e -> RankedSearch.execute ranker deps e (deps.GetCwd()) request cts.Token)
                 if not cts.IsCancellationRequested then

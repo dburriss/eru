@@ -81,7 +81,7 @@ The environment beats the local and global config. An invalid value stops the se
 
 | Tool | Description |
 |---|---|
-| `search_knowledge` | Full-text search across source index, lock file entries, and local `knowledge/` dirs. Returns structured hits (path, source, tags, description, excerpts) plus a text summary. Params: `query` (space-separated terms, OR semantics), `tags` (comma-separated, AND semantics) |
+| `search_knowledge` | Full-text search across source index, lock file entries, and local `knowledge/` dirs. Returns structured hits (path, source, tags, description, excerpts) plus a text summary. Params: `query` (space-separated terms, OR semantics), `tags` (comma-separated, AND semantics), `sources` (comma-separated source names, any of them; `local` selects local `knowledge/` files) |
 | `read_artifact` | Read a knowledge artifact by local path, `sourceName:remotePath`, path short hash, or a path from search results |
 | `refresh_knowledge` | Trigger an on-demand sync of the knowledge cache without waiting for the next timer tick. Returns immediately — sync runs in background. Returns a summary or `"A knowledge refresh is already in progress."` if one is already running |
 

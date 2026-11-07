@@ -33,6 +33,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService, searcher: Ran
         [<Description("Search terms, space-separated. Files are ranked by relevance (rarer terms count more, matches in the path, headings and front matter count extra) and word forms are matched, so 'mock' finds 'mocked'. Leave empty to list known artifacts.")>] query: string,
         [<Description("Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering.")>] tags: string,
         [<Optional; DefaultParameterValue(15)>] [<Description("Maximum number of files to return (default 15).")>] limit: int,
+        [<Optional; DefaultParameterValue(null: string)>] [<Description("Comma-separated source names to search (any of them), as listed by `eru source list`; use 'local' for local knowledge/ files. Leave empty to search every source. Unknown names return an error listing the valid ones.")>] sources: string,
         [<Optional; DefaultParameterValue(null: string)>] [<Description("Ranking mode: 'lex' (keywords, default), 'sem' (meaning) or 'hybrid' (both). Semantic modes fall back to 'lex' with a warning when the embedding model is not installed.")>] mode: string) : CallToolResult =
         syncService.NoteActivity()
 
@@ -48,6 +49,7 @@ type KnowledgeTools(deps: Deps, syncService: KnowledgeSyncService, searcher: Ran
         let request (m: SearchMode option) : RankedSearch.Request =
             { Query = query
               Tags  = RankedSearch.parseTags tags
+              Sources = RankedSearch.parseSources sources
               Mode  = m
               Limit = if limit < 1 then defaultLimit else limit }
 

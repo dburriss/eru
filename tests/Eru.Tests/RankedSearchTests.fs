@@ -36,7 +36,7 @@ let private withRepo (files: (string * string) list) (f: Deps -> EffectiveConfig
         try Directory.Delete(root, true) with _ -> ()
 
 let private search (deps: Deps) (eff: EffectiveConfig) (searcher: RankedSearch.Searcher) query tags limit mode =
-    let request : RankedSearch.Request = { Query = query; Tags = tags; Mode = mode; Limit = limit }
+    let request : RankedSearch.Request = { Query = query; Tags = tags; Sources = []; Mode = mode; Limit = limit }
     match RankedSearch.execute searcher deps eff (deps.GetCwd()) request CancellationToken.None with
     | Ok r -> r
     | Error e -> failwith e
@@ -192,3 +192,47 @@ let ``the configured mode applies when nothing overrides it`` () =
     // ERU_SEARCH_MODE and ERU_SEARCH_BACKEND are unset in the test environment.
     Assert.Equal(Ok Hybrid, RankedSearch.resolveMode None { EffectiveConfig.empty with SearchMode = Hybrid })
     Assert.Equal(Ok Sem, RankedSearch.resolveMode (Some Sem) { EffectiveConfig.empty with SearchMode = Hybrid })
+
+// ── source filter ─────────────────────────────────────────────────────────────
+
+let private searchIn (sources: string list) query =
+    withRepo corpus (fun deps eff searcher ->
+        let request : RankedSearch.Request = { Query = query; Tags = []; Sources = sources; Mode = None; Limit = 10 }
+        RankedSearch.execute searcher deps eff (deps.GetCwd()) request CancellationToken.None)
+
+[<Fact>]
+let ``the reserved local source selects knowledge files`` () =
+    match searchIn [ "Local" ] "redis" with
+    | Ok r -> Assert.NotEmpty r.Hits
+    | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``an empty query with a source filter lists only that source`` () =
+    match searchIn [ "local" ] "", searchIn [] "" with
+    | Ok filtered, Ok all ->
+        Assert.NotEmpty filtered.Hits
+        Assert.Equal(all.Hits.Length, filtered.Hits.Length)
+    | Error e, _ | _, Error e -> Assert.Fail e
+
+[<Fact>]
+let ``an unknown source is an error naming the valid sources`` () =
+    match searchIn [ "nope" ] "redis" with
+    | Ok _ -> Assert.Fail "expected an error"
+    | Error e ->
+        Assert.Contains("nope", e)
+        Assert.Contains("local", e)
+
+[<Fact>]
+let ``hasSource matches source names case-insensitively, any of several`` () =
+    let c = candidate "src/a.md" (Some "a.md")
+    Assert.True(RankedSearch.hasSource [] c)
+    Assert.True(RankedSearch.hasSource [ "other"; "SRC" ] c)
+    Assert.False(RankedSearch.hasSource [ "other" ] c)
+    Assert.False(RankedSearch.hasSource [ "src" ] { c with SourceName = None })
+    Assert.True(RankedSearch.hasSource [ "local" ] { c with SourceName = None })
+
+[<Fact>]
+let ``validateSources accepts configured sources and local`` () =
+    let eff = { EffectiveConfig.empty with Sources = [ { SourceConfig.empty with Name = "Src"; Url = Some "https://x/src.git" } ] }
+    Assert.True(Result.isOk (RankedSearch.validateSources eff [ "src"; "local" ]))
+    Assert.True(Result.isError (RankedSearch.validateSources eff [ "src"; "missing" ]))

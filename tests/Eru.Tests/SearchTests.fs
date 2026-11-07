@@ -74,7 +74,7 @@ let private makeDeps
         RunAgent         = fun _ _ _ _ -> Ok { Response = ""; Timings = { InitializeMs = 0.0; SessionNewMs = 0.0; PromptMs = 0.0 } }
     }
 
-let private emptyQuery : LocalSearch.Query = { Terms = []; Tags = [] }
+let private emptyQuery : LocalSearch.Query = { Terms = []; Tags = []; Sources = [] }
 
 let private assertOk result = match result with Error e -> Assert.Fail(e) | Ok _ -> ()
 
@@ -182,7 +182,7 @@ let ``combined term and tag both must match`` () =
     let fileB  = makeFileRef "kb" "ops/Deploy.sh" ["ops"]
     let col    = makeCollection "col" [] [ fileA; fileB ]
     let deps   = makeDeps (Some (makeGlobal [source] [col])) (Some (makeLocal [source])) []
-    match LocalSearch.execute deps { Terms = ["logging"]; Tags = ["ops"] } with
+    match LocalSearch.execute deps { Terms = ["logging"]; Tags = ["ops"]; Sources = [] } with
     | Error e -> Assert.Fail(e)
     | Ok results -> Assert.Empty(results)
 

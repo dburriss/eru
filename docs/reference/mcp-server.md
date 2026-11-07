@@ -99,6 +99,7 @@ Ranked search, best match first, across:
 |---|---|
 | `query` | Space-separated search terms. Files are ranked by relevance: rarer terms count more, matches in the path, headings and front matter count extra, and word forms match (`mock` finds `mocked`). Leave empty to list artifacts in path order. |
 | `tags` | Comma-separated tags to filter by (AND semantics). Leave empty to skip tag filtering. |
+| `sources` | Comma-separated source names to search (any of them), as listed by `eru source list`. Use `local` for local `knowledge/` files. Leave empty to search every source. An unknown name returns an error listing the valid ones. |
 | `limit` | Optional. Maximum number of files returned (default 15). |
 | `mode` | Optional. `lex` (keywords, the default), `sem` (meaning) or `hybrid` (both). Overrides `search.mode`. `sem` and `hybrid` need the embedding model; if it is not installed the call runs `lex` and says so in `warnings`. |
 

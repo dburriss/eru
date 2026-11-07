@@ -67,6 +67,7 @@ eru search retries for AWS calls --limit 5
 eru search "recover from failed calls" --mode hybrid
 eru search --tag devops
 eru search pipeline --tag ci --tag devops
+eru search retries --source team-knowledge          # only that source; repeat for several, `local` for knowledge/ files
 ```
 
 ---

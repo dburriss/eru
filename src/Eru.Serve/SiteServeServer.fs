@@ -73,7 +73,7 @@ let run (deps: Deps) (cfg: EffectiveConfig) (opts: ServeOptions) : Task<int> =
                 match Int32.TryParse(ctx.Request.Query["limit"].ToString()) with
                 | true, n when n > 0 -> n
                 | _ -> 500
-            let request : RankedSearch.Request = { Query = q; Tags = []; Mode = None; Limit = limit }
+            let request : RankedSearch.Request = { Query = q; Tags = []; Sources = []; Mode = None; Limit = limit }
             let result =
                 match RankedSearch.execute searcher deps cfg (deps.GetCwd()) request ctx.RequestAborted with
                 | Ok r -> r

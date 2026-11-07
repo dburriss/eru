@@ -20,6 +20,7 @@ let (|SearchCmd|_|) (r: ParseResults<EruArgs>) =
                 Query = {
                     LocalSearch.Query.Terms = args.GetResult(SearchArgs.Terms, defaultValue = [])
                     LocalSearch.Query.Tags  = args.GetResults SearchArgs.Tag
+                    LocalSearch.Query.Sources = args.GetResults SearchArgs.Source
                 }
                 Format = parseFormat (args.TryGetResult SearchArgs.Output)
                 Limit  = args.TryGetResult SearchArgs.Limit
@@ -142,6 +143,7 @@ let private runRanked (deps: Eru.Deps) (cmd: Cmd) (terms: string list) : int =
         let request : RankedSearch.Request =
             { Query = String.concat " " terms
               Tags  = cmd.Query.Tags |> List.map (fun t -> t.ToLowerInvariant())
+              Sources = cmd.Query.Sources |> List.map (fun s -> s.ToLowerInvariant())
               Mode  = mode
               Limit = cmd.Limit |> Option.defaultValue RankedSearch.defaultLimit }
 

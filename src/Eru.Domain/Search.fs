@@ -5,6 +5,8 @@ module LocalSearch =
     type Query = {
         Terms : string list
         Tags  : string list
+        /// Restrict to these source names (case-insensitive, any of them). Empty means all.
+        Sources : string list
     }
 
     type SearchResult = {
@@ -125,6 +127,7 @@ module LocalSearch =
             allResults
             |> List.distinctBy (fun r -> (r.SourceName, r.RemotePath))
             |> List.filter (matchesTags query.Tags)
+            |> List.filter (fun r -> query.Sources.IsEmpty || query.Sources |> List.exists (fun s -> s.Equals(r.SourceName, System.StringComparison.OrdinalIgnoreCase)))
             |> List.filter (matchesTerm query.Terms)
 
         Ok filtered
