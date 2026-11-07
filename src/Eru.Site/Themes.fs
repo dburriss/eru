@@ -126,9 +126,50 @@ kbd { border-radius: 4px; }
 .region-footer { border-top-color: var(--color-border); }
 """
 
+let private matrixJson =
+    """{ "description": "The terminal layout in phosphor green: pale mint in light mode, black with a faint glow and scanlines in dark mode." }"""
+
+let private matrixLight =
+    "--color-bg: #f2faf3; --color-surface: #e2f3e5; --color-border: #a9d8b2; --color-text: #0a4d1c; "
+    + "--color-muted: #3d7a4b; --color-primary: #00872a; --color-accent-soft: #cdecd3; "
+    + "--color-ok: #00a832; --color-warn: #4d8f5c; --color-badge-bg: #e2f3e5; --color-badge-text: #0a4d1c; "
+    + "--color-graph-incoming: #00872a; --color-graph-outgoing: #3d7a4b; --color-graph-external: #6b9a76;"
+
+let private matrixDark =
+    "--color-bg: #020a04; --color-surface: #06170b; --color-border: #0f3a1a; --color-text: #3dff6e; "
+    + "--color-muted: #1f9a42; --color-primary: #7dff9c; --color-accent-soft: #0b2a14; "
+    + "--color-ok: #5dff85; --color-warn: #22c24f; --color-badge-bg: #06170b; --color-badge-text: #7dff9c; "
+    + "--color-graph-incoming: #5dff85; --color-graph-outgoing: #22c24f; --color-graph-external: #1f9a42;"
+
+// Glow and scanlines belong to dark mode only: the OS preference unless the toggle forces light,
+// or the toggle forced dark.
+let private matrixDarkEffects (root: string) (indent: string) =
+    rule (indent + root + " body") "text-shadow: 0 0 6px rgba(61, 255, 110, 0.35);"
+    + rule (indent + root + " .site-nav, " + indent + root + " .region-main")
+           "background-image: repeating-linear-gradient(0deg, rgba(61, 255, 110, 0.035) 0 1px, transparent 1px 3px);"
+
+let private matrixCss =
+    "/* matrix theme */\n"
+    + rule ":root" matrixLight
+    + "@media (prefers-color-scheme: dark) {\n" + rule "  :root" matrixDark + "}\n"
+    + rule ":root:where(.theme-light)" matrixLight
+    + rule ":root:where(.theme-dark)" matrixDark
+    + "@media (prefers-color-scheme: dark) {\n" + matrixDarkEffects ":root:not(.theme-light)" "  " + "}\n"
+    + matrixDarkEffects ":root.theme-dark" ""
+    + """
+/* the status glyphs and selection carry meaning, so keep the glow off the controls */
+kbd, input, button, .q-opt.q-on { text-shadow: none; }
+
+/* badges stay green-on-green in dark mode */
+body.theme-dark .badge-manifest, body.theme-dark .badge-okf,
+body.theme-dark .badge-human-reviewed, body.theme-dark .badge-machine-confirmed,
+body.theme-dark .doc-stale-warning { background: var(--color-surface); color: var(--color-primary); border: 1px solid var(--color-border); }
+"""
+
 let private builtIns : (string * string * string) list =
     [ "terminal", terminalJson, ""
-      "ledger", ledgerJson, ledgerCss ]
+      "ledger", ledgerJson, ledgerCss
+      "matrix", matrixJson, matrixCss ]
 
 let builtInNames = builtIns |> List.map (fun (n, _, _) -> n)
 

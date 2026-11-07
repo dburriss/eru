@@ -22,6 +22,7 @@ The screenshots show the same five files from one source, so the differences are
 |---|---|---|---|---|
 | [`terminal`](#terminal) (default) | Monospace | Table | None; filters live in the query line | Orange |
 | [`ledger`](#ledger) | Sans-serif | Rows | Facets (source, extension, tag, bundle) | Indigo |
+| [`matrix`](#matrix) | Monospace | Table | None; filters live in the query line | Phosphor green |
 
 ## terminal
 
@@ -54,9 +55,21 @@ Settings it ships (override any of them in your own `site` config):
 }
 ```
 
+## matrix
+
+The terminal layout in phosphor green. Light mode is dark green ink on pale mint. Dark mode is bright green on
+near-black, with a faint text glow and scanlines (both dark mode only). Every colour is a shade of green, so sync state
+relies on the glyph shapes (`●` `◐` `○`) rather than colour. It keeps the terminal's table, query line and glyphs.
+
+| Light | Dark |
+|---|---|
+| ![matrix theme, light mode](images/themes/matrix-light.png) | ![matrix theme, dark mode](images/themes/matrix-dark.png) |
+
+Settings: none (`defaultView` falls back to the Browse table). Select it with `eru config set site.theme matrix`.
+
 ## Regenerating the screenshots
 
-The images are 1280 × 720 captures of `index.html` from a site generated with each theme. Set `site.theme`, run
+The images are 1280 × 720 captures of `index.html` from a site generated with each theme. Set `site.theme` and `site.showSyncStatus: true` (the glyphs are off by default), run
 `eru site generate`, and capture the page in a browser at that size. For a mode that does not depend on the
 system setting, add `class="theme-light"` or `class="theme-dark"` to the `<html>` element of a copy of the page
 and remove its `js/theme.js` script tag before capturing.

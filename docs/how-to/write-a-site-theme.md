@@ -13,7 +13,7 @@ through making one. To tweak a single colour instead, use [custom.css](customize
 ## Switch to an existing theme
 
 ```bash
-eru theme list                       # terminal, ledger and anything installed
+eru theme list                       # terminal, ledger, matrix and anything installed
 eru config set site.theme ledger     # or "theme": "ledger" under "site" in .eru/config.json
 eru site generate
 ```

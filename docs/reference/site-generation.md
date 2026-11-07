@@ -259,6 +259,7 @@ and a `theme.css`; both are optional, but a folder with neither is not a theme.
 |---|---|
 | `terminal` (default) | Monospace, square corners, hairline grid, query-line Browse. This is the base stylesheet itself |
 | `ledger` | Dense and quiet: sans-serif, rounded corners, an indigo accent, a facet sidebar and one row per file (`defaultView: rows`, `layout.left: ["facets"]`) |
+| `matrix` | The terminal layout in phosphor green: pale mint in light mode, black with a faint glow and scanlines in dark mode. Adds no `site` settings |
 
 A name is looked up in this order: built-in, `.eru/themes/<name>/` in the project, then `themes/<name>/` next to the
 global config (`~/.config/eru/themes/<name>/`). The first match wins, so an installed theme cannot shadow a built-in.

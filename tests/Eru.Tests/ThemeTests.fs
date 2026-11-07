@@ -108,6 +108,28 @@ let ``theme defaults go through the same shape checks as site config`` () =
     Assert.Contains("theme 'bad'", msg)
 
 [<Fact>]
+let ``matrix css follows the base stylesheet and precedes custom css`` () =
+    generate (depsWith []) """{ "theme": "matrix" }""" (fun out ->
+        let css = readOut out "assets/css/style.css"
+        let base' = css.IndexOf ":root:where(.theme-dark)"
+        let matrix = css.IndexOf "/* matrix theme */"
+        Assert.True(base' >= 0 && matrix > base', "matrix css must come after the base stylesheet")
+        Assert.True(css.LastIndexOf ":root:where(.theme-dark)" > matrix)
+        Assert.Contains("#3dff6e", css)
+        Assert.Contains("repeating-linear-gradient", css)
+        // scanlines are dark-mode only: never an unscoped rule
+        Assert.DoesNotContain("\n.site-nav, .region-main {", css)
+        Assert.DoesNotContain("matrix theme", readOut out "assets/css/custom.css"))
+
+[<Fact>]
+let ``matrix keeps the terminal layout defaults`` () =
+    match Themes.resolve (depsWith []) "matrix" with
+    | Ok t ->
+        Assert.Equal(Themes.BuiltIn, t.Origin)
+        Assert.Equal(Themes.resolve (depsWith []) "terminal" |> Result.map (fun x -> x.Defaults), Ok t.Defaults)
+    | Error e -> failwith e
+
+[<Fact>]
 let ``a built-in theme cannot be shadowed by an installed one`` () =
     let files = [ ".eru/themes/ledger/theme.css", "/* impostor */" ]
     generate (depsWith files) """{ "theme": "ledger" }""" (fun out ->
@@ -119,7 +141,7 @@ let ``discover lists built-in and installed themes once each`` () =
         { depsWith (fooTheme @ [ ".eru/themes/ledger/theme.css", "x" ]) with
             ListLocalDirectories = fun dir -> if dir.EndsWith ".eru/themes" then Ok [ dir + "/foo"; dir + "/ledger" ] else Ok [] }
     let found = Themes.discover d
-    Assert.Equal<string list>([ "terminal"; "ledger"; "foo" ], found |> List.map fst)
+    Assert.Equal<string list>([ "terminal"; "ledger"; "matrix"; "foo" ], found |> List.map fst)
     match found |> List.find (fun (n, _) -> n = "foo") |> snd with
     | Ok t ->
         Assert.Equal(Some "Foo", t.Description)
