@@ -78,3 +78,10 @@ let ``outgoing external related link renders with target blank`` () =
     let html = HtmlTemplates.filePage baseDoc "<p>body</p>" related
     Assert.Contains("Links from this document", html)
     Assert.Contains("target=\"_blank\"", html)
+
+[<Fact>]
+let ``document page heading and title use the document title, not the filename`` () =
+    let doc = { baseDoc with Title = "Customer Orders"; RemotePath = "docs/orders.md" }
+    let html = HtmlTemplates.filePage doc "<p>body</p>" noRelated
+    Assert.Contains("Customer Orders", html)
+    Assert.DoesNotContain("<title>orders.md", html)

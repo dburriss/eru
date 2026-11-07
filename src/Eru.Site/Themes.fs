@@ -108,6 +108,9 @@ kbd { border-radius: 4px; }
 .doc-row { padding: 0.7rem 0.6rem; border-bottom: 0; border-top: 1px solid var(--color-border); }
 .doc-row.q-sel { box-shadow: inset 2px 0 0 var(--color-primary); }
 .doc-row .cell-name { font-weight: 500; align-items: center; }
+.doc-row .cell-path { font-family: var(--font-mono); font-size: 0.75rem; }
+.doc-row.q-sel .cell-path { opacity: 0.9; }
+.card-path { font-family: var(--font-mono); margin: -0.15rem 0 0.4rem; }
 .doc-row .cell-desc { padding-left: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doc-row-side { font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-muted); }
 .doc-row .add-filter { padding: 0 0.2rem; margin: 0; border-radius: 4px; }

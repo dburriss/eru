@@ -114,7 +114,10 @@ let ``meta shows type and lifecycle status`` () =
     Assert.Contains("badge-type", html)
     Assert.Contains("runbook", html)
     Assert.Contains("badge-lifecycle-stable", html)
-    Assert.Equal("", render "meta" baseDoc)
+    // the file path is always shown, even with no type or status
+    let bare = render "meta" baseDoc
+    Assert.Contains("doc-path", bare)
+    Assert.DoesNotContain("badge-type", bare)
 
 [<Fact>]
 let ``a facets widget with checkbox mode marks the container for the script`` () =

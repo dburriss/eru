@@ -6,7 +6,7 @@ open Eru
 let private toSlug (remotePath: string) =
     remotePath.Replace('/', '_').Replace('\\', '_').Replace(' ', '-')
 
-let private fileTitle (remotePath: string) = Path.GetFileName remotePath
+let private fileTitle (remotePath: string) = Path.GetFileNameWithoutExtension remotePath
 
 let private fileExtension (remotePath: string) = Path.GetExtension remotePath
 

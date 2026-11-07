@@ -67,13 +67,13 @@ let private cfg (sourceName: string) : EffectiveConfig =
         OkfIgnorePatterns = [] }
 
 [<Fact>]
-let ``title falls back to filename when frontmatter title is absent`` () =
+let ``title falls back to filename without extension when frontmatter title is absent`` () =
     let index = Map.ofList [ "docs/orders.md", { emptyIndexEntry with LocalPath = Some "orders.md" } ]
     let deps = makeDeps index
     match IndexBuilder.buildModel deps (cfg "src") with
     | Ok model ->
         let doc = model.Documents |> List.exactlyOne
-        Assert.Equal("orders.md", doc.Title)
+        Assert.Equal("orders", doc.Title)
     | Error e -> Assert.Fail e
 
 [<Fact>]

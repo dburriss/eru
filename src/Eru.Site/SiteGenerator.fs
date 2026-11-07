@@ -645,6 +645,9 @@ kbd {
 .cell-name a, .site-nav a { color: var(--color-text); }
 .site-nav a:hover { color: var(--color-primary); }
 .site-nav .nav-brand:hover { text-decoration: none; }
+.card-path, .doc-path { color: var(--color-muted); font-size: 0.8em; }
+.cell-path { margin-left: 12px; min-width: 0; color: var(--color-muted); font-size: 0.85em; font-weight: 400; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.12s; }
+tr:hover .cell-path, tr.q-sel .cell-path, .doc-row:hover .cell-path { opacity: 0.9; }
 .cell-desc { color: var(--color-muted); font-size: 0.9em; padding-left: 2ch; }
 .doc-table [data-col="source"] { width: 1%; white-space: nowrap; }
 .doc-table [data-col="tags"] { width: 22ch; }

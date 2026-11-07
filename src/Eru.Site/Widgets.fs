@@ -177,7 +177,8 @@ let private metaWidget =
     withDoc (fun d ->
         let typeHtml = d.Type |> Option.map (fun t -> $"""<span class="badge badge-type">{escapeHtml t}</span>""") |> Option.defaultValue ""
         let statusHtml = d.Status |> Option.map lifecycleBadge |> Option.defaultValue ""
-        if typeHtml = "" && statusHtml = "" then "" else $"""<div class="doc-meta-badges">{typeHtml}{statusHtml}</div>""")
+        let pathHtml = $"""<code class="doc-path">{escapeHtml d.RemotePath}</code>"""
+        $"""<div class="doc-meta-badges">{pathHtml}{typeHtml}{statusHtml}</div>""")
 
 let private verifiedWidget =
     withDoc (fun d ->

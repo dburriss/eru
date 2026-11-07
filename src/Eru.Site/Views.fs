@@ -216,6 +216,7 @@ let private cardsView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument lis
     {syncBadge}
     <span class="badge badge-trust badge-{tier}">{tier}</span>
   </div>
+  <div class="card-path"><code>{escapeHtml d.RemotePath}</code></div>
   {bodyHtml}
   {tagsBlock}
 </article>"""
@@ -243,7 +244,7 @@ let private titleCell (vc: ViewContext) (d: SiteDocument) : string =
         | Some t -> $"""<div class="cell-desc">{escapeHtml t}</div>"""
         | None -> ""
     let glyph = if vc.ShowSyncStatus then syncGlyph d else ""
-    $"""<div class="cell-name">{glyph}{titleLink vc d}</div>{desc}"""
+    $"""<div class="cell-name">{glyph}{titleLink vc d}<span class="cell-path">{escapeHtml d.Source}/{escapeHtml d.RemotePath}</span></div>{desc}"""
 
 /// One bordered row per document: name and description on the left, source, tags and sync
 /// state on the right. Dense, no header; the ledger theme's default.

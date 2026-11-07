@@ -169,15 +169,14 @@ let detailPageData
 /// A document page's data: breadcrumbs, heading, rendered content and link lists.
 let documentPageData (env: SiteEnv) (doc: SiteDocument) (contentHtml: string) (related: RelatedLinks) : PageData =
     let p = prefixFor 2
-    let fileName = System.IO.Path.GetFileName doc.RemotePath
     let sourcesHref = indexUrl env p "sources"
     let sourceHref = sourcesHref |> Option.map (fun _ -> $"{p}sources/{Uri.EscapeDataString doc.Source}/index.html")
     { PageData.empty with
-        Title = fileName
+        Title = doc.Title
         Breadcrumbs =
             [ "Sources", sourcesHref
               doc.Source, sourceHref
-              fileName, None ]
+              doc.Title, None ]
         Doc = Some doc
         ContentHtml = Some contentHtml
         Related = Some related
