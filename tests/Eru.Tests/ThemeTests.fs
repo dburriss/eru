@@ -130,6 +130,26 @@ let ``matrix keeps the terminal layout defaults`` () =
     | Error e -> failwith e
 
 [<Fact>]
+let ``smiley css follows the base stylesheet and precedes custom css`` () =
+    generate (depsWith []) """{ "theme": "smiley" }""" (fun out ->
+        let css = readOut out "assets/css/style.css"
+        let base' = css.IndexOf ":root:where(.theme-dark)"
+        let smiley = css.IndexOf "/* smiley theme */"
+        Assert.True(base' >= 0 && smiley > base', "smiley css must come after the base stylesheet")
+        Assert.True(css.LastIndexOf ":root:where(.theme-dark)" > smiley)
+        Assert.Contains("#0090e3", css)
+        Assert.Contains("#ff6600", css)
+        Assert.DoesNotContain("smiley theme", readOut out "assets/css/custom.css"))
+
+[<Fact>]
+let ``smiley keeps the terminal layout defaults`` () =
+    match Themes.resolve (depsWith []) "smiley" with
+    | Ok t ->
+        Assert.Equal(Themes.BuiltIn, t.Origin)
+        Assert.Equal(Themes.resolve (depsWith []) "terminal" |> Result.map (fun x -> x.Defaults), Ok t.Defaults)
+    | Error e -> failwith e
+
+[<Fact>]
 let ``a built-in theme cannot be shadowed by an installed one`` () =
     let files = [ ".eru/themes/ledger/theme.css", "/* impostor */" ]
     generate (depsWith files) """{ "theme": "ledger" }""" (fun out ->
@@ -141,7 +161,7 @@ let ``discover lists built-in and installed themes once each`` () =
         { depsWith (fooTheme @ [ ".eru/themes/ledger/theme.css", "x" ]) with
             ListLocalDirectories = fun dir -> if dir.EndsWith ".eru/themes" then Ok [ dir + "/foo"; dir + "/ledger" ] else Ok [] }
     let found = Themes.discover d
-    Assert.Equal<string list>([ "terminal"; "ledger"; "matrix"; "foo" ], found |> List.map fst)
+    Assert.Equal<string list>([ "terminal"; "ledger"; "matrix"; "smiley"; "foo" ], found |> List.map fst)
     match found |> List.find (fun (n, _) -> n = "foo") |> snd with
     | Ok t ->
         Assert.Equal(Some "Foo", t.Description)

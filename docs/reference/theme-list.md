@@ -23,6 +23,7 @@ The screenshots show the same five files from one source, so the differences are
 | [`terminal`](#terminal) (default) | Monospace | Table | None; filters live in the query line | Orange |
 | [`ledger`](#ledger) | Sans-serif | Rows | Facets (source, extension, tag, bundle) | Indigo |
 | [`matrix`](#matrix) | Monospace | Table | None; filters live in the query line | Phosphor green |
+| [`smiley`](#smiley) | Sans-serif | Table | None; filters live in the query line | Blue and orange |
 
 ## terminal
 
@@ -66,6 +67,19 @@ relies on the glyph shapes (`●` `◐` `○`) rather than colour. It keeps the 
 | ![matrix theme, light mode](images/themes/matrix-light.png) | ![matrix theme, dark mode](images/themes/matrix-dark.png) |
 
 Settings: none (`defaultView` falls back to the Browse table). Select it with `eru config set site.theme matrix`.
+
+## smiley
+
+The terminal layout in Coolblue blue and orange. A solid blue header band (navy in dark mode) carries white navigation
+text and an orange dot beside the name. Orange marks the selected row, blue marks the query line and active filters.
+Text is sans-serif, with monospace kept for paths, tokens and keys, and pills replace square boxes. It keeps the
+terminal's table, query line and glyphs.
+
+| Light | Dark |
+|---|---|
+| ![smiley theme, light mode](images/themes/smiley-light.png) | ![smiley theme, dark mode](images/themes/smiley-dark.png) |
+
+Settings: none (`defaultView` falls back to the Browse table). Select it with `eru config set site.theme smiley`.
 
 ## Regenerating the screenshots
 

@@ -29,7 +29,7 @@ set per-mode colours under `body.theme-light` and `body.theme-dark`. Status badg
 
 ## Themes
 
-`site.theme` (`terminal` default, `ledger`, `matrix`, or an installed name) selects a bundle of CSS plus default `site`
+`site.theme` (`terminal` default, `ledger`, `matrix`, `smiley`, or an installed name) selects a bundle of CSS plus default `site`
 settings. Custom themes are folders with `theme.json` (`{ "description", "site": { ... } }`) and `theme.css` in
 `.eru/themes/<name>/` or `~/.config/eru/themes/<name>/`; built-ins win on a name clash. Your config and
 `custom.css` override the theme. `eru theme list` shows what is available. Set it with
@@ -40,7 +40,7 @@ settings. Custom themes are folders with `theme.json` (`{ "description", "site":
 | Key | Meaning |
 |---|---|
 | `site.home` | Page id written to `index.html` (default `browse`; required if `browse` is dropped). Browse then moves to `browse/index.html` |
-| `site.theme` | `terminal` (default), `ledger`, `matrix`, or an installed theme |
+| `site.theme` | `terminal` (default), `ledger`, `matrix`, `smiley`, or an installed theme |
 | `site.defaultView` | `cards` (default), `list`, `table`, `rows` |
 | `site.cards.columns` | Max columns 1-6 (default 3) |
 | `site.layout` | `nav`, `top`, `toolbar`, `left`, `right`, `footer` slots for every page |

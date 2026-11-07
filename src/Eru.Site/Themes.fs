@@ -166,10 +166,86 @@ body.theme-dark .badge-human-reviewed, body.theme-dark .badge-machine-confirmed,
 body.theme-dark .doc-stale-warning { background: var(--color-surface); color: var(--color-primary); border: 1px solid var(--color-border); }
 """
 
+let private smileyJson =
+    """{ "description": "The terminal layout in Coolblue blue and orange: a blue header, friendly sans-serif type and rounded pills." }"""
+
+// --smiley-nav is the header band, --smiley-hot the orange that marks whatever is active.
+let private smileyLight =
+    "--color-bg: #ffffff; --color-surface: #f5f7f9; --color-border: #dfe4e8; --color-text: #1a1a1a; "
+    + "--color-muted: #6b7480; --color-primary: #0090e3; --color-accent-soft: #e6f4fc; "
+    + "--color-ok: #00a651; --color-warn: #ff6600; --color-badge-bg: #e6f4fc; --color-badge-text: #006bb0; "
+    + "--color-graph-incoming: #0090e3; --color-graph-outgoing: #ff6600; --color-graph-external: #6b7480; "
+    + "--smiley-nav: #0090e3; --smiley-hot: #ff6600;"
+
+let private smileyDark =
+    "--color-bg: #0a1724; --color-surface: #112233; --color-border: #21384e; --color-text: #e9f2f9; "
+    + "--color-muted: #8ea6bb; --color-primary: #4cb8ff; --color-accent-soft: #0f2d45; "
+    + "--color-ok: #3fd47a; --color-warn: #ff8a3d; --color-badge-bg: #0f2d45; --color-badge-text: #4cb8ff; "
+    + "--color-graph-incoming: #4cb8ff; --color-graph-outgoing: #ff8a3d; --color-graph-external: #8ea6bb; "
+    + "--smiley-nav: #0a1724; --smiley-hot: #ff8a3d;"
+
+let private smileyCss =
+    "/* smiley theme */\n"
+    + rule ":root" (smileyLight
+                    + " --font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Instrument Sans\", \"Segoe UI\", Helvetica, Arial, sans-serif; --radius: 6px;")
+    + "@media (prefers-color-scheme: dark) {\n" + rule "  :root" smileyDark + "}\n"
+    + rule ":root:where(.theme-light)" smileyLight
+    + rule ":root:where(.theme-dark)" smileyDark
+    + """
+body { font-size: 14px; }
+
+/* the blue band: white text on the brand blue, navy in dark mode */
+.site-nav { background: var(--smiley-nav); border-bottom-color: var(--smiley-nav); }
+.site-nav a, .site-nav .nav-brand { color: rgba(255, 255, 255, 0.85); }
+.site-nav a:hover { color: #fff; }
+.nav-brand { font-size: 1.1rem; font-weight: 700; color: #fff; display: inline-flex; align-items: center; gap: 0.6rem; }
+.site-nav .nav-brand { color: #fff; }
+.nav-brand::before {
+  content: ""; width: 20px; height: 20px; border-radius: 50%; background: var(--smiley-hot);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+.nav-brand::after { content: none; }
+#theme-toggle { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.site-nav kbd { color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+body.theme-dark .site-nav { border-bottom-color: var(--color-border); }
+@media (prefers-color-scheme: dark) { body:not(.theme-light) .site-nav { border-bottom-color: var(--color-border); } }
+
+h3 { font-size: 0.8rem; letter-spacing: 0.06em; }
+
+/* query line */
+.q-bar { border: 2px solid var(--color-primary); border-radius: 8px; padding: 0.3rem 0.8rem; }
+.q-bar:focus-within { box-shadow: 0 0 0 3px var(--color-accent-soft); }
+.q-prompt { color: var(--color-primary); }
+.q-tok { border-radius: 999px; padding: 0 0.7rem; background: var(--color-accent-soft); border-color: var(--color-primary); color: var(--color-primary); }
+.q-key { border-radius: 999px; padding: 0.1rem 0.8rem; font-family: var(--font-family); }
+.q-key.q-on { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.q-key.q-on i { color: rgba(255, 255, 255, 0.85); }
+.q-pop { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg); box-shadow: 0 12px 30px -12px rgba(0, 40, 80, 0.35); overflow: hidden; }
+.q-opt.q-on { background: var(--color-primary); color: #fff; }
+.q-opt.q-on u, .q-opt.q-on em { color: #fff; }
+kbd { border-radius: 4px; }
+
+/* listings: orange marks the selected row and the active tag */
+.doc-table tr.q-sel td:first-child, .file-card.q-sel, .doc-list-item.q-sel, .doc-row.q-sel { box-shadow: inset 3px 0 0 var(--smiley-hot); }
+.add-filter { border-radius: 999px; font-family: var(--font-family); }
+.add-filter:hover { border-color: var(--smiley-hot); color: var(--smiley-hot); }
+.doc-table th { letter-spacing: 0.06em; }
+.badge { border-radius: 999px; }
+
+/* badges and the stale warning keep to the blue and orange palette in both modes */
+.badge-manifest, .badge-okf, .badge-human-reviewed, .badge-machine-confirmed,
+body.theme-dark .badge-manifest, body.theme-dark .badge-okf,
+body.theme-dark .badge-human-reviewed, body.theme-dark .badge-machine-confirmed {
+  background: var(--color-accent-soft); color: var(--color-badge-text); border: 1px solid var(--color-primary);
+}
+.doc-stale-warning { background: none; color: var(--color-warn); border: 1px solid var(--color-warn); }
+"""
+
 let private builtIns : (string * string * string) list =
     [ "terminal", terminalJson, ""
       "ledger", ledgerJson, ledgerCss
-      "matrix", matrixJson, matrixCss ]
+      "matrix", matrixJson, matrixCss
+      "smiley", smileyJson, smileyCss ]
 
 let builtInNames = builtIns |> List.map (fun (n, _, _) -> n)
 
