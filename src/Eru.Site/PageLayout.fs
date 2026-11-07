@@ -29,7 +29,8 @@ module ResolvedSlots =
         named s.Top || named s.Toolbar || named s.Main || widget s.Left || widget s.Right || widget s.Footer
 
 /// Where the footer points by default, on every page.
-let docsLink = LinkRef ("eru docs", "https://github.com/dburriss/eru/tree/main/docs")
+let docsLink = LinkRef ("docs", "https://github.com/dburriss/eru/tree/main/docs")
+let changelogLink = LinkRef ("changelog", "https://github.com/dburriss/eru/blob/main/CHANGELOG.md")
 
 type PageKind =
     | BrowsePage         // the browse page: query line and table, no sidebars
@@ -56,7 +57,7 @@ let baseLayout (settings: SiteSettings) (kind: PageKind) : Layout =
       Left = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "facets" ]))
       Right = if kind = BrowsePage then Some Disabled else Some (Items (widgets [ "toc" ]))
       Main = Some (Items (widgets (defaultMain kind)))
-      Footer = Some (Items [ docsLink ]) }
+      Footer = Some (Items [ docsLink; changelogLink; WidgetRef "version" ]) }
 
 let resolve (baseL: Layout) (overlays: Layout list) : ResolvedSlots =
     let l = overlays |> List.fold Layout.overlay baseL

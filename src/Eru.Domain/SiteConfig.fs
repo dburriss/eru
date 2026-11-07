@@ -174,7 +174,8 @@ module SiteVocabulary =
           "related",     mainAndSide
           "graph",       mainAndSide
           "facets",      sideOnly
-          "links",       everywhere ]
+          "links",       everywhere
+          "version",     [ Footer ] ]
 
     let isWidget (name: string) = widgets |> List.exists (fun (n, _) -> n = name)
 

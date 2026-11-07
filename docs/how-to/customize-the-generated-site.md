@@ -168,7 +168,7 @@ plain search box:
 
 ## Change the footer
 
-Every page ends with a link to the eru docs. Replace it with your own links, or remove it:
+Every page ends with centered `docs | changelog` links to eru and the eru version (for example `v0.15.1`) at the right. Replace them with your own links, or remove it:
 
 ```json
 { "site": { "layout": { "footer": [{ "label": "Handbook", "url": "https://wiki.example.com" }] } } }

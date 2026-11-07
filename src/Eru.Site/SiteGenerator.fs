@@ -25,11 +25,24 @@ type StyleOverrides = {
     CustomCssPath : string option
 }
 
+/// The running eru's version without the commit suffix, read from the entry assembly.
+let private currentEruVersion () : string =
+    System.Reflection.Assembly.GetEntryAssembly()
+    |> Option.ofObj
+    |> Option.bind (fun a ->
+        a.GetCustomAttributes(typeof<System.Reflection.AssemblyInformationalVersionAttribute>, false)
+        |> Array.tryHead
+        |> Option.map (fun x -> (x :?> System.Reflection.AssemblyInformationalVersionAttribute).InformationalVersion))
+    |> Option.map (fun v -> match v.IndexOf '+' with -1 -> v | i -> v.Substring(0, i))
+    |> Option.defaultValue ""
+
 type GenerateOptions = {
     OutputDir   : string
     OpenBrowser : bool
     Features    : SiteFeatures
     Style       : StyleOverrides
+    /// The eru version shown in the footer; empty hides it.
+    EruVersion  : string
 }
 
 module GenerateOptions =
@@ -38,6 +51,7 @@ module GenerateOptions =
         OpenBrowser = false
         Features    = { FilePages = true; Search = true; ThemeToggle = true; Graph = true }
         Style       = { PrimaryColor = None; FontFamily = None; CustomCssPath = None }
+        EruVersion  = currentEruVersion ()
     }
 
 // ── embedded assets ───────────────────────────────────────────────────────────
@@ -494,6 +508,12 @@ body.theme-dark .badge-manifest { background: #064e3b; color: #6ee7b7; }
 }
 .region-footer .widget { margin-bottom: 0; }
 .region-footer .side-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem 1.25rem; }
+/* with the version widget: links centered, version at the right edge */
+.region-footer:has(.widget-version) { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; }
+.region-footer:has(.widget-version) > :not(.widget-version) { grid-column: 2; }
+.region-footer:has(.widget-version) .side-links { justify-content: center; }
+.region-footer:has(.widget-version) .widget-version { grid-column: 3; grid-row: 1; justify-self: end; }
+.region-footer:has(.widget-version) .side-links li + li::before { content: "|"; margin-right: 1.25rem; opacity: 0.5; }
 .region-footer a { color: var(--color-muted); }
 .region-footer a:hover { color: var(--color-primary); }
 .widget-title { margin-bottom: 0.25rem; }
@@ -1636,7 +1656,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
 
     let now = deps.GetUtcNow()
     let specs = PageSpecs.resolve settings
-    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs; ShowSyncStatus = cfg.SiteShowSyncStatus }
+    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs; ShowSyncStatus = cfg.SiteShowSyncStatus; EruVersion = opts.EruVersion }
     let isLive (id: string) = env.PageLinks.ContainsKey id
 
     let sourceUrlFor (d: SiteDocument) : string option =

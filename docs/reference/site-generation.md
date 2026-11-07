@@ -153,7 +153,7 @@ footer     full-width widget band
 | `left` | Widget names, page ids, links | `facets` (none on Browse) |
 | `main` | Widget names | Depends on the page kind, below |
 | `right` | Widget names, page ids, links | `toc` (none on Browse) |
-| `footer` | Widget names, page ids, links | A link to the eru docs, on every page. `"footer": false` removes it |
+| `footer` | Widget names, page ids, links | `docs | changelog` links to eru (centered) and the eru version (right), on every page. `"footer": false` removes it |
 
 An empty slot, or one whose widgets all render nothing, leaves no gap: the page grid or band is dropped.
 
@@ -191,6 +191,7 @@ the built-in `tags` page, which shares its name with a widget, write `{ "page": 
 | `graph` | Linked-documents visualisation. Hidden until JS draws it, so it needs `related` for readers without JS | `main`, side slots |
 | `facets` | Source, extension, tag, type and bundle lists | side slots |
 | `links` | The custom `{ "label", "url" }` links from `nav` | `top`, `main`, side slots, `footer` |
+| `version` | The eru version that generated the site, such as `v0.15.1` | `footer` |
 
 Widgets that need data the page lacks render nothing (`toc` on a list page, `related` on a document with no links,
 `stale` on a fresh document). The `facets` widget is plain links everywhere; on Browse (and an override of it) the

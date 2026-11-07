@@ -365,7 +365,9 @@ let ``every page links to the eru docs in the footer by default`` () =
         for page in [ "index.html"; "tags/index.html"; "files/src/ops_restart.md.html" ] do
             let html = readOut out page
             Assert.Contains("region-footer", html)
-            Assert.Contains("""<a href="https://github.com/dburriss/eru/tree/main/docs" target="_blank" rel="noopener">eru docs</a>""", html))
+            Assert.Contains("""<a href="https://github.com/dburriss/eru/tree/main/docs" target="_blank" rel="noopener">docs</a>""", html)
+            Assert.Contains("""<a href="https://github.com/dburriss/eru/blob/main/CHANGELOG.md" target="_blank" rel="noopener">changelog</a>""", html)
+            Assert.Contains("""<span class="eru-version">v""", html))
 
 [<Fact>]
 let ``footer false removes the footer and a custom footer replaces the docs link`` () =
@@ -374,7 +376,8 @@ let ``footer false removes the footer and a custom footer replaces the docs link
     run """{ "layout": { "footer": [{ "label": "Wiki", "url": "https://wiki.example" }] } }""" (fun out ->
         let html = readOut out "index.html"
         Assert.Contains("https://wiki.example", html)
-        Assert.DoesNotContain("eru docs", html))
+        Assert.DoesNotContain("dburriss/eru", html)
+        Assert.DoesNotContain("eru-version", html))
 
 [<Fact>]
 let ``detail pages keep breadcrumbs and cli tips`` () =

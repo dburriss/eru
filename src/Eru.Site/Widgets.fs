@@ -38,6 +38,8 @@ type SiteEnv = {
     PageLinks : Map<string, string * string>   // page id -> (label, site-root-relative url)
     /// Whether listings show the sync-state glyph; the query legend follows it.
     ShowSyncStatus : bool
+    /// The eru version that generated the site, shown by the `version` footer widget. Empty hides it.
+    EruVersion : string
 }
 
 type WidgetContext = {
@@ -288,6 +290,10 @@ let private linksWidget (ctx: WidgetContext) =
             |> String.concat "\n"
         $"""<nav class="side-links"><h3>Links</h3><ul>{items}</ul></nav>"""
 
+let private versionWidget (ctx: WidgetContext) =
+    if String.IsNullOrWhiteSpace ctx.Env.EruVersion then ""
+    else $"""<span class="eru-version">v{escapeHtml ctx.Env.EruVersion}</span>"""
+
 /// Name -> renderer. Every name in SiteVocabulary.widgets has an entry.
 let renderers : Map<string, WidgetContext -> string> =
     Map.ofList [
@@ -308,6 +314,7 @@ let renderers : Map<string, WidgetContext -> string> =
         "graph",       graphWidget
         "facets",      facetsWidget
         "links",       linksWidget
+        "version",     versionWidget
     ]
 
 let private wrap (name: string) (html: string) =
