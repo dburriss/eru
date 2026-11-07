@@ -49,6 +49,10 @@ jobs:
             rid: osx-x64
             artifact: eru
             suffix: ""
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: eru
+            suffix: ""
 
     runs-on: ${{ matrix.os }}
 
