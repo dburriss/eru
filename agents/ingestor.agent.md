@@ -71,7 +71,8 @@ create a new top-level folder:
    `index.md`. It exists only as the human description used for matching.
 2. Create its `index.md` (the OKF catalog). Run `eru okf init <repo-root>` if
    `eru` is available: it creates any missing `index.md` (folder and root)
-   and never overwrites existing files. Otherwise write it by hand: a
+   and never overwrites existing files (catalogs are wrapped in
+   `<!-- eru:catalog -->` markers; keep them). Otherwise write it by hand: a
    markdown heading followed by the catalog table
    `| Concept | Type | Tags | Stale after |`. A folder `index.md` has **NO
    YAML frontmatter** — no `---` block at all. Do not copy frontmatter from
@@ -206,8 +207,10 @@ similarity yourself.
 ### 5. Update the folder's index.md
 
 Add a new row, or update the existing row (`tags`, `stale_after`) if you
-merged into an existing note. `eru okf init`/`fix` never add rows to an
-existing `index.md`, so do this by hand.
+merged into an existing note. If `eru` is available, run
+`eru okf init <repo-root> --update` to regenerate the catalog block between the
+`<!-- eru:catalog -->` markers (it keeps any prose around it). Without markers
+or without `eru`, edit the table by hand.
 
 A folder `index.md` has **NO YAML frontmatter**: just a markdown heading and
 the catalog table. If the one you are editing starts with a `---` block

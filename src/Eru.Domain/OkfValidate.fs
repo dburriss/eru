@@ -140,6 +140,30 @@ module OkfValidate =
                     // Resolves to nothing: the path climbs out of the bundle root.
                     | None -> notFound ()))
 
+    /// `missing-catalog-markers` / `stale-index` for genuine OKF catalog indexes (see `OkfIndex.classify`).
+    let private catalogWarnings (deps: Deps) (contents: Dictionary<string, string>) : Violation list =
+        let rootIsBundle =
+            match contents.TryGetValue "index.md" with
+            | true, c -> OkfIndex.isBundleRoot (Frontmatter.tryParse deps.ParseYamlBlock c)
+            | _ -> false
+        OkfIndex.catalogs deps contents
+        |> List.choose (fun catalog ->
+            let rel = OkfIndex.indexPath catalog.Dir
+            match contents.TryGetValue rel with
+            | true, content ->
+                match OkfIndex.classify rootIsBundle (catalog.Dir = "") (Frontmatter.tryParse deps.ParseYamlBlock content) catalog with
+                | Error _ -> None
+                | Ok () ->
+                    match OkfIndex.refresh content catalog with
+                    | OkfIndex.UpToDate -> None
+                    | OkfIndex.Updated _ ->
+                        Some { Path = rel; Rule = "stale-index"; Message = "catalog is out of date; run `eru okf init --update`" }
+                    | OkfIndex.Unmarked ->
+                        Some { Path = rel; Rule = "missing-catalog-markers"; Message = "no eru:catalog markers, so eru cannot keep the catalog current; run `eru okf init --update --force` to adopt it" }
+                    | OkfIndex.BadMarkers ->
+                        Some { Path = rel; Rule = "malformed-catalog-markers"; Message = "unmatched or duplicated eru:catalog markers; fix them by hand" }
+            | _ -> None)
+
     let execute (deps: Deps) (cmd: Command) : Result<ValidateResult, string> =
         match deps.ListMarkdownFiles cmd.Path with
         | Error e -> Error e
@@ -148,6 +172,7 @@ module OkfValidate =
             let violations = ResizeArray()
             let warnings = ResizeArray()
             let linkDocs = ResizeArray<string * string * string option>()
+            let contents = Dictionary<string, string>()
             let mutable totalConcepts = 0
 
             for rel in relFiles do
@@ -156,6 +181,7 @@ module OkfValidate =
                 | Error e -> violations.Add { Path = rel; Rule = "read-error"; Message = e }
                 | Ok None -> ()
                 | Ok (Some content) ->
+                    contents.[rel] <- content
                     match Frontmatter.classifyContent deps.ParseYamlBlock rel content with
                     | Frontmatter.IndexFile ->
                         let outcome = Frontmatter.tryParse deps.ParseYamlBlock content
@@ -177,6 +203,8 @@ module OkfValidate =
                             linkDocs.Add((rel, content, Frontmatter.title map))
                         | _ -> linkDocs.Add((rel, content, None))
                         if isConformant then totalConcepts <- totalConcepts + 1
+
+            warnings.AddRange(catalogWarnings deps contents)
 
             let linkProblems = checkLinks deps cmd.Path allFiles (List.ofSeq linkDocs)
             if cmd.StrictLinks then violations.AddRange linkProblems else warnings.AddRange linkProblems

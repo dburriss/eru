@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- `eru okf init <path> --update` regenerates the catalog (folder list and concept table) of existing `index.md` files, so indexes no longer go stale. Catalogs now sit between `<!-- eru:catalog -->` and `<!-- /eru:catalog -->` markers, and only that block is rewritten; prose around it is kept. `--force` (with `--update`) adopts indexes that have no markers yet: it replaces an eru-shaped table (and `## Folders` list), or appends a block. `--force` only touches genuine OKF indexes (inside a bundle whose root `index.md` has `okf_version`, index-shaped frontmatter, a folder with concepts or subfolders); foreign `index.md` files are skipped with the reason. Lone or duplicated markers are never rewritten. `eru okf fix` also refreshes marked indexes and lists unmarked ones as skipped
+- `eru okf validate` warns with `missing-catalog-markers`, `stale-index` and `malformed-catalog-markers` for catalog indexes (warnings never change the exit code)
+
 ### Changed
 
 - **Breaking:** the sync-state glyph (`●`/`◐`/`○`) and badge no longer show in site listings by default. Set `site.showSyncStatus` to `true` (or `ERU__SITE__SHOWSYNCSTATUS=true`) to show them. The `sync:` filter and an explicit `syncStatus` table column are unchanged.

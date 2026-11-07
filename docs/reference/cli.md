@@ -1051,16 +1051,24 @@ eru okf validate ./my-bundle --strict-links   # also exits 1 on broken links, im
 
 ### `eru okf init`
 
-Scaffold the OKF index files a bundle is missing. The bundle-root `index.md` is created with `okf_version` frontmatter (which makes eru detect the directory as an OKF bundle); every folder containing concepts gets a catalog `index.md` (a table of concept, type, tags, `stale_after`, plus links to subfolders) with no frontmatter. Existing files are never touched and `log.md` is never created. The same ignore rules as `validate` apply.
+Scaffold the OKF index files a bundle is missing. The bundle-root `index.md` is created with `okf_version` frontmatter (which makes eru detect the directory as an OKF bundle); every folder containing concepts gets a catalog `index.md` (a table of concept, type, tags, `stale_after`, plus links to subfolders) with no frontmatter. Existing files are left alone unless you pass `--update`, and `log.md` is never created. The same ignore rules as `validate` apply.
+
+#### Keeping catalogs current
+
+Generated catalogs sit between `<!-- eru:catalog -->` and `<!-- /eru:catalog -->`. `--update` rewrites only that block, so prose before or after it survives, and a second run changes nothing. An index without markers is skipped and listed with the reason; `eru okf validate` flags it as `missing-catalog-markers`, and flags an out-of-date block as `stale-index`.
+
+`--force` (only with `--update`) adopts unmarked indexes. If the file has an eru-shaped table (header `| Concept | Type | Tags | Stale after |`) and/or `## Folders` list, that is replaced by the marked block; otherwise a block is appended. Prose and frontmatter are never touched. `--force` only applies to genuine OKF indexes: the bundle root `index.md` must have `okf_version`, the file's frontmatter must be OKF-shaped (root: only `okf_version`; elsewhere: none), and its folder must contain concepts or subfolders. Anything else named `index.md` is skipped with the reason, and lone or duplicated markers are never rewritten. `eru okf fix` refreshes marked indexes too but never adopts unmarked ones.
 
 ```
-eru okf init <path> [--dry-run] [-o <format>]
+eru okf init <path> [--update [--force]] [--dry-run] [-o <format>]
 ```
 
 | Argument / Flag | Description |
 |---|---|
 | `<path>` | Directory to scaffold (required) |
-| `--dry-run` | Report what would be created without writing |
+| `--update` | Also regenerate the catalog of existing `index.md` files |
+| `--force` | With `--update`: adopt OKF indexes that have no markers yet |
+| `--dry-run` | Report what would be created or changed without writing |
 | `-o` / `--output` | Output format: table (default), text, json |
 
 ### `eru okf fix`

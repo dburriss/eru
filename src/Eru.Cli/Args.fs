@@ -715,12 +715,16 @@ type OkfValidateArgs =
 type OkfInitArgs =
     | [<MainCommand; ExactlyOnce>] Path of path: string
     | [<Unique>]                   Dry_Run
+    | [<Unique>]                   Update
+    | [<Unique>]                   Force
     | [<Unique; AltCommandLine("-o")>] Output of format: string
     interface IArgParserTemplate with
         member a.Usage =
             match a with
             | Path _   -> "Directory to scaffold index.md files in."
             | Dry_Run  -> "Report what would be created without writing anything."
+            | Update   -> "Also regenerate the catalog between the `eru:catalog` markers of existing index.md files."
+            | Force    -> "With --update: adopt OKF index.md files that have no markers yet (replaces the eru-shaped table, else appends a block). Foreign index.md files are never touched."
             | Output _ -> "Output format: table (default), text, json."
 
 type OkfFixArgs =

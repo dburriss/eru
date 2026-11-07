@@ -53,6 +53,7 @@
     <Compile Include="Sync.fs" />
     <Compile Include="LinkGraph.fs" />
     <Compile Include="OkfLinks.fs" />
+    <Compile Include="OkfIndex.fs" />
     <Compile Include="OkfValidate.fs" />
     <Compile Include="OkfVerify.fs" />
     <Compile Include="OkfFix.fs" />

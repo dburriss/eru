@@ -28,7 +28,11 @@ module OkfFix =
           TypeOverride: string option
           /// Ordered `okf.fixTypes` rules; the first matching pattern wins.
           FixTypes: OkfFixTypeRule list
-          DryRun: bool }
+          DryRun: bool
+          /// Regenerate the `eru:catalog` block of existing indexes (always on in `Fix` mode).
+          Update: bool
+          /// With `Update`: adopt indexes that have no markers yet (identified OKF indexes only).
+          Force: bool }
 
     type Change = { Path: string; Rule: string; Description: string; Created: bool }
 
@@ -36,17 +40,14 @@ module OkfFix =
         { Changes: Change list
           /// Problems that could not be repaired automatically.
           Manual: OkfValidate.Violation list
+          /// Existing indexes left alone, with the reason (not a failure).
+          Skipped: (string * string) list
           DryRun: bool }
 
     let private isoDate = Regex(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled)
     let private dateHeading = Regex(@"^##\s+(.+?)\s*$", RegexOptions.Compiled)
 
-    let private dirOf (rel: string) =
-        match rel.LastIndexOf '/' with
-        | -1 -> ""
-        | i -> rel.Substring(0, i)
-
-    let private parentOf (dir: string) = dirOf dir
+    let private dirOf = OkfIndex.dirOf
 
     /// Index of the closing "---" line, when `lines` starts with a frontmatter block.
     let private blockClose (lines: string[]) : int option =
@@ -91,41 +92,6 @@ module OkfFix =
                             manual.Add { Path = rel; Rule = "log-date-heading"; Message = $"date heading \"{heading}\" cannot be parsed as a date; fix it by hand" }
                             line)
         String.Join("\n", lines), List.ofSeq manual
-
-    let private cell (s: string) = s.Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ")
-
-    let private conceptRow (rel: string) (content: string) (deps: Deps) =
-        let fm =
-            match Frontmatter.tryParse deps.ParseYamlBlock content with
-            | Frontmatter.Parsed m -> m
-            | _ -> Frontmatter.empty
-        let file = PathUtil.fileName rel
-        let title = Frontmatter.title fm |> Option.defaultValue (Path.GetFileNameWithoutExtension file)
-        let typ = Frontmatter.type_ fm |> Option.defaultValue ""
-        let tags = Frontmatter.tags fm |> String.concat ", "
-        let stale =
-            match Map.tryFind "stale_after" fm with
-            | Some (Yaml.Scalar s) -> s
-            | _ -> ""
-        let href = file.Replace(" ", "%20")
-        $"| [{cell title}]({href}) | {cell typ} | {cell tags} | {cell stale} |"
-
-    let private catalogBody (dir: string) (rows: string list) (subdirs: string list) =
-        let heading = if dir = "" then "Index" else PathUtil.fileName dir
-        let sb = Text.StringBuilder()
-        sb.Append($"# {heading}\n\n") |> ignore
-        if not subdirs.IsEmpty then
-            sb.Append("## Folders\n\n") |> ignore
-            for s in subdirs do
-                let name = PathUtil.fileName s
-                let href = name.Replace(" ", "%20")
-                sb.Append($"- [{name}/]({href}/index.md)\n") |> ignore
-            sb.Append("\n") |> ignore
-        if not rows.IsEmpty then
-            sb.Append("| Concept | Type | Tags | Stale after |\n|---|---|---|---|\n") |> ignore
-            for r in rows do
-                sb.Append(r).Append("\n") |> ignore
-        sb.ToString()
 
     /// The `type` rule for `rel`: `None` when no `FixTypes` pattern matches, `Some None` when the
     /// matching rule excludes the file (`type: null`), else `Some (Some type)`.
@@ -234,32 +200,41 @@ module OkfFix =
                             current.[rel] <- updated
                         | _ -> ()
 
+            let refresh = cmd.Update || cmd.Mode = Fix
+            let allSet = HashSet<string>(allFiles)
+            let skipped = ResizeArray<string * string>()
+            let rootIsBundle =
+                match current.TryGetValue "index.md" with
+                | true, c -> OkfIndex.isBundleRoot (Frontmatter.tryParse deps.ParseYamlBlock c)
+                | _ -> false
+
             // Directories that hold concepts (plus their ancestors and the root) get a catalog index.md.
-            let concepts =
-                current.Keys
-                |> Seq.filter (fun rel -> Frontmatter.classifyContent deps.ParseYamlBlock rel current.[rel] = Frontmatter.ConceptFile)
-                |> Seq.sort
-                |> List.ofSeq
+            for catalog in OkfIndex.catalogs deps current do
+                let rel = OkfIndex.indexPath catalog.Dir
+                match current.TryGetValue rel with
+                | true, content ->
+                    if refresh then
+                        let fm = Frontmatter.tryParse deps.ParseYamlBlock content
+                        match OkfIndex.classify rootIsBundle (catalog.Dir = "") fm catalog with
+                        | Error reason -> skipped.Add((rel, OkfIndex.reasonText reason))
+                        | Ok () ->
+                            match OkfIndex.refresh content catalog with
+                            | OkfIndex.UpToDate -> ()
+                            | OkfIndex.Updated updated ->
+                                write rel updated "index-refreshed" "refreshed catalog" false
+                            | OkfIndex.BadMarkers ->
+                                skipped.Add((rel, "unmatched or duplicated eru:catalog markers; fix them by hand"))
+                            | OkfIndex.Unmarked when cmd.Force ->
+                                let migrated = OkfIndex.migrate content catalog
+                                if migrated <> content then
+                                    write rel migrated "index-migrated" "added eru:catalog markers and refreshed catalog" false
+                            | OkfIndex.Unmarked ->
+                                skipped.Add((rel, "no eru:catalog markers (use `eru okf init --update --force` to adopt)"))
+                | _ ->
+                    if allSet.Contains rel then
+                        // An ignored index.md: never overwritten.
+                        if refresh then skipped.Add((rel, OkfIndex.reasonText OkfIndex.IgnoredPath))
+                    else
+                        write rel (OkfIndex.newIndexContent okfVersion catalog) "missing-index" "created catalog index.md" true
 
-            let dirs = HashSet<string>([ "" ])
-            for rel in concepts do
-                let mutable d = dirOf rel
-                while d <> "" && dirs.Add d do
-                    d <- parentOf d
-
-            let hasIndex dir = current.ContainsKey(if dir = "" then "index.md" else dir + "/index.md")
-
-            for dir in dirs |> Seq.sort |> List.ofSeq do
-                if not (hasIndex dir) then
-                    let rel = if dir = "" then "index.md" else dir + "/index.md"
-                    let rows =
-                        concepts
-                        |> List.filter (fun c -> dirOf c = dir)
-                        |> List.map (fun c -> conceptRow c current.[c] deps)
-                    let subdirs = dirs |> Seq.filter (fun d -> d <> "" && parentOf d = dir) |> Seq.sort |> List.ofSeq
-                    let body = catalogBody dir rows subdirs
-                    let content =
-                        if dir = "" then $"---\nokf_version: \"{okfVersion}\"\n---\n{body}" else body
-                    write rel content "missing-index" "created catalog index.md" true
-
-            Ok { Changes = List.ofSeq changes; Manual = List.ofSeq manual; DryRun = cmd.DryRun }
+            Ok { Changes = List.ofSeq changes; Manual = List.ofSeq manual; Skipped = List.ofSeq skipped; DryRun = cmd.DryRun }

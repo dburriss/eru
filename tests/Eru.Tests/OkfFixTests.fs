@@ -52,7 +52,7 @@ let private runWith mode dryRun (files: (string * string) list) =
     let writes = Dictionary<string, string>()
     let deps = makeDeps (Map.ofList files) writes
     let cmd : OkfFix.Command =
-        { Path = "/bundle"; IgnorePatterns = []; Mode = mode; DefaultType = "reference"; TypeOverride = None; FixTypes = []; DryRun = dryRun }
+        { Path = "/bundle"; IgnorePatterns = []; Mode = mode; DefaultType = "reference"; TypeOverride = None; FixTypes = []; DryRun = dryRun; Update = false; Force = false }
     match OkfFix.execute deps cmd with
     | Ok r -> r, writes
     | Error e -> failwith e
@@ -154,7 +154,7 @@ let ``readme and ignored paths are untouched`` () =
     let writes = Dictionary<string, string>()
     let deps = makeDeps (Map.ofList [ "index.md", rootIndex; "README.md", "# hi"; "inbox/x.md", "raw" ]) writes
     let cmd : OkfFix.Command =
-        { Path = "/bundle"; IgnorePatterns = [ "inbox/**" ]; Mode = OkfFix.Fix; DefaultType = "reference"; TypeOverride = None; FixTypes = []; DryRun = false }
+        { Path = "/bundle"; IgnorePatterns = [ "inbox/**" ]; Mode = OkfFix.Fix; DefaultType = "reference"; TypeOverride = None; FixTypes = []; DryRun = false; Update = false; Force = false }
     OkfFix.execute deps cmd |> ignore
     Assert.Empty(writes)
 
@@ -228,7 +228,7 @@ let private fixWith (fixTypes: OkfFixTypeRule list) (typeOverride: string option
     let deps = makeDeps (Map.ofList files) writes
     let cmd : OkfFix.Command =
         { Path = "/bundle"; IgnorePatterns = []; Mode = OkfFix.Fix; DefaultType = "reference"
-          TypeOverride = typeOverride; FixTypes = fixTypes; DryRun = false }
+          TypeOverride = typeOverride; FixTypes = fixTypes; DryRun = false; Update = false; Force = false }
     match OkfFix.execute deps cmd with
     | Ok r -> r, writes
     | Error e -> failwith e
@@ -285,3 +285,141 @@ let ``flag does not type an unmatched README or override a null rule`` () =
     let _, writes = fixWith [ rule "docs/**" None ] (Some "note") files
     Assert.False(writes.ContainsKey "README.md")
     Assert.False(writes.ContainsKey "docs/a.md")
+
+
+// ---- catalog refresh (`init --update [--force]`) ----
+
+let private initWith update force dryRun (files: (string * string) list) =
+    let writes = Dictionary<string, string>()
+    let deps = makeDeps (Map.ofList files) writes
+    let cmd : OkfFix.Command =
+        { Path = "/bundle"; IgnorePatterns = []; Mode = OkfFix.CreateOnly; DefaultType = "reference"; TypeOverride = None
+          FixTypes = []; DryRun = dryRun; Update = update; Force = force }
+    match OkfFix.execute deps cmd with
+    | Ok r -> r, writes
+    | Error e -> failwith e
+
+let private markedRoot (rows: string) =
+    $"---\nokf_version: \"0.2\"\n---\n# Index\n\nIntro prose.\n\n<!-- eru:catalog -->\n\n| Concept | Type | Tags | Stale after |\n|---|---|---|---|\n{rows}\n<!-- /eru:catalog -->\n\nOutro prose.\n"
+
+[<Fact>]
+let ``new indexes carry catalog markers`` () =
+    let _, writes = initWith false false false [ "a.md", concept ]
+    Assert.Contains("<!-- eru:catalog -->", writes.["index.md"])
+    Assert.Contains("<!-- /eru:catalog -->", writes.["index.md"])
+    Assert.Contains("| [a](a.md) |", writes.["index.md"])
+
+[<Fact>]
+let ``init without update never touches an existing index`` () =
+    let r, writes = initWith false false false [ "index.md", markedRoot ""; "a.md", concept ]
+    Assert.Empty(writes)
+    Assert.Empty(r.Skipped)
+
+[<Fact>]
+let ``update regenerates only the marked block`` () =
+    let r, writes = initWith true false false [ "index.md", markedRoot "| [old](old.md) | x | | |\n"; "a.md", concept ]
+    let updated = writes.["index.md"]
+    Assert.Contains(r.Changes, fun c -> c.Rule = "index-refreshed")
+    Assert.StartsWith("---\nokf_version: \"0.2\"\n---\n# Index\n\nIntro prose.\n\n<!-- eru:catalog -->", updated)
+    Assert.EndsWith("<!-- /eru:catalog -->\n\nOutro prose.\n", updated)
+    Assert.Contains("[a](a.md)", updated)
+    Assert.DoesNotContain("old.md", updated)
+
+[<Fact>]
+let ``update is idempotent`` () =
+    let _, first = initWith true false false [ "index.md", markedRoot ""; "a.md", concept ]
+    let r, second = initWith true false false [ "index.md", first.["index.md"]; "a.md", concept ]
+    Assert.Empty(second)
+    Assert.Empty(r.Changes)
+
+[<Fact>]
+let ``update skips an unmarked index and says why`` () =
+    let r, writes = initWith true false false [ "index.md", rootIndex; "a.md", concept ]
+    Assert.Empty(writes)
+    Assert.Contains(r.Skipped, fun (p, reason) -> p = "index.md" && reason.Contains "no eru:catalog markers")
+
+[<Fact>]
+let ``force replaces an eru-shaped table and keeps prose`` () =
+    let index =
+        "---\nokf_version: \"0.2\"\n---\n# Index\n\nIntro.\n\n| Concept | Type | Tags | Stale after |\n|---|---|---|---|\n| [old](old.md) | x | | |\n\nOutro.\n"
+    let r, writes = initWith true true false [ "index.md", index; "a.md", concept ]
+    let updated = writes.["index.md"]
+    Assert.Contains(r.Changes, fun c -> c.Rule = "index-migrated")
+    Assert.Contains("Intro.", updated)
+    Assert.Contains("Outro.", updated)
+    Assert.Contains("<!-- eru:catalog -->", updated)
+    Assert.DoesNotContain("old.md", updated)
+
+[<Fact>]
+let ``force appends a block and leaves an unrelated table alone`` () =
+    let index = "---\nokf_version: \"0.2\"\n---\n# Index\n\n| Name | Owner |\n|---|---|\n| x | y |\n"
+    let _, writes = initWith true true false [ "index.md", index; "a.md", concept ]
+    let updated = writes.["index.md"]
+    Assert.Contains("| Name | Owner |", updated)
+    Assert.EndsWith("<!-- /eru:catalog -->\n", updated)
+    Assert.Contains("[a](a.md)", updated)
+
+[<Fact>]
+let ``force is idempotent`` () =
+    let _, first = initWith true true false [ "index.md", rootIndex; "a.md", concept ]
+    let r, second = initWith true true false [ "index.md", first.["index.md"]; "a.md", concept ]
+    Assert.Empty(second)
+    Assert.Empty(r.Changes)
+
+[<Fact>]
+let ``force never touches a foreign index with its own frontmatter`` () =
+    let foreign = "---\nlayout: page\ntitle: Docs\n---\n# Docs\n"
+    let files = [ "index.md", rootIndex; "t/index.md", foreign; "t/a.md", concept ]
+    let r, writes = initWith true true false files
+    Assert.False(writes.ContainsKey "t/index.md")
+    Assert.Contains(r.Skipped, fun (p, reason) -> p = "t/index.md" && reason.Contains "frontmatter")
+
+[<Fact>]
+let ``force never touches indexes outside a bundle`` () =
+    // The root index.md has no okf_version, so the directory is not an OKF bundle.
+    let files = [ "index.md", "# Site\n"; "t/index.md", "# T\n"; "t/a.md", concept ]
+    let r, writes = initWith true true false files
+    Assert.False(writes.ContainsKey "index.md")
+    Assert.False(writes.ContainsKey "t/index.md")
+    Assert.Contains(r.Skipped, fun (p, reason) -> p = "t/index.md" && reason.Contains "outside a bundle")
+
+[<Fact>]
+let ``force never touches an index in a folder with nothing to catalog`` () =
+    // README-only folders are not catalogued, so their index.md is not ours.
+    let files = [ "index.md", rootIndex; "a.md", concept; "docs/index.md", "# Docs\n"; "docs/README.md", "# r" ]
+    let _, writes = initWith true true false files
+    Assert.False(writes.ContainsKey "docs/index.md")
+
+[<Fact>]
+let ``malformed markers are skipped even with force`` () =
+    let index = "---\nokf_version: \"0.2\"\n---\n# Index\n\n<!-- eru:catalog -->\nno close\n"
+    let r, writes = initWith true true false [ "index.md", index; "a.md", concept ]
+    Assert.Empty(writes)
+    Assert.Contains(r.Skipped, fun (_, reason) -> reason.Contains "markers")
+
+[<Fact>]
+let ``dry-run update writes nothing but reports the change`` () =
+    let r, writes = initWith true true true [ "index.md", rootIndex; "a.md", concept ]
+    Assert.Empty(writes)
+    Assert.Contains(r.Changes, fun c -> c.Rule = "index-migrated")
+
+[<Fact>]
+let ``fix refreshes marked indexes and hints for unmarked ones`` () =
+    let r, writes = fix [ "index.md", markedRoot ""; "t/index.md", "# T\n"; "t/a.md", concept ]
+    Assert.Contains("[t/](t/index.md)", writes.["index.md"])
+    Assert.False(writes.ContainsKey "t/index.md")
+    Assert.Contains(r.Skipped, fun (p, _) -> p = "t/index.md")
+
+[<Fact>]
+let ``validate warns about unmarked and stale catalog indexes`` () =
+    let warnFor files =
+        let deps = makeDeps (Map.ofList files) (Dictionary())
+        match OkfValidate.execute deps { Path = "/bundle"; IgnorePatterns = []; StrictLinks = false } with
+        | Ok r -> r.Warnings |> List.map (fun w -> w.Rule)
+        | Error e -> failwith e
+    Assert.Contains("missing-catalog-markers", warnFor [ "index.md", rootIndex; "a.md", concept ])
+    Assert.Contains("stale-index", warnFor [ "index.md", markedRoot ""; "a.md", concept ])
+    let _, adopted = initWith true true false [ "index.md", rootIndex; "a.md", concept ]
+    let clean = warnFor [ "index.md", adopted.["index.md"]; "a.md", concept ]
+    Assert.DoesNotContain("stale-index", clean)
+    Assert.DoesNotContain("missing-catalog-markers", clean)

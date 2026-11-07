@@ -449,11 +449,11 @@ Walks `<path>` and reports OKF §11 conformance violations (missing/malformed fr
 ## `eru okf init` / `eru okf fix`
 
 ```
-eru okf init <path> [--dry-run] [-o <format>]
+eru okf init <path> [--update [--force]] [--dry-run] [-o <format>]
 eru okf fix  <path> [--dry-run] [--default-type <type>] [-o <format>]
 ```
 
-`init` creates missing `index.md` files (root gets `okf_version`, each folder with concepts gets a catalog table); it never overwrites and never creates `log.md`. `fix` also repairs index frontmatter, missing concept frontmatter/`type` (default `reference`) and non-ISO `log.md` date headings so `eru okf validate` passes. Both write by default; `--dry-run` previews. `fix` also strips a malformed `verified` (placeholder scalars, entries missing `by`/`at`), keeping valid entries. `fix` exits 1 if anything needs manual attention (invalid concept YAML, unparseable log dates).
+`init` creates missing `index.md` files (root gets `okf_version`, each folder with concepts gets a catalog table); it never creates `log.md`. Existing indexes are left alone unless `--update`, which regenerates only the block between `<!-- eru:catalog -->` markers (prose is kept). `--update --force` adopts indexes without markers, but only genuine OKF indexes (inside a bundle, OKF-shaped frontmatter); other `index.md` files are skipped with a reason. `fix` refreshes marked indexes but never adopts unmarked ones. `fix` also repairs index frontmatter, missing concept frontmatter/`type` (default `reference`) and non-ISO `log.md` date headings so `eru okf validate` passes. Both write by default; `--dry-run` previews. `fix` also strips a malformed `verified` (placeholder scalars, entries missing `by`/`at`), keeping valid entries. `fix` exits 1 if anything needs manual attention (invalid concept YAML, unparseable log dates).
 
 ---
 
