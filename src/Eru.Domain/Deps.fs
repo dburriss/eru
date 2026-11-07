@@ -55,6 +55,12 @@ type Deps = {
     ListMarkdownFiles        : string -> Result<string list, string>
     ExtractLinks             : string -> ExtractedLink list
     GetRemoteHeadSha         : string -> string option -> Result<string, string>
+    // True when the path is an existing directory that is not a git repository (a "folder source").
+    IsPlainFolder            : string -> bool
+    // root -> bundle path ("" = root) -> okf ignore patterns -> (root-relative '/' path, "mtimeTicks:size") for every
+    // .md file under the bundle. Stat-only: never reads file content. Skips dot-directories and prunes directories
+    // matching the ignore patterns.
+    ScanLocalFolder          : string -> string -> string list -> Result<(string * string) list, string>
     DirectoryExists          : string -> bool
     GetUtcNow                : unit   -> System.DateTimeOffset
     ListLocalFiles           : string -> Result<string list, string>   // non-recursive; full paths, files only

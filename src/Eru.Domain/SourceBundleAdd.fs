@@ -89,8 +89,12 @@ module SourceBundleAdd =
             | None -> Ok None
             | Some raw -> parseKind raw |> Result.map Some
 
+        let isFolder = src.Url |> Option.exists deps.IsPlainFolder
+
         match explicitKind with
         | Error e -> Error e
+        | Ok (Some Manifest) when isFolder ->
+            Error $"source '{cmd.SourceName}' is a local folder: only okf bundles are supported."
         | Ok explicitKind ->
 
         let kind =
@@ -98,6 +102,7 @@ module SourceBundleAdd =
             | Some k -> k
             | None ->
                 match src.Url with
+                | Some _ when isFolder -> Okf
                 | Some url -> detectKind deps url src.Branch path
                 | None     -> Manifest
 
@@ -135,6 +140,7 @@ module SourceBundleAdd =
             | Error e -> Error e
             | Ok () ->
                 match kind, src.Url with
+                | Okf, Some _ when isFolder -> ()   // indexed in place by the next `eru sync`
                 | Okf, Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
                     let envCfg = match deps.ReadEnvConfig () with Ok e -> e | Error _ -> None
@@ -144,4 +150,5 @@ module SourceBundleAdd =
                         |> Option.defaultWith (fun () -> Config.resolveOkfIgnorePatternsWith envCfg globalCfg localCfg)
                     discoverAndMergeBundle deps ignorePatterns cmd.SourceName url branch updatedSrc.Bundles newBundle
                 | _ -> ()
-                Ok $"Added bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'.{warning}"
+                let folderNote = if isFolder then "\nRun 'eru sync' to index the folder." else ""
+                Ok $"Added bundle '{path}' (kind: {kindLabel kind}) to source '{cmd.SourceName}'.{warning}{folderNote}"

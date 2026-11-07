@@ -1649,11 +1649,18 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
             | Ok (Some idx) ->
                 idx.Entries
                 |> Map.tryFind doc.RemotePath
-                |> Option.bind (fun e -> e.CacheRelPath)
-                |> Option.bind (fun rel ->
-                    match deps.ReadCachedSourceContent doc.Source rel with
-                    | Ok (Some content) -> Some content
-                    | _ -> None)
+                |> Option.bind (fun e ->
+                    match e.CacheRelPath, e.SourcePath with
+                    | Some rel, _ ->
+                        match deps.ReadCachedSourceContent doc.Source rel with
+                        | Ok (Some content) -> Some content
+                        | _ -> None
+                    | None, Some p ->
+                        // folder source: read in place
+                        match deps.ReadLocalFile p with
+                        | Ok (Some content) -> Some content
+                        | _ -> None
+                    | None, None -> None)
             | _ -> None
         | IndexOnly -> None
 
@@ -1665,7 +1672,10 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     let sourceUrlFor (d: SiteDocument) : string option =
         cfg.Sources
         |> List.tryFind (fun s -> s.Name = d.Source)
-        |> Option.bind (fun s -> s.Url |> Option.bind (fun u -> Views.sourceFileUrl u s.Branch d.RemotePath))
+        |> Option.bind (fun s ->
+            s.Url
+            |> Option.filter (fun u -> not (deps.IsPlainFolder u))   // a local folder has no web URL
+            |> Option.bind (fun u -> Views.sourceFileUrl u s.Branch d.RemotePath))
 
     let viewContext (browse: bool) (prefix: string) (def: PageDef option) : Views.ViewContext =
         { Prefix = prefix; TagsLive = isLive "tags"; Open = PageLayout.openTarget settings def; SourceUrl = sourceUrlFor

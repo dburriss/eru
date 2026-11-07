@@ -13,10 +13,11 @@ let private fileExtension (remotePath: string) = Path.GetExtension remotePath
 let private isGlob (path: string) = path.Contains('*') || path.Contains('?') || path.Contains('[')
 
 let private determineStatus (entry: IndexEntry) : FileStatus =
-    match entry.LocalPath, entry.CacheRelPath with
-    | Some _, _  -> Pulled
-    | _, Some _  -> Cached
-    | None, None -> IndexOnly
+    match entry.LocalPath, entry.CacheRelPath, entry.SourcePath with
+    | Some _, _, _  -> Pulled
+    | _, Some _, _  -> Cached
+    | _, _, Some _  -> Cached   // folder source, read in place
+    | None, None, None -> IndexOnly
 
 let private pageUrl (sourceName: string) (remotePath: string) (status: FileStatus) (ext: string) : string option =
     match status, ext with
@@ -53,13 +54,18 @@ let buildModel (deps: Deps) (cfg: EffectiveConfig) : Result<SiteModel, string> =
                         let status = determineStatus entry
                         let ext    = fileExtension remotePath
                         let body =
-                            match status, entry.CacheRelPath with
-                            | (Pulled | Cached), Some relPath ->
+                            let preview (content: string) =
+                                let trimmed = content.TrimStart()
+                                let len = min 500 trimmed.Length
+                                Some trimmed.[..len - 1]
+                            match status, entry.CacheRelPath, entry.SourcePath with
+                            | (Pulled | Cached), Some relPath, _ ->
                                 match deps.ReadCachedSourceContent src.Name relPath with
-                                | Ok (Some content) ->
-                                    let trimmed = content.TrimStart()
-                                    let len = min 500 trimmed.Length
-                                    Some trimmed.[..len - 1]
+                                | Ok (Some content) -> preview content
+                                | _ -> None
+                            | (Pulled | Cached), None, Some p ->
+                                match deps.ReadLocalFile p with
+                                | Ok (Some content) -> preview content
                                 | _ -> None
                             | _ -> None
                         {

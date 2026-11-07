@@ -69,6 +69,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists        = fun _ -> true
         GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
         ListLocalFiles   = fun _ -> Ok []
@@ -324,6 +326,8 @@ let private makePopulateDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = getRemoteHeadSha
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists        = fun _ -> true
         GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
         ListLocalFiles   = fun _ -> Ok []
@@ -694,3 +698,120 @@ let ``populateIndex walks a nested Okf bundle only once when a root bundle alrea
     | Some idx ->
         Assert.True(Map.containsKey "top.md" idx.Entries)
         Assert.True(Map.containsKey "sub/inner.md" idx.Entries)
+
+// ── Folder sources: a plain local directory, read in place ─────────────────────
+
+type private FakeFolder() =
+    member val Files : Map<string, string * string> = Map.empty with get, set   // path -> (fingerprint, content)
+    member val ScanError : string option = None with get, set
+    member val Reads : string list = [] with get, set
+    member val Cached : int = 0 with get, set
+
+let private folderDeps (folder: FakeFolder) (store: PersistentIndexStore) : Deps =
+    let g = makeGlobal [ makeSourceWithBundles "brain" "/notes/brain" [ { Path = ""; Kind = Okf } ] ]
+    let fail _ = Error "git must not be used for a folder source"
+    let baseDeps = makePopulateDeps (Some g) (fun _ _ _ -> fail ()) (fun _ _ _ -> fail ()) (fun _ _ -> fail ()) store
+    { baseDeps with
+        IsPlainFolder = fun p -> p = "/notes/brain"
+        ScanLocalFolder = fun _ _ _ ->
+            match folder.ScanError with
+            | Some e -> Error e
+            | None -> Ok (folder.Files |> Map.toList |> List.map (fun (p, (fp, _)) -> p, fp))
+        ReadLocalFile = fun path ->
+            folder.Reads <- path :: folder.Reads
+            let rel = path.Substring("/notes/brain/".Length)
+            match Map.tryFind rel folder.Files with
+            | Some (_, content) -> Ok (Some content)
+            | None -> Ok None
+        CacheSourceContent = fun _ _ _ -> folder.Cached <- folder.Cached + 1; Ok "files/x" }
+
+let private note title = $"---\ntype: note\ntitle: {title}\n---\nbody"
+
+[<Fact>]
+let ``folder source is indexed in place, with no cache copy`` () =
+    let folder = FakeFolder()
+    folder.Files <- Map.ofList [ "a.md", ("1:10", note "A"); "sub/b.md", ("1:20", note "B") ]
+    let store = PersistentIndexStore()
+    let deps = folderDeps folder store
+    Sync.populateIndex deps |> ignore
+    let idx = (store.TryGet "brain").Value
+    Assert.Equal(2, idx.Entries.Count)
+    let a = idx.Entries["a.md"]
+    Assert.Equal(Some "/notes/brain/a.md", a.SourcePath)
+    Assert.Equal(Some "1:10", a.Fingerprint)
+    Assert.Equal(Some "A", a.Title)
+    Assert.True(a.CacheRelPath.IsNone)
+    Assert.Equal(0, folder.Cached)
+
+[<Fact>]
+let ``folder source re-sync reads only files whose fingerprint changed`` () =
+    let folder = FakeFolder()
+    folder.Files <- Map.ofList [ "a.md", ("1:10", note "A"); "b.md", ("1:20", note "B") ]
+    let store = PersistentIndexStore()
+    let deps = folderDeps folder store
+    Sync.populateIndex deps |> ignore
+    Assert.Equal(2, folder.Reads.Length)
+
+    folder.Reads <- []
+    Sync.populateIndex deps |> ignore
+    Assert.Empty(folder.Reads)
+
+    folder.Files <- folder.Files |> Map.add "a.md" ("2:11", note "A2")
+    Sync.populateIndex deps |> ignore
+    Assert.Equal<string list>([ "/notes/brain/a.md" ], folder.Reads)
+    Assert.Equal(Some "A2", (store.TryGet "brain").Value.Entries["a.md"].Title)
+
+[<Fact>]
+let ``folder source drops entries for files that were removed`` () =
+    let folder = FakeFolder()
+    folder.Files <- Map.ofList [ "a.md", ("1:10", note "A"); "b.md", ("1:20", note "B") ]
+    let store = PersistentIndexStore()
+    let deps = folderDeps folder store
+    Sync.populateIndex deps |> ignore
+    folder.Files <- folder.Files |> Map.remove "b.md"
+    Sync.populateIndex deps |> ignore
+    let idx = (store.TryGet "brain").Value
+    Assert.True(Map.containsKey "a.md" idx.Entries)
+    Assert.False(Map.containsKey "b.md" idx.Entries)
+
+[<Fact>]
+let ``folder source keeps its index and reports an error when the scan fails`` () =
+    let folder = FakeFolder()
+    folder.Files <- Map.ofList [ "a.md", ("1:10", note "A") ]
+    let store = PersistentIndexStore()
+    let deps = folderDeps folder store
+    Sync.populateIndex deps |> ignore
+    folder.ScanError <- Some "folder not found"
+    let errors = Sync.populateIndex deps
+    Assert.True(Map.containsKey "a.md" (store.TryGet "brain").Value.Entries)
+    Assert.Contains(errors, fun e -> e.Contains "folder not found")
+
+[<Fact>]
+let ``folder source does not publish untyped concept files`` () =
+    let folder = FakeFolder()
+    folder.Files <- Map.ofList [ "typed.md", ("1:1", note "T"); "untyped.md", ("1:2", "just text") ]
+    let store = PersistentIndexStore()
+    Sync.populateIndex (folderDeps folder store) |> ignore
+    let idx = (store.TryGet "brain").Value
+    Assert.True(Map.containsKey "typed.md" idx.Entries)
+    Assert.False(Map.containsKey "untyped.md" idx.Entries)
+
+[<Fact>]
+let ``FolderAdapter scan is stat-only, md-only, skips dot-dirs and ignored directories`` () =
+    let root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "eru-folder-" + System.Guid.NewGuid().ToString("N"))
+    try
+        let write (rel: string) =
+            let p = System.IO.Path.Combine(root, rel)
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName p) |> ignore
+            System.IO.File.WriteAllText(p, "x")
+        write "a.md"; write "notes/b.md"; write "notes/c.txt"; write ".hidden/d.md"; write "node_modules/e.md"; write "inbox/f.md"; write "other/g.md"
+        let all = Eru.Adapters.FolderAdapter.scan root "" Config.defaultOkfIgnorePatterns |> Result.defaultValue []
+        Assert.Equal<string list>([ "a.md"; "notes/b.md"; "other/g.md" ], all |> List.map fst)
+        let sub = Eru.Adapters.FolderAdapter.scan root "notes" Config.defaultOkfIgnorePatterns |> Result.defaultValue []
+        Assert.Equal<string list>([ "notes/b.md" ], sub |> List.map fst)
+        Assert.True((Eru.Adapters.FolderAdapter.scan root "missing" []) |> Result.isError)
+        Assert.True(Eru.Adapters.FolderAdapter.isPlainFolder root)
+        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(root, ".git")) |> ignore
+        Assert.False(Eru.Adapters.FolderAdapter.isPlainFolder root)
+    finally
+        try System.IO.Directory.Delete(root, true) with _ -> ()

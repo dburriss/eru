@@ -45,6 +45,15 @@ module BundleDiscovery =
               StaleAfter   = Frontmatter.staleAfter fm
               Resource     = Frontmatter.resource fm }
 
+    // OKF concepts are typed files: an untyped concept file is not published (None). Index, log and
+    // README files are kept as they are.
+    let discoverFile (parseYaml: Yaml.Parse) (remotePath: string) (content: string) : DiscoveredFile option =
+        let d = toDiscoveredFile parseYaml remotePath content
+        match Frontmatter.classifyContent parseYaml remotePath content with
+        | Frontmatter.ConceptFile ->
+            if d.Type |> Option.exists (fun t -> not (System.String.IsNullOrWhiteSpace t)) then Some d else None
+        | _ -> Some d
+
     // Walks one Okf-kind bundle: lists its .md files, fetches them all in a single
     // batched call, and classifies/extracts frontmatter for each.
     let walkBundle
@@ -70,11 +79,6 @@ module BundleDiscovery =
                 match deps.FetchRemoteContent sourceUrl branch candidatePaths with
                 | Error e -> Error e
                 | Ok files ->
-                    // OKF concepts are typed files: untyped concept files are not published.
                     files
-                    |> List.map (fun (remotePath, content) -> toDiscoveredFile deps.ParseYamlBlock remotePath content)
-                    |> List.filter (fun d ->
-                        match Frontmatter.classifyContent deps.ParseYamlBlock d.RemotePath d.Content with
-                        | Frontmatter.ConceptFile -> d.Type |> Option.exists (fun t -> not (System.String.IsNullOrWhiteSpace t))
-                        | _ -> true)
+                    |> List.choose (fun (remotePath, content) -> discoverFile deps.ParseYamlBlock remotePath content)
                     |> Ok

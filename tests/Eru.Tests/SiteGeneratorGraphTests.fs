@@ -16,7 +16,7 @@ let private makeGlobal sources : GlobalConfig =
 let private makeIndexEntry cacheRelPath title : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = Some "unused"; CacheRelPath = cacheRelPath
       ContentHash = None; Type = None; Title = title; OkfStatus = None
-      Generated = None; Verified = []; StaleAfter = None; Resource = None }
+      Generated = None; Verified = []; StaleAfter = None; Resource = None; SourcePath = None; Fingerprint = None }
 
 // Fixed stand-in for the real Markdig-based adapter, same shape as LinkGraphTests.
 let private fakeExtractLinks (content: string) : ExtractedLink list =
@@ -58,6 +58,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fakeExtractLinks
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists        = fun _ -> true
         GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
         ListLocalFiles   = fun _ -> Ok []

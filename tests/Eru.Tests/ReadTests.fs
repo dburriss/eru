@@ -50,6 +50,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists        = fun _ -> true
         GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
         ListLocalFiles   = fun _ -> Ok []
@@ -163,3 +165,21 @@ let ``path containing a colon is split on the first colon only`` () =
     match Read.execute deps "docs:a:b.md" with
     | Ok d -> Assert.Equal("a:b.md", d.RemotePath)
     | Error e -> Assert.Fail e
+
+[<Fact>]
+let ``reads a folder source file in place from its source path`` () =
+    let entry = { IndexEntry.empty with SourcePath = Some "/notes/brain/a/guide.md" }
+    let folderDocs = source "brain" (Some "/notes/brain")
+    let deps =
+        { makeDeps [folderDocs] [] (Map.ofList ["brain", index ["a/guide.md", entry]]) Map.empty
+              (Map.ofList ["/notes/brain/a/guide.md", "# in place"]) noRemote
+            with IsPlainFolder = fun p -> p = "/notes/brain" }
+    Assert.Equal("# in place", contentOf (Read.execute deps "brain:a/guide.md"))
+
+[<Fact>]
+let ``a folder source file that is gone is not fetched from git`` () =
+    let folderDocs = source "brain" (Some "/notes/brain")
+    let deps =
+        { makeDeps [folderDocs] [] Map.empty Map.empty Map.empty (fun _ -> Error "git must not be used")
+            with IsPlainFolder = fun p -> p = "/notes/brain" }
+    assertErrorContains "local folder" (Read.execute deps "brain:gone.md")

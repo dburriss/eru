@@ -48,7 +48,7 @@ let private makeSource name : SourceConfig =
 let makeEntry (cacheRelPath: string option) (title: string) : IndexEntry =
     { Contributions = Map.empty; Tags = []; Description = None; LocalPath = None; CacheRelPath = cacheRelPath
       ContentHash = None; Type = None; Title = Some title; OkfStatus = None
-      Generated = None; Verified = []; StaleAfter = None; Resource = None }
+      Generated = None; Verified = []; StaleAfter = None; Resource = None; SourcePath = None; Fingerprint = None }
 
 let private fakeExtractLinks (content: string) : ExtractedLink list =
     System.Text.RegularExpressions.Regex.Matches(content, @"\[([^\]]*)\]\(([^)]*)\)")
@@ -92,6 +92,8 @@ let makeDeps (sourceIndex: Map<string, IndexEntry>) (content: Map<string, string
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fakeExtractLinks
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists         = fun _ -> true
         GetUtcNow               = fun () -> System.DateTimeOffset.UtcNow
         ListLocalFiles          = fun _ -> Ok []

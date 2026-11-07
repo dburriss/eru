@@ -71,6 +71,8 @@ module Sync =
         Verified     = []
         StaleAfter   = None
         Resource     = None
+        SourcePath   = None
+        Fingerprint  = None
     }
 
     let private emptySourceIndex = {
@@ -131,6 +133,69 @@ module Sync =
                             |> List.filter (fun f -> Bundle.mostSpecificManifestBundle manifestBundles f.Path = Some b)
                             |> List.map (fun f -> f.Path, b.Path, toContribution f))
 
+    // Folder source (a plain local directory, read in place): scans the okf bundles stat-only and re-reads
+    // only files whose "mtimeTicks:size" fingerprint changed. Entries point at the real file (SourcePath);
+    // nothing is copied into the cache, so cache prune/clear can never touch the folder. Entries for files the
+    // scan no longer returns (deleted, renamed, newly ignored) are dropped. A failed scan (folder missing or
+    // unmounted) keeps the old index and reports an error.
+    let private syncFolderSource
+        (deps: Deps) (ignorePatterns: string list) (src: SourceConfig) (root: string)
+        (okfBundles: Bundle list) (errors: System.Collections.Generic.List<string>) : unit =
+        let existingIdx = readIndexOrEmpty deps src.Name
+        // A bundle nested under one already scanned is covered by the outer scan.
+        let outermost =
+            okfBundles
+            |> List.sortBy (fun b -> b.Path.Length)
+            |> List.fold (fun (kept: Bundle list) b ->
+                if kept |> List.exists (fun k -> Bundle.covers k b.Path) then kept else kept @ [ b ]) []
+        let scans = outermost |> List.map (fun b -> b, deps.ScanLocalFolder root b.Path ignorePatterns)
+        let failures = scans |> List.choose (fun (b, r) -> match r with Error e -> Some (b, e) | Ok _ -> None)
+        if not failures.IsEmpty then
+            for (b, e) in failures do
+                errors.Add($"source '{src.Name}': scanning folder bundle '{b.Path}' failed: {e}")
+        else
+            let scanned =
+                scans
+                |> List.collect (fun (_, r) -> match r with Ok files -> files | Error _ -> [])
+                |> Map.ofList
+            let mutable entries =
+                existingIdx.Entries
+                |> Map.filter (fun path e -> e.SourcePath.IsNone || Map.containsKey path scanned)
+            for KeyValue (path, fingerprint) in scanned do
+                let abs = PathJoin.Combine(root, path)
+                let unchanged =
+                    match Map.tryFind path entries with
+                    | Some e -> e.Fingerprint = Some fingerprint && e.SourcePath = Some abs
+                    | None -> false
+                if not unchanged then
+                    match deps.ReadLocalFile abs with
+                    | Ok (Some content) ->
+                        match BundleDiscovery.discoverFile deps.ParseYamlBlock path content with
+                        | Some d ->
+                            let existing = Map.tryFind path entries |> Option.defaultValue emptyIndexEntry
+                            let contributions = existing.Contributions |> Map.add ContributionKey.frontmatter d.Contribution
+                            let blended = IndexBlend.blend src.Bundles path contributions
+                            entries <-
+                                entries
+                                |> Map.add path {
+                                    existing with
+                                        Contributions = contributions
+                                        Tags          = blended.Tags
+                                        Description   = blended.Description
+                                        SourcePath    = Some abs
+                                        Fingerprint   = Some fingerprint
+                                        Type          = d.Type
+                                        Title         = d.Title
+                                        OkfStatus     = d.OkfStatus
+                                        Generated     = d.Generated
+                                        Verified      = d.Verified
+                                        StaleAfter    = d.StaleAfter
+                                        Resource      = d.Resource }
+                        | None -> entries <- Map.remove path entries   // untyped concept: not published
+                    | Ok None -> entries <- Map.remove path entries
+                    | Error e -> errors.Add($"source '{src.Name}': reading '{abs}' failed: {e}")
+            deps.WriteSourceIndex src.Name { existingIdx with Entries = entries; SourceHeadSha = None; ConsecutiveShaCheckFailures = 0 } |> ignore
+
     // Populate sources/<name>/index.json and sources/<name>/files/ cache.
     // Called by execute and by KnowledgeSyncService. Non-fatal errors are returned in the result list.
     let populateIndex (deps: Deps) : string list =
@@ -149,6 +214,7 @@ module Sync =
         for src in baseEff.Sources do
             match src.Url with
             | None -> ()
+            | Some url when deps.IsPlainFolder url -> ()   // folder sources are OKF-only: no manifests
             | Some url ->
                 let branch = src.Branch |> Option.defaultValue "HEAD"
                 match deps.FetchRemoteContent url branch [".eru/manifest.json"] with
@@ -192,7 +258,7 @@ module Sync =
                 existingIdx.Entries
                 |> Map.filter (fun path e ->
                     not (Map.containsKey path initialEntries)
-                    && e.ContentHash.IsSome
+                    && (e.ContentHash.IsSome || e.SourcePath.IsSome)
                     && okfBundles |> List.exists (fun b -> Bundle.covers b path))
             let entries = discovered |> Map.fold (fun acc k v -> Map.add k v acc) initialEntries
             deps.WriteSourceIndex src.Name { existingIdx with Entries = entries } |> ignore
@@ -204,6 +270,8 @@ module Sync =
             if not okfBundles.IsEmpty then
                 match src.Url with
                 | None -> ()
+                | Some root when deps.IsPlainFolder root ->
+                    syncFolderSource deps (Config.effectiveFor eff src).OkfIgnorePatterns src root okfBundles errors
                 | Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
                     let existingIdx = readIndexOrEmpty deps src.Name
@@ -292,6 +360,8 @@ module Sync =
                 match src.Url with
                 | None ->
                     errors.Add($"source '{sourceName}' has no URL configured")
+                | Some url when deps.IsPlainFolder url ->
+                    errors.Add($"source '{sourceName}' is a local folder; collection files are not supported for folder sources")
                 | Some url ->
                     let branch = src.Branch |> Option.defaultValue "HEAD"
                     let remotePaths = sourceFiles |> List.map (fun f -> f.RemotePath)
@@ -348,6 +418,7 @@ module Sync =
                 | Some src ->
                     match src.Url with
                     | None -> ()
+                    | Some url when deps.IsPlainFolder url -> ()
                     | Some url ->
                         let branch = src.Branch |> Option.defaultValue "HEAD"
                         let remotePaths = orphans |> List.map (fun e -> e.RemotePath)

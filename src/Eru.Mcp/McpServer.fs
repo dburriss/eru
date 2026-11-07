@@ -29,6 +29,7 @@ let run (deps: Deps) : System.Threading.Tasks.Task<unit> =
         for src in eff.Sources do
             match src.Url with
             | None -> ()
+            | Some url when FolderAdapter.isPlainFolder url -> ()
             | Some url ->
                 match GitAdapter.checkRemoteAccess url with
                 | Ok ()   -> ()

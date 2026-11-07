@@ -6,6 +6,17 @@ open Eru.Cli.OutputFormat
 
 type Cmd = { Command: SourceAdd.Command; Format: OutputFormat }
 
+// A local directory is stored as an absolute path (expanding `~`), so the source keeps working from any cwd.
+// Anything else (a remote URL, an scp-style address, a missing path) is left exactly as typed.
+let normalizeLocation (raw: string) : string =
+    let expanded =
+        if raw = "~" || raw.StartsWith "~/" || raw.StartsWith "~\\" then
+            System.IO.Path.Combine(System.Environment.GetFolderPath System.Environment.SpecialFolder.UserProfile, raw.TrimStart('~').TrimStart('/', '\\'))
+        else raw
+    try
+        if System.IO.Directory.Exists expanded then System.IO.Path.GetFullPath(expanded).TrimEnd('/', '\\') else raw
+    with _ -> raw
+
 let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
     r.TryGetSubCommand() |> Option.bind (function
         | EruArgs.Source args ->
@@ -13,7 +24,7 @@ let (|SourceAddCmd|_|) (r: ParseResults<EruArgs>) =
                 | SourceArgs.Add addArgs ->
                     Some {
                         Command = {
-                            SourceAdd.Command.Url      = addArgs.GetResult    SourceAddArgs.Url
+                            SourceAdd.Command.Url      = normalizeLocation (addArgs.GetResult SourceAddArgs.Url)
                             SourceAdd.Command.Name     = addArgs.TryGetResult SourceAddArgs.Name
                             SourceAdd.Command.Branch   = addArgs.TryGetResult SourceAddArgs.Branch
                             SourceAdd.Command.BasePath = addArgs.TryGetResult SourceAddArgs.Basepath

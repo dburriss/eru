@@ -46,6 +46,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists         = fun p -> List.contains p existingDirs
         GetUtcNow               = fun () -> System.DateTimeOffset(2026, 9, 27, 10, 0, 0, System.TimeSpan.Zero)
         ListLocalFiles          = fun _ -> Ok []

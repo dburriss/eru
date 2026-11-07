@@ -139,7 +139,7 @@ Manage knowledge sources.
 
 ### `eru source add`
 
-Register a git repository or local path as a knowledge source.
+Register a git repository or a local folder as a knowledge source.
 
 ```
 eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [--nested] [--exclude <glob>] [-g] [--dryrun]
@@ -147,7 +147,7 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [--neste
 
 | Argument / Flag | Description |
 |---|---|
-| `<url>` | Git URL or local path of the knowledge source (required) |
+| `<url>` | Git URL, path to a local git repo, or path to a plain local folder (required). An existing directory without `.git` is a [folder source](#local-folder-sources); `~` and relative paths are stored as absolute paths |
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
 | `-p <basepath>` | Explicitly register this path as a manifest bundle |
@@ -157,6 +157,15 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [--neste
 | `--branch <branch>` | Remote inbox only: branch `inbox send` pushes to (default: the repo's default branch). Must be the default branch or a branch that doesn't exist yet — an existing non-default branch is refused so it can't be overwritten. |
 | `-g` | Write to global config (`~/.config/eru/config.json`) |
 | `--dryrun` | Preview without writing |
+
+#### Local folder sources
+
+A directory that exists and is not a git repository is attached as a **folder source**: it is read in place, never cloned or copied into the cache, so `eru cache prune` and `eru cache clear` cannot delete it. Folder sources are OKF-only.
+
+- Register the folder's `okf` bundles with `--scan` (or `eru source bundle add <name> <path> --kind okf`). Only markdown under those bundles is indexed, and only typed concept files, like any OKF bundle.
+- `eru sync` walks the tree with file stats only and re-reads just the files whose modified time or size changed. Files that were deleted, renamed or now match `okf.ignorePatterns` leave the index on the next sync. Dot-directories and `okf.ignorePatterns` directories (`node_modules/**`, `inbox/**`, `apm_modules/**` by default) are never entered, so list big folders there to keep the scan fast.
+- If the folder is missing (an unmounted drive), the old index is kept and sync reports an error.
+- `--branch` and `--basepath` are rejected. Manifests and collection files are not supported for folder sources, and the generated site shows no source link for them.
 
 **Remote inboxes.** With a URL, `eru inbox send` shallow-clones the repo, writes the item under `<rawPath>/<channel>/`, commits it (`inbox: add <slug> (<channel>)`) and pushes — one commit per send. It needs `git` and `gh` on `PATH`; GitHub HTTPS URLs authenticate through your `gh` login, other hosts use whatever git is already configured with. Remote inboxes are send-only: `eru inbox process` and `eru inbox watch` reject them (run those in the repo, e.g. with [gh-aw](../how-to/generate-docs-from-inbox-with-gh-aw.md)).
 
@@ -168,6 +177,7 @@ eru source add https://github.com/my-org/knowledge -n org-knowledge -b main
 eru source add https://github.com/my-org/knowledge --scan   # detect OKF bundles
 eru source add https://github.com/my-org/knowledge --scan --exclude .   # skip the root bundle, register nested ones
 eru source add https://github.com/my-org/knowledge -g   # add to global config
+eru source add ~/second-brain --scan   # plain local folder, read in place
 ```
 
 ### `eru source list`

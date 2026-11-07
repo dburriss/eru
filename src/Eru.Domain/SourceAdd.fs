@@ -15,27 +15,59 @@ module SourceAdd =
     }
 
     let private deriveNameFromUrl (url: string) : string =
-        let segment = url.TrimEnd('/').Split([| '/'; ':' |]) |> Array.last
+        let segment = url.TrimEnd('/', '\\').Split([| '/'; '\\'; ':' |]) |> Array.last
         if segment.EndsWith(".git") then segment.[..segment.Length - 5]
         else segment
 
+    // How bundle detection reads a source: through git for a remote/repo source, straight from disk for a folder.
+    type private Access = {
+        TopLevel : unit -> Result<string list, string>
+        Files    : unit -> Result<string list, string>              // every file path, source-root-relative
+        Fetch    : string list -> Result<(string * string) list, string>
+        // Folder sources are OKF-only, so a convention folder without an okf index is not registered.
+        OkfOnly  : bool
+    }
+
+    let private gitAccess (deps: Deps) (url: string) (branch: string option) : Access =
+        { TopLevel = fun () -> deps.ListRemoteTopLevel url branch
+          Files    = fun () -> deps.ListRemoteFiles url branch None
+          Fetch    = deps.FetchRemoteContent url (branch |> Option.defaultValue "HEAD")
+          OkfOnly  = false }
+
+    let private folderAccess (deps: Deps) (root: string) : Access =
+        { TopLevel = fun () ->
+            let dirs = deps.ListLocalDirectories root |> Result.map (List.map PathUtil.fileName)
+            let files = deps.ListLocalFiles root |> Result.map (List.map PathUtil.fileName)
+            match dirs, files with
+            | Ok d, Ok f -> Ok (d @ f)
+            | Error e, _ | _, Error e -> Error e
+          Files = fun () ->
+            deps.ScanLocalFolder root "" Config.defaultOkfIgnorePatterns |> Result.map (List.map fst)
+          Fetch = fun paths ->
+            let read p =
+                match deps.ReadLocalFile (PathJoin.Combine(root, p)) with
+                | Ok (Some c) -> Some (p, c)
+                | _ -> None
+            Ok (paths |> List.choose read)
+          OkfOnly = true }
+
     // Fallback: the KNOWLEDGE/ (or knowledge/) top-level folder convention.
-    let private detectConventionBundle (deps: Deps) (url: string) (branch: string option) : Bundle list =
+    let private detectConventionBundle (deps: Deps) (access: Access) : Bundle list =
         let candidate =
-            match deps.ListRemoteTopLevel url branch with
+            match access.TopLevel () with
             | Ok entries -> BundleDetect.candidatePath entries
             | Error _    -> None
         match candidate with
         | None -> []
         | Some cp ->
-            let actualBranch = branch |> Option.defaultValue "HEAD"
             let indexPath = if cp = "" then "index.md" else $"{cp}/index.md"
             let hasOkf =
-                match deps.FetchRemoteContent url actualBranch [indexPath] with
+                match access.Fetch [indexPath] with
                 | Ok ((_, content) :: _) ->
                     Frontmatter.parse deps.ParseYamlBlock content |> Frontmatter.okfVersion |> Option.isSome
                 | _ -> false
-            [ { Path = cp; Kind = BundleDetect.detectKind hasOkf } ]
+            if access.OkfOnly && not hasOkf then []
+            else [ { Path = cp; Kind = BundleDetect.detectKind hasOkf } ]
 
     // Directory part of a repo-relative `.../index.md` path ("" for the root).
     let private indexDir (indexPath: string) : string =
@@ -55,10 +87,9 @@ module SourceAdd =
     // With `nested`, every okf bundle is kept, even under a covering root bundle.
     // Directories matching `exclude` are dropped before nesting is resolved, so excluding a root
     // bundle lets its nested bundles be registered on their own.
-    let private scanBundles (deps: Deps) (url: string) (branch: string option) (nested: bool) (exclude: string list) : Bundle list =
-        let actualBranch = branch |> Option.defaultValue "HEAD"
+    let private scanBundles (deps: Deps) (access: Access) (nested: bool) (exclude: string list) : Bundle list =
         let indexPaths =
-            match deps.ListRemoteFiles url branch None with
+            match access.Files () with
             | Ok files ->
                 files
                 |> List.filter (fun p -> p = "index.md" || p.EndsWith "/index.md")
@@ -68,7 +99,7 @@ module SourceAdd =
             match indexPaths with
             | [] -> []
             | _ ->
-                match deps.FetchRemoteContent url actualBranch indexPaths with
+                match access.Fetch indexPaths with
                 | Ok files ->
                     files
                     |> List.filter (fun (_, content) ->
@@ -84,16 +115,19 @@ module SourceAdd =
                 let covered = kept |> List.exists (fun k -> k = "" || d = k || d.StartsWith(k + "/"))
                 dropNested rest (if covered then kept else d :: kept)
         match (if nested then okfDirs else dropNested okfDirs []) with
-        | [] -> detectConventionBundle deps url branch |> List.filter (fun b -> not (isExcluded exclude b.Path))
+        | [] -> detectConventionBundle deps access |> List.filter (fun b -> not (isExcluded exclude b.Path))
         | dirs -> dirs |> List.map (fun d -> { Path = d; Kind = Okf })
 
     let private executeValid (deps: Deps) (cmd: Command) : Result<string, string> =
         let name = cmd.Name |> Option.defaultWith (fun () -> deriveNameFromUrl cmd.Url)
+        let isFolder = deps.IsPlainFolder cmd.Url
 
         let bundles =
             match cmd.BasePath with
             | Some bp -> [ { Path = bp; Kind = Manifest } ]
-            | None when cmd.Scan -> scanBundles deps cmd.Url cmd.Branch cmd.Nested cmd.Exclude
+            | None when cmd.Scan ->
+                let access = if isFolder then folderAccess deps cmd.Url else gitAccess deps cmd.Url cmd.Branch
+                scanBundles deps access cmd.Nested cmd.Exclude
             | None    -> []
 
         let newSource : SourceConfig = {
@@ -105,13 +139,15 @@ module SourceAdd =
         }
 
         let cacheManifest () =
-            let branch = cmd.Branch |> Option.defaultValue "HEAD"
-            match deps.FetchRemoteContent cmd.Url branch [".eru/manifest.json"] with
-            | Ok ((_, raw) :: _) -> deps.CacheSourceManifest name raw |> ignore
-            | _ -> ()
+            if not isFolder then
+                let branch = cmd.Branch |> Option.defaultValue "HEAD"
+                match deps.FetchRemoteContent cmd.Url branch [".eru/manifest.json"] with
+                | Ok ((_, raw) :: _) -> deps.CacheSourceManifest name raw |> ignore
+                | _ -> ()
 
         let detectionNote =
             match bundles, cmd.BasePath with
+            | [], None when isFolder -> "\nLocal folder (read in place, okf bundles only). No bundles registered: use --scan to detect them, or 'eru source bundle add <name> <path> --kind okf'."
             | [], None -> "\nNo bundles registered. Use --scan to detect them, or 'eru source bundle add'."
             | _, None ->
                 bundles
@@ -167,6 +203,8 @@ module SourceAdd =
                         Ok $"Added source '{name}' to .eru/config.json.{detectionNote}"
 
     let execute (deps: Deps) (cmd: Command) : Result<string, string> =
-        if cmd.Nested && not cmd.Scan then Error "--nested only applies together with --scan."
+        if deps.IsPlainFolder cmd.Url && cmd.Branch.IsSome then Error "--branch does not apply to a local folder (it is not a git repository)."
+        elif deps.IsPlainFolder cmd.Url && cmd.BasePath.IsSome then Error "--basepath does not apply to a local folder: folder sources support okf bundles only (use --scan)."
+        elif cmd.Nested && not cmd.Scan then Error "--nested only applies together with --scan."
         elif not (List.isEmpty cmd.Exclude) && not cmd.Scan then Error "--exclude only applies together with --scan."
         else executeValid deps cmd

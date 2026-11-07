@@ -21,7 +21,7 @@ This creates `.eru/config.json`. You now have a place to register knowledge sour
 
 ## 2. Register a knowledge source
 
-A knowledge source is a git repo (or local path) that publishes shareable files:
+A knowledge source is a git repo (or a local folder, read in place) that publishes shareable files:
 
 ```bash
 eru source add https://github.com/my-org/knowledge

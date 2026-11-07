@@ -41,6 +41,8 @@ let private makeDeps
         ListMarkdownFiles       = fun _ -> Ok []
         ExtractLinks            = fun _ -> []
         GetRemoteHeadSha        = fun _ _ -> Error "not implemented"
+        IsPlainFolder           = fun _ -> false
+        ScanLocalFolder         = fun _ _ _ -> Ok []
         DirectoryExists        = fun _ -> true
         GetUtcNow        = fun () -> System.DateTimeOffset.UtcNow
         ListLocalFiles   = fun _ -> Ok []
@@ -469,3 +471,35 @@ let ``disable with global flag edits the global config`` () =
 let ``toggling an unknown source is an error`` () =
     let deps = makeDeps (Some emptyLocal) None [] (ref None) (ref None)
     Assert.True (SourceToggle.execute deps (toggle "nope" false false) |> Result.isError)
+
+// ── Local folder sources ─────────────────────────────────────────────────────
+
+let private folderDeps (written: LocalConfig option ref) =
+    let deps = makeDeps (Some emptyLocal) None [] written (ref None)
+    { deps with
+        IsPlainFolder = fun p -> p = "/notes/second-brain"
+        ParseYamlBlock = Eru.Adapters.YamlAdapter.parse
+        ScanLocalFolder = fun _ _ _ -> Ok [ "index.md", "1:1"; "people/dev.md", "1:2" ]
+        ReadLocalFile = fun p ->
+            if p = "/notes/second-brain/index.md" then Ok (Some "---\nokf_version: 0.2\n---\n") else Ok None
+        FetchRemoteContent = fun _ _ _ -> Error "git must not be used" }
+
+[<Fact>]
+let ``folder source takes its name from the last path segment`` () =
+    let written = ref None
+    assertOk (SourceAdd.execute (folderDeps written) (simpleCmd "/notes/second-brain"))
+    Assert.Equal("second-brain", (LocalConfig.sources written.Value.Value).[0].Name)
+
+[<Fact>]
+let ``folder source rejects --branch and --basepath`` () =
+    let written = ref None
+    assertError (SourceAdd.execute (folderDeps written) { simpleCmd "/notes/second-brain" with Branch = Some "main" })
+    assertError (SourceAdd.execute (folderDeps written) { simpleCmd "/notes/second-brain" with BasePath = Some "x" })
+    Assert.True(written.Value.IsNone)
+
+[<Fact>]
+let ``folder source --scan registers an okf bundle without touching git`` () =
+    let written = ref None
+    assertOk (SourceAdd.execute (folderDeps written) { simpleCmd "/notes/second-brain" with Scan = true })
+    let src = (LocalConfig.sources written.Value.Value).[0]
+    Assert.Equal<Bundle list>([ { Path = ""; Kind = Okf } ], src.Bundles)

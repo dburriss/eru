@@ -58,6 +58,12 @@ module Read =
             | None -> Ok None
             | Some lp -> deps.ReadLocalFile (PathJoin.Combine(deps.GetCwd(), lp))
 
+        // Folder sources are read in place: the index entry carries the file's absolute path.
+        let trySourcePath () =
+            match indexEntry |> Option.bind (fun e -> e.SourcePath) with
+            | None -> Ok None
+            | Some p -> deps.ReadLocalFile p
+
         let tryCache () =
             match indexEntry |> Option.bind (fun e -> e.CacheRelPath) with
             | None -> Ok None
@@ -69,6 +75,8 @@ module Read =
             | Some src ->
             match src.Url with
             | None -> Error $"source '{id.Source}' has no URL configured"
+            | Some url when deps.IsPlainFolder url ->
+                Error $"{EntryId.toString id} not found in local folder '{url}' (run 'eru sync' to refresh the index)"
             | Some url ->
                 let branch = src.Branch |> Option.defaultValue "HEAD"
                 match deps.FetchRemoteContent url branch [id.RemotePath] with
@@ -81,7 +89,7 @@ module Read =
                 | Error e -> Error $"fetching {EntryId.toString id}: {e}"
 
         let cached =
-            [ tryLocal; tryCache ]
+            [ tryLocal; trySourcePath; tryCache ]
             |> List.tryPick (fun attempt -> match attempt () with Ok (Some c) -> Some c | _ -> None)
         match cached with
         | Some content -> Ok content

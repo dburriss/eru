@@ -390,6 +390,10 @@ type IndexEntry = {
     Verified     : Frontmatter.ActorAt list   // OKF: verified
     StaleAfter   : System.DateTimeOffset option // OKF: stale_after
     Resource     : string option              // OKF: resource
+    // Folder sources (a plain local directory read in place): absolute path of the file, and a
+    // "mtimeTicks:size" fingerprint used to re-read only files that changed since the last sync.
+    SourcePath   : string option
+    Fingerprint  : string option
 }
 
 // sources/<name>/index.json's top-level shape. Version mismatch or malformed
@@ -485,6 +489,8 @@ module IndexEntry =
         Verified      = []
         StaleAfter    = None
         Resource      = None
+        SourcePath    = None
+        Fingerprint   = None
     }
 
 module Bundle =

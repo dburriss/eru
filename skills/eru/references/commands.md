@@ -142,7 +142,7 @@ eru source add <url> [-n <name>] [-b <branch>] [-p <basepath>] [--scan] [-g] [--
 
 | Argument / Flag | Description |
 |---|---|
-| `<url>` | Git URL or local path of the knowledge source (required) |
+| `<url>` | Git URL, local git repo path, or plain local folder path (required). A folder without `.git` is read in place (no clone, no cache copy, never pruned), OKF bundles only: use `--scan`; `-b`/`-p` are rejected. Sync re-reads only changed files |
 | `-n <name>` | Override the derived source name |
 | `-b <branch>` | Branch to track |
 | `-p <basepath>` | Explicitly register this path as a manifest bundle |

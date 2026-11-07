@@ -11,6 +11,11 @@ let private resolveAbsPath (sourceName: string) (entry: IndexEntry) (localEntry:
     match localPath with
     | Some p when File.Exists p -> Some p
     | _ ->
+    // Folder sources are searched in place.
+    match entry.SourcePath with
+    | Some p when File.Exists p -> Some p
+    | Some _ -> None
+    | None ->
         match entry.CacheRelPath with
         | Some rel ->
             let abs = Path.Combine(Paths.sourceCacheDir sourceName, rel)

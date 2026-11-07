@@ -11,7 +11,7 @@ description: Use this skill when the user wants to pull, sync, or manage shared 
 
 | Concept | Description |
 |---|---|
-| **Source** | A git repo (or local path) that serves as the canonical origin for shared files |
+| **Source** | A git repo, or a plain local folder read in place (OKF bundles only; `eru source add ~/notes --scan`) that serves as the canonical origin for shared files |
 | **Lock file** | `.eru/eru.lock` — records every pulled file: source, path, and content hash |
 | **Source index** | `~/.cache/eru/sources/<name>/index.json` — per-file tags and descriptions merged from manifest + frontmatter; rebuilt by `eru sync` |
 | **Collection** | A named group of file references that can be pulled as a unit |

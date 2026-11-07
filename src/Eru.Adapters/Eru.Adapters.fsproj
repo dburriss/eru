@@ -23,6 +23,7 @@
     <Compile Include="RemoteInboxAdapter.fs" />
     <Compile Include="ManifestAdapter.fs" />
     <Compile Include="OkfAdapter.fs" />
+    <Compile Include="FolderAdapter.fs" />
     <Compile Include="SourceIndexAdapter.fs" />
     <Compile Include="YamlAdapter.fs" />
     <Compile Include="MarkdownLinkAdapter.fs" />
