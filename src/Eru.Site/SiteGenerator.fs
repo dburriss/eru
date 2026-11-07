@@ -1794,9 +1794,16 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
     let pages = ResizeArray<string * string>()
     let add (path: string) (html: string) = pages.Add((path, html))
 
+    let specFor (browse: bool) (def: PageDef option) =
+        if browse then PageLayout.browseViewSpec settings def else PageLayout.viewSpec settings def
+    // Every view puts the glyph before the name, except a table that leaves out its title column.
+    let showsGlyphs (browse: bool) (def: PageDef option) =
+        let spec = specFor browse def
+        cfg.SiteShowSyncStatus && (spec.View <> "table" || List.contains "title" spec.TableColumns)
+
     let docList (browse: bool) (filterable: bool) (prefix: string) (def: PageDef option) (docs: SiteDocument list) : string =
         let vc = viewContext filterable prefix def
-        let spec = if browse then PageLayout.browseViewSpec settings def else PageLayout.viewSpec settings def
+        let spec = specFor browse def
         match def |> Option.bind (fun d -> d.Group) with
         | Some g -> Views.renderGroups vc spec (FilterEngine.group g docs)
         | None -> Views.renderDocs vc spec docs
@@ -1833,6 +1840,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                     ListHtml = docs |> Option.map (docList (spec.Id = "browse") (filterable (spec.Id = "browse") kind def.Layout) p (Some def))
                     DocCount = docs |> Option.map List.length
                     Searchable = docs.IsSome
+                    SyncGlyphs = showsGlyphs (spec.Id = "browse") (Some def)
                     FacetMode = if spec.Id = "browse" then Widgets.FacetFilter else Widgets.FacetLinks },
                 kind, def.Layout
             | None ->
@@ -1845,6 +1853,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
                             ListHtml = Some (docList true (filterable true BrowsePage Layout.empty) p None model.Documents)
                             DocCount = Some model.Documents.Length
                             Searchable = true
+                            SyncGlyphs = showsGlyphs true None
                             FacetMode = Widgets.FacetFilter }
                     | "sources" -> listPage (HtmlTemplates.sourcesListHtml p model.Sources)
                     | "tags" -> listPage (HtmlTemplates.tagsListHtml p model.Tags)

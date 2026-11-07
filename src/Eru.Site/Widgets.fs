@@ -25,12 +25,13 @@ type PageData = {
     Related     : RelatedLinks option
     CliTips     : (string * string) list
     FacetMode   : FacetMode
+    SyncGlyphs  : bool                   // the list shows sync glyphs, so the query line explains them
 }
 
 module PageData =
     let empty : PageData =
         { Title = ""; TitleHtml = None; Breadcrumbs = []; Doc = None; ContentHtml = None; ListHtml = None
-          DocCount = None; Searchable = false; Related = None; CliTips = []; FacetMode = FacetLinks }
+          DocCount = None; Searchable = false; Related = None; CliTips = []; FacetMode = FacetLinks; SyncGlyphs = false }
 
 /// Site-wide facts widgets need to link to other pages.
 type SiteEnv = {
@@ -248,7 +249,7 @@ let private queryWidget (ctx: WidgetContext) =
     if not ctx.Page.Searchable then ""
     else
         let legend =
-            if not ctx.Env.ShowSyncStatus then ""
+            if not (ctx.Env.ShowSyncStatus && ctx.Page.SyncGlyphs) then ""
             else
                 [ "pulled", "●"; "cached", "◐"; "index-only", "○" ]
                 |> List.map (fun (l, g) -> $"""<span><span class="gl gl-{l}">{g}</span>{l}</span>""")

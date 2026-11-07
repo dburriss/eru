@@ -205,15 +205,11 @@ let private cardsView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument lis
         let bodyHtml = if snippet <> "" then $"<p class=\"card-body\">{snippet}</p>" else ""
         let tagsBlock = if not d.Tags.IsEmpty then $"<div class=\"card-tags\">{tagList d.Tags vc.Prefix vc.TagsLive}</div>" else ""
         let tier = DocFacts.trustTier d.Verified
-        let syncBadge =
-            if vc.ShowSyncStatus then
-                $"""<span class="badge badge-status badge-{DocFacts.statusLabel d.SyncStatus}">{DocFacts.statusLabel d.SyncStatus}</span>"""
-            else ""
+        let glyph = if vc.ShowSyncStatus then syncGlyph d else ""
         $"""<article class="file-card" {docAttrs d}>
   <div class="card-header">
-    <span class="card-title">{titleLink vc d}</span>
+    <span class="card-title">{glyph}{titleLink vc d}</span>
     <span class="badge badge-source">{escapeHtml d.Source}</span>
-    {syncBadge}
     <span class="badge badge-trust badge-{tier}">{tier}</span>
   </div>
   <div class="card-path"><code>{escapeHtml d.RemotePath}</code></div>
@@ -232,7 +228,8 @@ let private listView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument list
             |> List.filter (fun h -> h <> "")
             |> String.concat " "
         let metaBlock = if metaHtml = "" then "" else $"""<span class="doc-list-meta">{metaHtml}</span>"""
-        $"""<li class="doc-list-item" {docAttrs d}><span class="doc-list-title">{titleLink vc d}</span>{metaBlock}</li>"""
+        let glyph = if vc.ShowSyncStatus then syncGlyph d else ""
+        $"""<li class="doc-list-item" {docAttrs d}><span class="doc-list-title">{glyph}{titleLink vc d}</span>{metaBlock}</li>"""
     $"""<ul class="doc-list">
 {docs |> List.map item |> String.concat "\n"}
 </ul>"""
@@ -246,12 +243,12 @@ let private titleCell (vc: ViewContext) (d: SiteDocument) : string =
     let glyph = if vc.ShowSyncStatus then syncGlyph d else ""
     $"""<div class="cell-name">{glyph}{titleLink vc d}<span class="cell-path">{escapeHtml d.Source}/{escapeHtml d.RemotePath}</span></div>{desc}"""
 
-/// One bordered row per document: name and description on the left, source, tags and sync
-/// state on the right. Dense, no header; the ledger theme's default.
+/// One bordered row per document: name (with its sync glyph) and description on the left, source
+/// and tags on the right. Dense, no header; the ledger theme's default.
 let private rowsView (vc: ViewContext) (_spec: ViewSpec) (docs: SiteDocument list) : string =
     let row (d: SiteDocument) =
         let side =
-            [ "source"; "tags" ] @ (if vc.ShowSyncStatus then [ "syncStatus" ] else [])
+            [ "source"; "tags" ]
             |> List.map (fun f -> fieldHtml vc f d)
             |> List.filter (fun h -> h <> "")
             |> String.concat " "
