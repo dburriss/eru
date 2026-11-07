@@ -74,7 +74,7 @@ let makeDeps (sourceIndex: Map<string, IndexEntry>) (content: Map<string, string
         WriteLocalFile          = fun _ _ -> Ok ()
         ReadLocalFile           = fun path ->
             localFiles
-            |> Map.tryPick (fun rel text -> if path = Path.Combine("/repo", rel) then Some text else None)
+            |> Map.tryPick (fun rel text -> if path = PathJoin.Combine("/repo", rel) then Some text else None)
             |> Ok
         DeleteLocalFile         = fun _ -> Ok ()
         HashContent             = fun s -> $"hash:{s}"

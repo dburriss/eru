@@ -21,7 +21,7 @@ module Paths =
 
     /// Themes installed for one project: `<cwd>/.eru/themes/<name>/`.
     let localThemesDir (cwd: string) =
-        IO.Path.Combine(cwd, ".eru", "themes")
+        Eru.PathJoin.Combine(cwd, ".eru", "themes")
 
     /// Themes installed for the user: `<config dir>/eru/themes/<name>/`, next to the global config.
     let userThemesDir () =
