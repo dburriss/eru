@@ -175,6 +175,12 @@ let runReleaseTests () =
     // --nologo makes the test host report "Zero tests ran" (exit 5), so don't pass it.
     runProcess "dotnet" ["test"; "--solution"; solutionPath; "-c"; "Release"; "--no-build"] rootPath |> ignore
 
+/// Prints a red message to stderr (plain when colour is off) and exits without a stack trace.
+let abort (message: string) : 'a =
+    let useColour = isNull (Environment.GetEnvironmentVariable "NO_COLOR") && not Console.IsErrorRedirected
+    if useColour then eprintfn "\u001b[31m%s\u001b[0m" message else eprintfn "%s" message
+    exit 1
+
 /// The local preflight only exercises this machine's OS. CI (build.yml) also runs Windows,
 /// so refuse to release a commit that hasn't been pushed and gone green there.
 let requireGreenCi () =
@@ -191,12 +197,12 @@ let requireGreenCi () =
             out.Split('\n', StringSplitOptions.RemoveEmptyEntries ||| StringSplitOptions.TrimEntries)
             |> Array.map (fun l -> l.Split('\t'))
         if runs.Length = 0 then
-            failwithf "No CI run found for %s. Push it to the remote and wait for build.yml to pass (or use --skip-ci-check)." sha
+            abort (sprintf "CI check failed: no build.yml run found for %s.\nPush it to the remote and wait for CI to pass, or use --skip-ci-check." (sha.Substring(0, 7)))
         // Newest run first; a re-run supersedes earlier failures.
         match runs.[0] with
         | [| "completed"; "success"; _ |] -> printfn "CI is green on all OS legs."
-        | [| "completed"; conclusion; url |] -> failwithf "CI for %s finished with '%s': %s" sha conclusion url
-        | cols -> failwithf "CI for %s is not finished yet (%s). Wait for it to pass, then rerun." sha (String.concat " " cols)
+        | [| "completed"; conclusion; url |] -> abort (sprintf "CI check failed: build.yml finished with '%s' on %s.\n%s" conclusion (sha.Substring(0, 7)) url)
+        | cols -> abort (sprintf "CI check failed: build.yml is still running on %s.\nWait for it to pass, then rerun.\n%s" (sha.Substring(0, 7)) (Array.last cols))
 
 // ---------------------------------------------------------------------------
 // Retag path — no unreleased changes
