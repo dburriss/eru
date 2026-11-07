@@ -8,7 +8,8 @@
 // Normal release flow (when Unreleased changes exist):
 // 1. Reads the current version from src/Eru.Cli/Eru.Cli.fsproj
 // 2. Extracts the "Unreleased" section from CHANGELOG.md
-// 3. Runs a preflight release build and test pass
+// 3. Verifies CI (build.yml, all OS legs incl. Windows) is green on HEAD, then runs a
+//    preflight release build and test pass
 // 4. Prompts the user to select the next version (Major, Minor, or Patch)
 // 5. Updates CHANGELOG.md (stable releases only — prereleases leave it untouched
 //    so entries roll forward into the eventual stable release):
@@ -25,7 +26,7 @@
 // 1. Shows the latest commit hash and message
 // 2. Asks whether to retag that commit with the current version
 // 3. Prompts the user to type the current version to confirm
-// 4. Runs a preflight release build and test pass
+// 4. Verifies CI is green on HEAD, then runs a preflight release build and test pass
 // 5. Warns that the local tag will be deleted and recreated, and the remote
 //    tag will be force-pushed if the user chooses to push
 // 6. Deletes the existing local tag (if present) and recreates it at HEAD
@@ -35,6 +36,7 @@
 //   --dry-run        Simulate the process without making any changes to disk or git.
 //   --allow-dirty    Allow running with a dirty working tree.
 //   --require-clean  Fail if the working tree is dirty.
+//   --skip-ci-check  Don't require a green CI run (build.yml) on HEAD before releasing.
 //   --fsproj <path>  Relative path from repo root to the tool .fsproj (required).
 //   --solution <path> Relative path from repo root to the solution file (required).
 //
@@ -80,6 +82,7 @@ let requireElement (parent: XElement) (name: XName) =
 
 let args = fsi.CommandLineArgs |> Array.skip 1
 let isDryRun = args |> Array.contains "--dry-run"
+let skipCiCheck = args |> Array.contains "--skip-ci-check"
 let allowDirty =
     if args |> Array.contains "--require-clean" then false
     else true
@@ -172,6 +175,29 @@ let runReleaseTests () =
     // --nologo makes the test host report "Zero tests ran" (exit 5), so don't pass it.
     runProcess "dotnet" ["test"; "--solution"; solutionPath; "-c"; "Release"; "--no-build"] rootPath |> ignore
 
+/// The local preflight only exercises this machine's OS. CI (build.yml) also runs Windows,
+/// so refuse to release a commit that hasn't been pushed and gone green there.
+let requireGreenCi () =
+    if skipCiCheck then
+        printfn "Skipping CI check (--skip-ci-check)."
+    else
+        let sha = runProcess "git" ["rev-parse"; "HEAD"] rootPath
+        printfn "Checking CI for %s..." (sha.Substring(0, 7))
+        let out =
+            runProcess "gh" ["run"; "list"; "--workflow"; "build.yml"; "--commit"; sha
+                             "--json"; "status,conclusion,url"; "--jq"
+                             ".[] | [.status, .conclusion, .url] | @tsv"] rootPath
+        let runs =
+            out.Split('\n', StringSplitOptions.RemoveEmptyEntries ||| StringSplitOptions.TrimEntries)
+            |> Array.map (fun l -> l.Split('\t'))
+        if runs.Length = 0 then
+            failwithf "No CI run found for %s. Push it to the remote and wait for build.yml to pass (or use --skip-ci-check)." sha
+        // Newest run first; a re-run supersedes earlier failures.
+        match runs.[0] with
+        | [| "completed"; "success"; _ |] -> printfn "CI is green on all OS legs."
+        | [| "completed"; conclusion; url |] -> failwithf "CI for %s finished with '%s': %s" sha conclusion url
+        | cols -> failwithf "CI for %s is not finished yet (%s). Wait for it to pass, then rerun." sha (String.concat " " cols)
+
 // ---------------------------------------------------------------------------
 // Retag path — no unreleased changes
 // ---------------------------------------------------------------------------
@@ -191,6 +217,8 @@ if unreleasedContent.IsEmpty then
     if typed <> versionString then
         eprintfn "Version mismatch — expected '%s', got '%s'. Aborting." versionString typed
         exit 1
+
+    requireGreenCi ()
 
     if isDryRun then
         printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
@@ -237,6 +265,8 @@ if unreleasedContent.IsEmpty then
 // ---------------------------------------------------------------------------
 // Normal release path — unreleased changes exist
 // ---------------------------------------------------------------------------
+
+requireGreenCi ()
 
 if isDryRun then
     printfn "[Dry Run] Would run: dotnet build \"%s\" -c Release --nologo --no-incremental" solutionPath
