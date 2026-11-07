@@ -6,7 +6,7 @@ open Eru.Site
 open Eru.Site.Views
 open Eru.Tests.SiteTestSupport
 
-let private vc : ViewContext = { Prefix = "../"; TagsLive = true; Open = OpenPage; SourceUrl = (fun _ -> None); Filterable = false }
+let private vc : ViewContext = { Prefix = "../"; TagsLive = true; Open = OpenPage; SourceUrl = (fun _ -> None); Filterable = false; ShowSyncStatus = false }
 
 let private docs =
     [ { baseDoc with Title = "Alpha"; Type = Some "runbook"; Tags = [ "ops"; "has space" ]; Bundle = Some "kb/ops"; Status = Some "stable" }
@@ -88,7 +88,7 @@ let ``sourceFileUrl handles ssh, gitlab and local urls`` () =
 
 [<Fact>]
 let ``table title cell leads with the sync glyph`` () =
-    let html = renderDocs vc { spec "table" with TableColumns = [ "title" ] } docs
+    let html = renderDocs { vc with ShowSyncStatus = true } { spec "table" with TableColumns = [ "title" ] } docs
     Assert.Contains("class=\"gl gl-pulled\"", html)
     Assert.Contains("class=\"gl gl-index-only\"", html)
 
@@ -104,3 +104,19 @@ let ``other pages keep tag links`` () =
     let html = renderDocs vc { spec "table" with TableColumns = [ "tags" ] } docs
     Assert.DoesNotContain("data-add=", html)
     Assert.Contains("class=\"tag\"", html)
+
+[<Theory>]
+[<InlineData("cards")>]
+[<InlineData("table")>]
+[<InlineData("rows")>]
+let ``listings hide the sync state unless showSyncStatus is on`` (view: string) =
+    let off = renderDocs vc { spec view with TableColumns = [ "title" ] } docs
+    Assert.DoesNotContain("class=\"gl ", off)
+    Assert.DoesNotContain("badge-status", off)
+    let on = renderDocs { vc with ShowSyncStatus = true } { spec view with TableColumns = [ "title" ] } docs
+    Assert.True(on.Contains "class=\"gl " || on.Contains "badge-status")
+
+[<Fact>]
+let ``hiding the sync state keeps the data-sync filter attribute`` () =
+    let html = renderDocs vc { spec "table" with TableColumns = [ "title" ] } docs
+    Assert.Contains("data-sync=", html)

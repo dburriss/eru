@@ -99,6 +99,8 @@ type ViewContext = {
     SourceUrl : SiteDocument -> string option
     /// True on pages with the query line: source and tag cells become buttons that add a filter.
     Filterable : bool
+    /// Show the sync-state glyph and badge (pulled, cached, index-only) in listings.
+    ShowSyncStatus : bool
 }
 
 type ViewSpec = {
@@ -203,11 +205,15 @@ let private cardsView (vc: ViewContext) (spec: ViewSpec) (docs: SiteDocument lis
         let bodyHtml = if snippet <> "" then $"<p class=\"card-body\">{snippet}</p>" else ""
         let tagsBlock = if not d.Tags.IsEmpty then $"<div class=\"card-tags\">{tagList d.Tags vc.Prefix vc.TagsLive}</div>" else ""
         let tier = DocFacts.trustTier d.Verified
+        let syncBadge =
+            if vc.ShowSyncStatus then
+                $"""<span class="badge badge-status badge-{DocFacts.statusLabel d.SyncStatus}">{DocFacts.statusLabel d.SyncStatus}</span>"""
+            else ""
         $"""<article class="file-card" {docAttrs d}>
   <div class="card-header">
     <span class="card-title">{titleLink vc d}</span>
     <span class="badge badge-source">{escapeHtml d.Source}</span>
-    <span class="badge badge-status badge-{DocFacts.statusLabel d.SyncStatus}">{DocFacts.statusLabel d.SyncStatus}</span>
+    {syncBadge}
     <span class="badge badge-trust badge-{tier}">{tier}</span>
   </div>
   {bodyHtml}
@@ -236,14 +242,15 @@ let private titleCell (vc: ViewContext) (d: SiteDocument) : string =
         match d.Description with
         | Some t -> $"""<div class="cell-desc">{escapeHtml t}</div>"""
         | None -> ""
-    $"""<div class="cell-name">{syncGlyph d}{titleLink vc d}</div>{desc}"""
+    let glyph = if vc.ShowSyncStatus then syncGlyph d else ""
+    $"""<div class="cell-name">{glyph}{titleLink vc d}</div>{desc}"""
 
 /// One bordered row per document: name and description on the left, source, tags and sync
 /// state on the right. Dense, no header; the ledger theme's default.
 let private rowsView (vc: ViewContext) (_spec: ViewSpec) (docs: SiteDocument list) : string =
     let row (d: SiteDocument) =
         let side =
-            [ "source"; "tags"; "syncStatus" ]
+            [ "source"; "tags" ] @ (if vc.ShowSyncStatus then [ "syncStatus" ] else [])
             |> List.map (fun f -> fieldHtml vc f d)
             |> List.filter (fun h -> h <> "")
             |> String.concat " "

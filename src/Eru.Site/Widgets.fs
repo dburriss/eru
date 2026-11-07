@@ -36,6 +36,8 @@ module PageData =
 type SiteEnv = {
     Model     : SiteModel
     PageLinks : Map<string, string * string>   // page id -> (label, site-root-relative url)
+    /// Whether listings show the sync-state glyph; the query legend follows it.
+    ShowSyncStatus : bool
 }
 
 type WidgetContext = {
@@ -241,14 +243,18 @@ let private queryWidget (ctx: WidgetContext) =
     if not ctx.Page.Searchable then ""
     else
         let legend =
-            [ "pulled", "●"; "cached", "◐"; "index-only", "○" ]
-            |> List.map (fun (l, g) -> $"""<span><span class="gl gl-{l}">{g}</span>{l}</span>""")
-            |> String.concat ""
-        $"""<div id="search-container" class="query" style="display:none" data-query>
+            if not ctx.Env.ShowSyncStatus then ""
+            else
+                [ "pulled", "●"; "cached", "◐"; "index-only", "○" ]
+                |> List.map (fun (l, g) -> $"""<span><span class="gl gl-{l}">{g}</span>{l}</span>""")
+                |> String.concat ""
+        let hideKeys = if ctx.Env.ShowSyncStatus then "" else " data-hide-keys=\"status\""
+        let hint = if ctx.Env.ShowSyncStatus then "tag: source: status:" else "tag: source: type:"
+        $"""<div id="search-container" class="query" style="display:none" data-query{hideKeys}>
   <div class="q-bar">
     <span class="q-prompt" aria-hidden="true">&gt;</span>
     <span class="q-tokens" data-q-tokens></span>
-    <input type="text" id="search-input" class="q-input" placeholder="Search, or type tag: source: status:" aria-label="Search and filter files" autocomplete="off" spellcheck="false" />
+    <input type="text" id="search-input" class="q-input" placeholder="Search, or type {hint}" aria-label="Search and filter files" autocomplete="off" spellcheck="false" />
     <kbd>/</kbd>
   </div>
   <div class="q-pop" data-q-pop hidden></div>

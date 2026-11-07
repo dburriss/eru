@@ -47,6 +47,7 @@ settings. Custom themes are folders with `theme.json` (`{ "description", "site":
 | `site.pages` | Map of page id to definition, or `false` to drop a built-in |
 | `site.document` | `layout`, `open`, `rules` for document pages |
 | `site.ignorePatterns`, `site.hideEmptyBundles` | Exclude files / empty bundles |
+| `site.showSyncStatus` | Show the sync-state glyph/badge (pulled, cached, index-only) in listings (default `false`) |
 
 ## Layout slots
 

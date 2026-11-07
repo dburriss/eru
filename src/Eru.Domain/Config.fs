@@ -245,6 +245,7 @@ type EffectiveConfig = {
     AllowBinaries             : bool
     SiteIgnorePatterns        : string list
     SiteHideEmptyBundles      : bool
+    SiteShowSyncStatus        : bool
     Site                      : SiteSettings
     OkfIgnorePatterns         : string list
     SearchMode                : SearchMode
@@ -569,6 +570,7 @@ module Config =
     let defaultAllowBinaries = false
     let defaultSiteIgnorePatterns = ["index.md"; "log.md"; "README.md"]
     let defaultSiteHideEmptyBundles = false
+    let defaultSiteShowSyncStatus = false
     // Repo conventions that hold non-concept markdown. Anchored at the bundle root;
     // dot-directories are always skipped separately (see Patterns.isOkfIgnored).
     let defaultOkfIgnorePatterns = ["apm_modules/**"; "inbox/**"; "node_modules/**"]
@@ -862,6 +864,7 @@ module Config =
                 AllowBinaries = first3 eFiles lFiles gFiles (fun (s: FilesSection) -> s.AllowBinaries) |> Option.defaultValue defaultAllowBinaries
                 SiteIgnorePatterns = first3 eSite lSite gSite (fun (s: SiteSection) -> s.IgnorePatterns) |> Option.defaultValue defaultSiteIgnorePatterns
                 SiteHideEmptyBundles = first3 eSite lSite gSite (fun (s: SiteSection) -> s.HideEmptyBundles) |> Option.defaultValue defaultSiteHideEmptyBundles
+                SiteShowSyncStatus = first3 eSite lSite gSite (fun (s: SiteSection) -> s.ShowSyncStatus) |> Option.defaultValue defaultSiteShowSyncStatus
                 Site = site
                 OkfIgnorePatterns = resolveOkfIgnorePatternsWith envCfg globalCfg localCfg
                 SearchMode = searchMode
@@ -1200,6 +1203,7 @@ module EffectiveConfig =
         AllowBinaries             = Config.defaultAllowBinaries
         SiteIgnorePatterns        = Config.defaultSiteIgnorePatterns
         SiteHideEmptyBundles      = Config.defaultSiteHideEmptyBundles
+        SiteShowSyncStatus        = Config.defaultSiteShowSyncStatus
         Site                      = SiteSettings.empty
         OkfIgnorePatterns         = Config.defaultOkfIgnorePatterns
         SearchMode                = Config.defaultSearchMode

@@ -112,6 +112,17 @@ let ``merge prefers local SiteHideEmptyBundles over global default`` () =
     let overridden = Config.merge (Some g) (Some l) |> unwrapOk "hide empty local override"
     Assert.False overridden.SiteHideEmptyBundles
 
+[<Fact>]
+let ``merge defaults SiteShowSyncStatus to false and lets local override global`` () =
+    let none = Config.merge (Some (makeGlobal [] [])) None |> unwrapOk "show sync default"
+    Assert.False none.SiteShowSyncStatus
+    let g = { makeGlobal [] [] with Site = Some { SiteSection.empty with ShowSyncStatus = Some true } }
+    let globalOnly = Config.merge (Some g) None |> unwrapOk "show sync global"
+    Assert.True globalOnly.SiteShowSyncStatus
+    let l : LocalConfig = { LocalConfig.empty with Site = Some { SiteSection.empty with ShowSyncStatus = Some false } }
+    let overridden = Config.merge (Some g) (Some l) |> unwrapOk "show sync local"
+    Assert.False overridden.SiteShowSyncStatus
+
 // ── merge: source ordering ───────────────────────────────────────────────────
 
 [<Fact>]

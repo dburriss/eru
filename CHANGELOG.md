@@ -4,6 +4,7 @@
 
 ### Changed
 
+- **Breaking:** the sync-state glyph (`●`/`◐`/`○`) and badge no longer show in site listings by default. Set `site.showSyncStatus` to `true` (or `ERU__SITE__SHOWSYNCSTATUS=true`) to show them. The `sync:` filter and an explicit `syncStatus` table column are unchanged.
 - **Breaking:** the `top` layout slot is renamed `nav`. A config that puts page ids or links in `top` now fails with a message pointing to `nav`; rename the key (also `ERU__SITE__LAYOUT__TOP__*` to `ERU__SITE__LAYOUT__NAV__*`). `top` is now a full-width widget band.
 - **Breaking:** the `query` widget is no longer valid in `main`; it goes in `toolbar`, `left` or `right`. Browse now shows `title` in `top`, the query line in `toolbar` and `list` in `main`.
 - **Breaking:** the generated site has a new terminal look: monospace type, square corners, hairline borders and an orange accent. The CSS variable names are unchanged, so a `custom.css` that sets `--color-*`, `--font-family` or `--radius` still applies, but overrides of component classes may need a second look.

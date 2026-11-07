@@ -46,13 +46,26 @@ let ``no config renders the refreshed defaults`` () =
         Assert.Contains("id=\"search-input\"", index)
         Assert.Contains("doc-table", index)
         Assert.Contains("data-add=\"source:src\"", index)
-        Assert.Contains("gl gl-pulled", index)
+        Assert.DoesNotContain("gl gl-pulled", index)
+        Assert.Contains("data-hide-keys=\"status\"", index)
         Assert.Contains("data-doc-list", index)
         // document page: facets on the left, toc on the right
         let doc = readOut out "files/src/ops_restart.md.html"
         Assert.Contains("data-facet-mode=\"links\"", doc)
         Assert.Contains("class=\"toc\"", doc)
         Assert.Contains("has-left has-right", doc))
+
+[<Fact>]
+let ``showSyncStatus brings back the sync glyph and its legend`` () =
+    withOutDir (fun outDir ->
+        let cfg = { cfgWithSite "{}" with SiteShowSyncStatus = true }
+        match SiteGenerator.generate deps cfg { GenerateOptions.defaults with OutputDir = outDir } with
+        | Error e -> Assert.Fail e
+        | Ok () ->
+            let index = readOut outDir "index.html"
+            Assert.Contains("gl gl-pulled", index)
+            Assert.Contains("q-legend", index)
+            Assert.DoesNotContain("data-hide-keys", index))
 
 [<Fact>]
 let ``disabled slots leave no region`` () =

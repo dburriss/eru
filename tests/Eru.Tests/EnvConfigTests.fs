@@ -152,6 +152,7 @@ let ``every settings section can be overridden`` () =
                     "ERU__OKF__IGNOREPATTERNS__0", "vendor/**"
                     "ERU__SITE__IGNOREPATTERNS__0", "TODO.md"
                     "ERU__SITE__HIDEEMPTYBUNDLES", "true"
+                    "ERU__SITE__SHOWSYNCSTATUS", "true"
                     "ERU__INBOX__DEFAULT", "team"
                     "ERU__INBOX__WATCHINTERVALSECONDS", "5" ] None None
     Assert.Equal(Hybrid, eff.SearchMode)
@@ -159,6 +160,7 @@ let ``every settings section can be overridden`` () =
     Assert.Equal<string list>([ "vendor/**" ], eff.OkfIgnorePatterns)
     Assert.Equal<string list>([ "TODO.md" ], eff.SiteIgnorePatterns)
     Assert.True eff.SiteHideEmptyBundles
+    Assert.True eff.SiteShowSyncStatus
     Assert.Equal(Some "team", eff.DefaultInbox)
     Assert.Equal(5, eff.InboxWatchIntervalSeconds)
 

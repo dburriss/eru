@@ -118,6 +118,7 @@ module ConfigCmd =
         "search.ignorePatterns",          Some (defaultOf Config.defaultSearchIgnorePatterns)
         "site.ignorePatterns",            Some (defaultOf Config.defaultSiteIgnorePatterns)
         "site.hideEmptyBundles",          Some (defaultOf Config.defaultSiteHideEmptyBundles)
+        "site.showSyncStatus",            Some (defaultOf Config.defaultSiteShowSyncStatus)
         "site.theme",                     Some (defaultOf SiteVocabulary.defaultTheme)
         "inbox.default",                  None
         "inbox.watchIntervalSeconds",     Some (defaultOf 30)

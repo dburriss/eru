@@ -32,7 +32,7 @@ module EnvConfig =
     let private vocabulary : Map<string, Map<string, string>> =
         let keys (names: string list) = names |> List.map (fun n -> n.ToLowerInvariant(), n) |> Map.ofList
         Map.ofList [
-            "site",   keys [ "ignorePatterns"; "hideEmptyBundles"; "theme"; "home"; "defaultView"; "cards"; "layout"; "pages"; "document" ]
+            "site",   keys [ "ignorePatterns"; "hideEmptyBundles"; "showSyncStatus"; "theme"; "home"; "defaultView"; "cards"; "layout"; "pages"; "document" ]
             "okf",    keys [ "ignorePatterns"; "fixTypes"; "defaultType" ]
             "search", keys [ "mode"; "ignorePatterns" ]
             "mcp",    keys [ "refreshIntervalMinutes" ]

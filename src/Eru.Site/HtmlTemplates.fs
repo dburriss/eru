@@ -88,7 +88,8 @@ let emptyModel : SiteModel =
 /// Page links for the built-in pages with no configuration.
 let defaultEnv (model: SiteModel) : SiteEnv =
     { Model = model
-      PageLinks = PageSpecs.resolve SiteSettings.empty |> PageSpecs.pageLinks }
+      PageLinks = PageSpecs.resolve SiteSettings.empty |> PageSpecs.pageLinks
+      ShowSyncStatus = false }
 
 let private indexUrl (env: SiteEnv) (p: string) (id: string) : string option =
     env.PageLinks.TryFind id |> Option.map (fun (_, url) -> p + url)

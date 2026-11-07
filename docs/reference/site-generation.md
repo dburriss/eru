@@ -222,7 +222,7 @@ OR-ed, different keys are AND-ed, and the counts in the completion list follow t
 counts. Values with a space take quotes: `tag:"has space"`. The query is kept in the address as `?q=`, so a
 filtered view can be linked. Press `/` to focus the line, `j` and `k` to move through the rows and enter to open one.
 
-The status of each file shows as a glyph before its name: `●` pulled, `◐` cached, `○` index-only.
+With `site.showSyncStatus` set to `true`, the sync state of each file shows as a glyph before its name: `●` pulled, `◐` cached, `○` index-only. It is hidden by default; the `sync:` filter works either way.
 
 Browse shows a table of name, source and tags unless `defaultView` or `pages.browse.view` says otherwise. To move the
 query line into a column, set `"layout": { "toolbar": false, "left": ["query", "facets"] }`; `query` is valid in `toolbar`,

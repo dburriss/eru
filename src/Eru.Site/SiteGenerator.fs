@@ -1052,7 +1052,9 @@ let private appJs = """
     qTokens = qEl.querySelector('[data-q-tokens]');
     qPop = qEl.querySelector('[data-q-pop]');
     var keys = qEl.querySelector('[data-q-keys]');
+    var hidden = (qEl.getAttribute('data-hide-keys') || '').split(' ');
     KEY_BUTTONS.forEach(function (key) {
+      if (hidden.indexOf(key) >= 0) return;
       var n = (allValues[KEYS[key]] || []).length;
       if (!n) return;
       var b = document.createElement('button');
@@ -1634,7 +1636,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
 
     let now = deps.GetUtcNow()
     let specs = PageSpecs.resolve settings
-    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs }
+    let env : Widgets.SiteEnv = { Model = model; PageLinks = PageSpecs.pageLinks specs; ShowSyncStatus = cfg.SiteShowSyncStatus }
     let isLive (id: string) = env.PageLinks.ContainsKey id
 
     let sourceUrlFor (d: SiteDocument) : string option =
@@ -1644,7 +1646,7 @@ let generate (deps: Deps) (cfg: EffectiveConfig) (opts: GenerateOptions) : Resul
 
     let viewContext (browse: bool) (prefix: string) (def: PageDef option) : Views.ViewContext =
         { Prefix = prefix; TagsLive = isLive "tags"; Open = PageLayout.openTarget settings def; SourceUrl = sourceUrlFor
-          Filterable = browse }
+          Filterable = browse; ShowSyncStatus = cfg.SiteShowSyncStatus }
 
     // link targets for rewriting links inside content pages
     let docUrls =

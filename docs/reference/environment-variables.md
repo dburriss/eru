@@ -31,6 +31,7 @@ written, and what happens on a bad value are described in
 | `okf.defaultType` | `ERU__OKF__DEFAULTTYPE` | string |
 | `site.ignorePatterns` | `ERU__SITE__IGNOREPATTERNS__0`, `__1`, … | list of globs |
 | `site.hideEmptyBundles` | `ERU__SITE__HIDEEMPTYBUNDLES` | `true` or `false` |
+| `site.showSyncStatus` | `ERU__SITE__SHOWSYNCSTATUS` | `true` or `false` |
 | `site.theme` | `ERU__SITE__THEME` | theme name |
 | `site.home` | `ERU__SITE__HOME` | page id |
 | `site.defaultView` | `ERU__SITE__DEFAULTVIEW` | `cards`, `list`, `table` or `rows` |

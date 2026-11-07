@@ -189,6 +189,7 @@ module SiteVocabulary =
 type SiteSection = {
     IgnorePatterns   : string list option
     HideEmptyBundles : bool option
+    ShowSyncStatus   : bool option
     Theme            : string option
     Home             : string option
     DefaultView      : string option
@@ -200,7 +201,7 @@ type SiteSection = {
 
 module SiteSection =
     let empty : SiteSection =
-        { IgnorePatterns = None; HideEmptyBundles = None; Theme = None; Home = None; DefaultView = None
+        { IgnorePatterns = None; HideEmptyBundles = None; ShowSyncStatus = None; Theme = None; Home = None; DefaultView = None
           Cards = None; Layout = None; Pages = None; Document = None }
 
 module SiteSettings =
