@@ -8,7 +8,11 @@ Do not write or scaffold any code unless the user explicitly uses the word **imp
 
 ## Branches and worktrees
 
-Do not create branches or worktrees by default. Work on the current `HEAD`. If you think a branch or worktree is necessary (for example, to keep unrelated work apart), ask first.
+**Never create, switch, rename or delete a branch or worktree unless the user asks for it in that message.** That covers `git checkout -b`, `git switch -c`, `git branch <name>`, `git worktree add`, `EnterWorktree`, and also moving to another existing branch with `git checkout` or `git switch`. A request such as "commit this" or "implement" is not permission to branch. Work on the current `HEAD` and commit there. If you think a branch or worktree is necessary (for example, to keep unrelated work apart), ask first and wait for the answer.
+
+Before the first commit of a session, run `git branch --show-current`. If it is not `main`, or its name does not match the work you were asked to do, say so and ask where the commit should go before committing. Do not assume the branch you start on is the right one. `main` is where finished work lives: after a branch has been merged into it, do not leave the branch behind.
+
+Branches are normally not wanted in this repo. When one turns up, report it. Do not build on it silently.
 
 ## Commits
 
